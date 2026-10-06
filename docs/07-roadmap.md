@@ -34,12 +34,28 @@ repos we change are forked, everything else syncs from upstream.
 - The build tree uses the upstream manifest plus `.repo/local_manifests/envs.xml`, which
   redirects those projects to the forks.
 - The build tree uses `scripts/envs-local-manifest.xml` from this repo, symlinked as that local manifest.
-- On `n5` everything lives under `/mnt/flash/home/faeton/work/grapheneos/`: `grapheneos-envs/`
-  (this repo), `grapheneos-17/` (build tree, `repo init -b 17` done 2026-10-06, first sync
-  started the same day in tmux session `grapheneos`), `bin/repo` (launcher).
+- On `n5` the workspace is `/mnt/flash/scratch/grapheneos/` (`~/work/grapheneos` symlinks to
+  it; `flash/scratch` is unsnapshotted and not backed up): `grapheneos-17/` (build tree,
+  `repo init -b 17` done 2026-10-06), `bin/repo` (launcher), and `grapheneos-envs` → a symlink to
+  this repo at `~/work/grapheneos-envs` on the backed-up `flash/home` (moved 2026-10-06).
 - Open on `n5`: its SSH key is not registered with GitHub, so it can fetch the public forks but
-  cannot push or pull this private repo yet; no `git-lfs`; `flash/home` has periodic snapshots,
-  so build output should go to a dataset without them (`OUT_DIR`) before the first build.
+  cannot push or pull this private repo yet; no `git-lfs`. Build output (`OUT_DIR`) stays under
+  `flash/scratch`, never `flash/home`.
+
+#### n5 workspace phases
+
+Track for getting n5 from "source checked out" to "running Stage 1".
+
+| Phase | Goal | Status |
+|---|---|---|
+| W0 | Workspace guide, repo on backed-up dataset, full tree synced | Guide + move done 2026-10-06. First sync (tmux `grapheneos`) died around 15:40 with 675/683 projects; missing `cts`, `frameworks/base`, `frameworks/layoutlib`, `hardware/ti/am57x`, `kernel/configs`, `kernel/prebuilts/6.1/{arm64,x86_64}`, `kernel/prebuilts/6.12/arm64`. Re-run 19:29 in tmux `grapheneos-sync` → `sync.log`. |
+| W1 | Incus instance (Ubuntu 24.04) with the scratch tree mounted and `/dev/kvm` | Not started. TrueNAS 25.10.7; `virt.global.config` is `NO_POOL` (Incus not set up). Human-approved step. |
+| W2 | First emulator build of unmodified 17, headless, `adb` from m3max | Blocked on W1 |
+| W3 | Re-verify docs 03/04/06 against the full tree; B2–B8 (full tree has tests, AMS, `UserControllerHelper`) | Can start once `frameworks/base` is checked out |
+| W4+ | Stages 1–6 below | — |
+
+n5 facts as of 2026-10-06 19:30: load ≈ 0.4, ~35 GB RAM available, 645 GB free in `flash/scratch`
+(700 GB quota, `.repo` is 41 GB). That quota covers the ~90 GiB source and ~100 GiB of build output.
 - `patches/` stays the deliverable: `git format-patch upstream/17..envs-17` per stage.
 
 Setup (human-run):
