@@ -1,0 +1,103 @@
+# 04 — Alternate credentials → actions
+
+Design draft. Generalises the duress hook (doc 03) from "one alternate pair, one action"
+to "a small table of alternate credentials, each bound to an action".
+
+Status: **proposal, nothing implemented.** Revision references: frameworks_base `84183aff`.
+
+## Motivation
+
+Today there are exactly two outcomes besides "wrong": unlock, and wipe. Upstream has an open
+discussion about a third: a credential that returns the device to the Before-First-Unlock
+state (os-issue-tracker #8505 — number taken from the original idea sketch, **verify before
+citing it anywhere**). BFU is the state in which no user's credential-encrypted storage keys
+are in memory; today the owner reaches it with a reboot or the auto-reboot timer.
+
+A dispatch table makes that a small addition instead of a second copy of the duress code.
+
+## Actions considered
+
+| Id | Action | Effect | Reversible | Stage |
+|---|---|---|---|---|
+| `WIPE` | existing duress | destroy all keys, power off | no | exists |
+| `REBOOT_BFU` | reboot immediately | all CE keys leave memory; device asks for credential again | yes | roadmap Stage 2 |
+| `END_SESSIONS` | stop all secondary users, lock | secondary users' CE keys evicted, owner stays AFU | yes | optional, after Stage 3 |
+| `ENTER_USER` | start another user's unlock | never a row in this table (D2); see roadmap Stages 3–4 | yes | roadmap Stages 3–4 |
+
+`REBOOT_BFU` is the recommended first target: no new storage semantics, trivially testable,
+and directly useful on its own.
+
+## Proposed shape
+
+```
+LS/AlternateCredentials.java      table: {type, salt, stretched, actionId}, versioned blob
+LS/AlternateCredentialHelper.java replaces DuressPasswordHelper; same hook point
+LS/actions/WipeAction.java        = today's DuressWipe.run
+LS/actions/RebootBfuAction.java   PowerManagerService.lowLevelReboot(...)
+```
+
+- Hook stays where it is: `finally` of `LockSettingsService.doVerifyCredential` (`:2769`).
+- `onVerifyCredentialResult` keeps its contract: return at once when the primary matched;
+  otherwise duplicate the credential, check on the background thread, zeroize.
+- Storage: bump `DuressCredentials` `VERSION` (currently `0`, `DuressCredentials.java:69`) and
+  append an action byte per entry; version 0 blobs load as `{pin→WIPE, password→WIPE}`.
+- Binder surface: keep `setDuressCredentials` / `hasDuressCredentials` for compatibility; add
+  a parallel pair for the new action instead of a generic "set table" call, so each action
+  can be permission-checked and reasoned about separately.
+- Settings: one extra screen modelled on `DuressPasswordSetupActivity`.
+
+`RebootBfuAction` sketch:
+
+```java
+static void run() {
+    // no key destruction; a plain reboot is what puts the device back into BFU
+    PowerManagerService.lowLevelReboot("alt-credential");
+}
+```
+
+`lowLevelReboot` is at `PowerManagerService.java:5119`; the duress path uses its sibling
+`lowLevelShutdown` (`:5105`). Whether a low-level reboot (skipping the orderly shutdown
+sequence) is appropriate here, versus `PowerManager.reboot`, is open question Q3.
+
+## Design rules
+
+- **D1. Precedence.** Primary credential first, then alternates in a fixed order with `WIPE`
+  evaluated before anything else. Never let a reversible action shadow the wipe.
+- **D2. Software-checked alternates may only trigger actions that reduce access.**
+  The alternate table is verified by `system_server` from data on `/data`, with no hardware
+  rate limit. `WIPE`, `REBOOT_BFU` and `END_SESSIONS` are safe under that rule: learning the
+  alternate gives an attacker nothing but the ability to lock the owner out or erase the
+  device. Anything that *grants* access (`ENTER_USER`) must go through the target user's
+  normal hardware-backed verification instead — it cannot be a row in this table.
+- **D3. Collisions rejected at enrolment.** An alternate must differ from every other
+  alternate of the same type. It cannot be compared with primary credentials of other users
+  (those can't be read), which is why D1 matters. Also re-check when the owner changes their
+  primary credential: an alternate equal to the new primary becomes unreachable (P1 in doc 03),
+  which should at least be surfaced in Settings.
+- **D4. Same observable response.** The binder result and its timing for a non-matching
+  credential must not depend on whether alternates exist or matched (P3 in doc 03).
+- **D5. Opt-in, off by default, owner credential required to enrol** (P4).
+- **D6. One alternate per (type, action).** Keeps the UI explainable and the stretch cost per
+  failed attempt bounded: each enrolled alternate adds one scrypt evaluation to every wrong
+  entry.
+
+## Test plan (`REBOOT_BFU`, roadmap Stage 2)
+
+1. Emulator / Cuttlefish build of GrapheneOS 17 with the patch.
+2. `cmd lock_settings` shell command extended next to `set-duress-credentials`
+   (`LockSettingsShellCommand.java:417`) for scripted enrolment.
+3. Cases: primary unlock unaffected; alternate at lockscreen → reboot; alternate at an in-app
+   credential confirmation → reboot; alternate equal to duress rejected at enrolment; duress
+   still wipes; version-0 blob upgrade; wrong credential timing with 0 / 1 / 2 alternates.
+4. Unit tests alongside existing locksettings tests
+   (`frameworks_base/services/tests/servicestests/…/locksettings/` — not in the sparse set
+   yet; add the path to `scripts/sync-src.sh`).
+
+## Open questions
+
+- Q1. Does upstream want a table, or a second hard-coded pair? Ask before building the table.
+- Q2. Should `REBOOT_BFU` also fire for secondary users' prompts, as duress does?
+- Q3. `lowLevelReboot` vs orderly reboot: speed against clean unmount.
+- Q4. Interaction with the auto-reboot timer and with PIN scrambling / two-factor fingerprint
+  unlock (the `Secondary` lock domain in `doVerifyCredentialInner`, `:2781`).
+- Q5. Should a matched reversible alternate count toward the failed-attempt counter?
