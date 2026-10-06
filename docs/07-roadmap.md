@@ -48,7 +48,7 @@ Track for getting n5 from "source checked out" to "running Stage 1".
 
 | Phase | Goal | Status |
 |---|---|---|
-| W0 | Workspace guide, repo on backed-up dataset, full tree synced | Guide + move done 2026-10-06. First sync (tmux `grapheneos`) died around 15:40 with 675/683 projects; missing `cts`, `frameworks/base`, `frameworks/layoutlib`, `hardware/ti/am57x`, `kernel/configs`, `kernel/prebuilts/6.1/{arm64,x86_64}`, `kernel/prebuilts/6.12/arm64`. Re-run 19:29 in tmux `grapheneos-sync` → `sync.log`. |
+| W0 | Workspace guide, repo on backed-up dataset, full tree synced | Guide + move done 2026-10-06. First sync (tmux `grapheneos`) died around 15:40 with 675/683 projects; missing `cts`, `frameworks/base`, `frameworks/layoutlib`, `hardware/ti/am57x`, `kernel/configs`, `kernel/prebuilts/6.1/{arm64,x86_64}`, `kernel/prebuilts/6.12/arm64`. Re-run 19:29 in tmux `grapheneos-sync` → `sync.log`: all 683 checked out; some fetches hit HTTP 429 from googlesource, but `repo sync -l` then finished cleanly (every project at its manifest revision). `frameworks/base` = `84183aff` (fork `envs-17` = upstream `17`, the SHA the docs cite). **Done 2026-10-06.** |
 | W1 | Incus instance (Ubuntu 24.04) with the scratch tree mounted and `/dev/kvm` | Not started. TrueNAS 25.10.7; `virt.global.config` is `NO_POOL` (Incus not set up). Human-approved step. |
 | W2 | First emulator build of unmodified 17, headless, `adb` from m3max | Blocked on W1 |
 | W3 | Re-verify docs 03/04/06 against the full tree; B2–B8 (full tree has tests, AMS, `UserControllerHelper`) | Can start once `frameworks/base` is checked out |
