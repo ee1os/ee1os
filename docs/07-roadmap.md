@@ -33,7 +33,13 @@ repos we change are forked, everything else syncs from upstream.
   a stage needs it. Work branch in each: `envs-17`, created from upstream `17`.
 - The build tree uses the upstream manifest plus `.repo/local_manifests/envs.xml`, which
   redirects those projects to the forks.
-- This repo (docs + `patches/`) is cloned next to the build tree on `n5`.
+- The build tree uses `scripts/envs-local-manifest.xml` from this repo, symlinked as that local manifest.
+- On `n5` everything lives under `/mnt/flash/home/faeton/work/grapheneos/`: `grapheneos-envs/`
+  (this repo), `grapheneos-17/` (build tree, `repo init -b 17` done 2026-10-06, first sync
+  started the same day in tmux session `grapheneos`), `bin/repo` (launcher).
+- Open on `n5`: its SSH key is not registered with GitHub, so it can fetch the public forks but
+  cannot push or pull this private repo yet; no `git-lfs`; `flash/home` has periodic snapshots,
+  so build output should go to a dataset without them (`OUT_DIR`) before the first build.
 - `patches/` stays the deliverable: `git format-patch upstream/17..envs-17` per stage.
 
 Setup (human-run):
