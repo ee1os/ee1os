@@ -79,7 +79,7 @@ What the design aims to provide:
 - 2026-10-06 — Environment A is the owner profile (user 0) and its CE key may stay in memory
   until reboot; only environment B (a secondary user) has to be evictable. Reason (owner
   decision): A is the regular primary profile, and user 0 cannot be stopped
-  (`UserController.java:1326`), so making A evictable would need a three-credential layout
+  (`UserController.java:1323-1324`), so making A evictable would need a three-credential layout
   with an empty owner. Rejected as not worth it; `REBOOT_BFU` covers A.
 - 2026-10-06 — Forensic extraction dropped from the threat model and declared a non-goal
   (owner decision). Reason: none of the planned PoCs address it, and keeping it in the threat

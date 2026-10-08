@@ -8,7 +8,9 @@
 - [x] Duress implementation walkthrough (doc 03)
 - [x] Dispatch design draft (doc 04)
 - [x] Boot/update constraints (doc 06)
-- [ ] Verify every `file:line` reference in docs 03, 04, 06 against the pinned SHAs
+- [x] Verify every `file:line` reference in docs 03, 04, 06 against the pinned SHAs (2026-10-08, full tree;
+      all project SHAs equal the doc-01 table; 4 refs corrected: `UserController:1323-1324`,
+      `UserManagerService:3362-3367`, `DevicePolicyManagerService:12652-12656`, SP-manager comment 88–160)
 - [ ] Confirm the upstream issue number for the BFU-credential discussion (doc 04 cites
       #8505 from an unverified source) and read the maintainers' comments there
 - [ ] Read GrapheneOS contribution expectations (code style, how features are proposed)
@@ -48,7 +50,7 @@ Track for getting n5 from "source checked out" to "running Stage 1".
 
 | Phase | Goal | Status |
 |---|---|---|
-| W0 | Workspace guide, repo on backed-up dataset, full tree synced | Guide + move done 2026-10-06. First sync (tmux `grapheneos`) died around 15:40 with 675/683 projects; missing `cts`, `frameworks/base`, `frameworks/layoutlib`, `hardware/ti/am57x`, `kernel/configs`, `kernel/prebuilts/6.1/{arm64,x86_64}`, `kernel/prebuilts/6.12/arm64`. Re-run 19:29 in tmux `grapheneos-sync` → `sync.log`: all 683 checked out; some fetches hit HTTP 429 from googlesource, but `repo sync -l` then finished cleanly (every project at its manifest revision). `frameworks/base` = `84183aff` (fork `envs-17` = upstream `17`, the SHA the docs cite). **Done 2026-10-06.** |
+| W0 | Workspace guide, repo on backed-up dataset, full tree synced | Guide + move done 2026-10-06. First sync (tmux `grapheneos`) died around 15:40 with 675/683 projects; missing `cts`, `frameworks/base`, `frameworks/layoutlib`, `hardware/ti/am57x`, `kernel/configs`, `kernel/prebuilts/6.1/{arm64,x86_64}`, `kernel/prebuilts/6.12/arm64`. Re-run 19:29 in tmux `grapheneos-sync` → `sync.log`: all 683 checked out; some fetches hit HTTP 429 from googlesource, but `repo sync -l` then finished cleanly (every project at its manifest revision). `frameworks/base` = `84183aff` (fork `envs-17` = upstream `17`, the SHA the docs cite). **Done 2026-10-06.** Re-sync (manifest now 1057 projects) finished with 3 HTTP-429 fetch failures (`external/{mp4parser,neon_2_sse,newfs_msdos}`); `-j1` retry of those succeeded, every project has `.git`, tmux `grapheneos-sync` removed 2026-10-08. |
 | W1 | Incus instance (Ubuntu 24.04) with the scratch tree mounted and `/dev/kvm` | Not started. TrueNAS 25.10.7; `virt.global.config` is `NO_POOL` (Incus not set up). Human-approved step. |
 | W2 | First emulator build of unmodified 17, headless, `adb` from m3max | Blocked on W1 |
 | W3 | Re-verify docs 03/04/06 against the full tree; B2–B8 (full tree has tests, AMS, `UserControllerHelper`) | Can start once `frameworks/base` is checked out |
@@ -87,7 +89,7 @@ Unmodified GrapheneOS emulator build, scripted over `adb`. Each item answers an 
    After `am stop-user -f N`? With `no_run_in_background` set on N, a plain switch should stop
    and lock it (`UserController.java:2741-2747`) — if so, Stage 3 needs little or no code.
 3. Boot order: `settings put global allow_user_switching_when_system_user_locked 1`, reboot,
-   switch to N before the owner unlocks (`UserManagerService.java:3362`). Record what breaks.
+   switch to N before the owner unlocks (`UserManagerService.java:3362-3367`). Record what breaks.
 4. Duress works on the emulator via `set-duress-credentials` (`LockSettingsShellCommand.java:417`).
 5. Lockout schedule observed with repeated wrong PINs (`SoftwareRateLimiter.java:107-129`).
 
@@ -107,7 +109,7 @@ credential is checked, so there is no cross-user throttling and no duress race.
 
 - 3a. Whatever Stage 1 item 2 showed is missing so that leaving B always evicts its CE key:
   `stopUser(N, allowDelayedLocking=false)` on session end, not gated on a device owner
-  (`UserController.java:1223`, `DevicePolicyManagerService.java:19467-19472`).
+  (`UserController.java:1223`, `DevicePolicyManagerService.java:12652-12656` caller must be a device/profile owner; `:19467-19472` logout-enabled flag needs a device owner).
 - 3b. Opt-in per-user toggle "end session when leaving this user".
 - Read first (not in the sparse set): GrapheneOS's End-session UI, `UserControllerHelper`,
   `ActivityManagerService`.

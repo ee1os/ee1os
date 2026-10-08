@@ -13,7 +13,7 @@ authoritative and better maintained than a local paraphrase would be.
 
 ## Read in the tree
 
-- The class-level comment of `SyntheticPasswordManager.java` (roughly lines 100–160 at
+- The class-level comment of `SyntheticPasswordManager.java` (lines 88–160 at
   frameworks_base `84183aff`) describes the protector files and what each one holds.
 - `LockSettingsService.java:3600` (`onCredentialVerifiedInternal`) shows the order of
   operations after a successful verification.
