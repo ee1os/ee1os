@@ -111,4 +111,24 @@ sequence) is appropriate here, versus `PowerManager.reboot`, is open question Q3
 - Q3. `lowLevelReboot` vs orderly reboot: speed against clean unmount.
 - Q4. Interaction with the auto-reboot timer and with PIN scrambling / two-factor fingerprint
   unlock (the `Secondary` lock domain in `doVerifyCredentialInner`, `:2781`).
+  **Partly answered (B5, 2026-10-08):**
+  - `LockDomain {Primary, Secondary}` is defined in `core/java/com/android/internal/widget/LockDomain.java:17-18`.
+    `Secondary` is the PIN asked for after a fingerprint match (`KeyguardSecurityModel.java:137-141`).
+  - In `doVerifyCredentialInner`, `Secondary`:
+    - rejects any flag (`:2787-2788`);
+    - uses its own protector and its own rate-limiter identity (`:2814-2816`);
+    - on a match, returns before keystore/CE unlock (`:3604-3615`). It only ever runs after first unlock.
+  - **Duress fires for `Secondary` today.** The `finally` passes neither domain nor user, so typing
+    the duress PIN at the second-factor prompt wipes the device. A `REBOOT_BFU` row beside it
+    would also fire there, and that is probably wanted: the prompt appears exactly when someone is
+    being forced to unlock a device that is already after first unlock. Restricting it to Primary
+    would mean passing `lockDomain` into `onVerifyCredentialResult`.
+  - A `Secondary` match returns before the alternate check (`DuressPasswordHelper.java:38`). So an
+    alternate equal to the owner's second-factor PIN can never fire from that prompt. D3 needs
+    the same enrolment-time check against the Secondary PIN. As with other users' credentials, it
+    can't be read, so the check means submitting the candidate once.
+  - The auto-reboot timer is independent of LSS: `services/core/java/com/android/server/policy/keyguard/AutoReboot.java:24-38`
+    is driven by keyguard visibility (`KeyguardServiceDelegate.java:227`, `sys.auto_reboot_ctl`).
+    A failed attempt keeps the keyguard up, so there is no race; `REBOOT_BFU` only comes earlier.
+  - Still open: PIN scrambling (UI only, presumably no effect).
 - Q5. Should a matched reversible alternate count toward the failed-attempt counter?

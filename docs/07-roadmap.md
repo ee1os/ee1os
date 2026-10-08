@@ -160,10 +160,10 @@ Each item is self-contained; write findings into the named doc, with citations.
 | # | Task | Output |
 |---|---|---|
 | B1 | Re-verify all line references after the next `sync-src.sh` | docs 03/04/06 |
-| B2 | Trace every caller of `doVerifyCredential` and list which UI surfaces reach it | doc 03 |
+| B2 | ~~Trace every caller of `doVerifyCredential` and list which UI surfaces reach it~~ **done 2026-10-08** (7 sites) | doc 03 |
 | B3 | Diff duress code between branches `16` and `17` (did the hook move?) | doc 03 |
 | B4 | Measure/estimate stretch cost per failed attempt with N alternates (D6) | doc 04 |
-| B5 | Find how the `Secondary` lock domain (fingerprint second factor) interacts with the hook | doc 04 Q4 |
+| B5 | ~~Find how the `Secondary` lock domain (fingerprint second factor) interacts with the hook~~ **done 2026-10-08**: duress fires there too | doc 04 Q4 |
 | B6 | ~~Find the locksettings unit tests covering duress, list what exists~~ **done 2026-10-08**: none at unit level; host test `DuressPasswordTest` is the template | doc 04 test plan |
 | B7 | ~~Locate fstab / first-stage mount sources on branch `17`; fix sparse paths~~ **done 2026-10-08**: `system/fs/fs_mgr`; emulator is not A/B | doc 06, sync script |
 | B8 | Draft the Settings screen flow by reading `DuressPassword*Activity` | doc 04 |

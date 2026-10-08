@@ -50,9 +50,11 @@ try {
 
 Consequences worth remembering:
 
-1. **Every credential prompt is covered**, not just the lockscreen: `checkCredential` (`:2689`),
-   `verifyCredential` (`:2709`) and the internal callers at `:1812` and `:2206` all go through
-   `doVerifyCredential`. Any user's prompt counts, since the pair is device-wide.
+1. **Every credential prompt is covered**, not just the lockscreen: all 7 call sites of
+   `doVerifyCredential` (`:1812`, `:2206`, `:2694`, `:2719`, `:2939`, `:2952`, `:4047`) pass
+   through the `finally`. Any user's prompt counts, since the pair is device-wide. That includes
+   the fingerprint second-factor PIN (`Secondary` domain, see doc 04 Q4). See *Who reaches the
+   hook* below.
 2. **The primary credential wins.** `onVerifyCredentialResult` returns immediately when the
    real verification matched (`DuressPasswordHelper.java:38`). The duress check only runs on
    a non-match, and also when the inner call threw (`res == null`).
@@ -61,6 +63,24 @@ Consequences worth remembering:
    response first; the copy is zeroized after the check.
 4. **Type-matched.** A typed PIN is compared only with the duress PIN, a password only with
    the duress password; patterns never match (`:108-118`).
+
+## Who reaches the hook (B2, verified 2026-10-08)
+
+Paths relative to the full tree; `LSS` = `LockSettingsService.java`, `LPU` =
+`frameworks/base/core/java/com/android/internal/widget/LockPatternUtils.java`.
+
+| LSS entry | Domain / flags | Reached from |
+|---|---|---|
+| `checkCredential` binder `:2689-2694` | caller's domain, flags 0 | keyguard PIN/password bouncer (`packages/SystemUI/src/com/android/keyguard/KeyguardAbsKeyInputViewController.java:300`; domain `Secondary` for `BiometricSecondFactorPin`, `:120-124`), pattern bouncer (`KeyguardPatternViewController.java:145`), compose bouncer (`AuthenticationRepository.kt:392`), Settings `ConfirmLockPassword.java:715` / `ConfirmLockPattern`, `cmd lock_settings` (`LockSettingsShellCommand.java:386`), duress enrolment's owner check (`DuressPasswordHelper.java:72`) |
+| `verifyCredential` binder `:2709-2719` (needs keyguard/lockscreen permission, `:2711`) | caller's | BiometricPrompt credential fallback (`CredentialInteractor.kt:85-95`, `VERIFY_FLAG_REQUEST_GK_PW_HANDLE`), Settings confirm when a GK handle is wanted (`ConfirmLockPassword.java:706-708`), ChooseLock save (`SaveAndFinishWorker.java:144`, only flags ≠ 0), `KeyguardManager.checkLock` TestApi (`KeyguardManager.java:1283`) |
+| in-process `verifyCredential` `:2702` | Primary | `RecoverableKeyStoreManager.java:1081` |
+| `verifyTiedProfileChallenge` → `:2939` (parent) + `:2952` (profile's random password) | Primary | work-profile challenge (LPU `:615`, BiometricPrompt fallback) |
+| `tryUnlockWithCachedUnifiedChallenge` `:4041-4047` | Primary, 0 | `UserManagerService.java:2268` via LPU `:2163` |
+| `unlockChildProfile` `:1809-1812` | Primary, 0 | system only, during parent unlock (`:1882`) |
+| `setLockCredential` `:2206` | Primary, 0 | re-verifies the parent for tied profiles when Settings saves a credential |
+
+Two call sites check random, system-generated profile passwords (`:1812`, `:2952`), so they can
+never match an alternate. Every other site carries something a person typed.
 
 ## The action
 
