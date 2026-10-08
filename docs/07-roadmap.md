@@ -88,6 +88,10 @@ Unmodified GrapheneOS emulator build, scripted over `adb`. Each item answers an 
 2. Eviction: after `am switch-user 0`, is user N still unlocked (`am get-started-user-state N`)?
    After `am stop-user -f N`? With `no_run_in_background` set on N, a plain switch should stop
    and lock it (`UserController.java:2741-2747`) — if so, Stage 3 needs little or no code.
+   *Code reading (2026-10-08) predicts:* plain switch → N keeps running and stays unlocked (stop-on-switch
+   defaults off, `UserController.java:581-591`). With `no_run_in_background` → N is stopped and its CE key
+   evicted asynchronously on FgThread (`:1702-1713` → `LockSettingsService.java:4015-4026` → vold), so
+   poll `isUserUnlocked`/`am get-started-user-state` instead of checking immediately.
 3. Boot order: `settings put global allow_user_switching_when_system_user_locked 1`, reboot,
    switch to N before the owner unlocks (`UserManagerService.java:3362-3367`). Record what breaks.
 4. Duress works on the emulator via `set-duress-credentials` (`LockSettingsShellCommand.java:417`).
@@ -107,12 +111,40 @@ Deliverable: `patches/02-reboot-bfu/` against frameworks_base (then Settings) + 
 No new verifier. B is a secondary user; the user id is chosen on the lockscreen before any
 credential is checked, so there is no cross-user throttling and no duress race.
 
-- 3a. Whatever Stage 1 item 2 showed is missing so that leaving B always evicts its CE key:
-  `stopUser(N, allowDelayedLocking=false)` on session end, not gated on a device owner
-  (`UserController.java:1223`, `DevicePolicyManagerService.java:12652-12656` caller must be a device/profile owner; `:19467-19472` logout-enabled flag needs a device owner).
-- 3b. Opt-in per-user toggle "end session when leaving this user".
-- Read first (not in the sparse set): GrapheneOS's End-session UI, `UserControllerHelper`,
-  `ActivityManagerService`.
+**Code reading 2026-10-08: probably no framework patch needed.** Paths relative to
+`frameworks/base/`; `UC` = `services/core/java/com/android/server/am/UserController.java`.
+
+- **Eviction exists today without a device owner.** These two mechanisms are confirmed in the code:
+  - Setting `DISALLOW_RUN_IN_BACKGROUND` on N makes every switch away from N call
+    `stopUsersLU(N, allowDelayedLocking=false)` (`UC:2736-2747`). The owner can set it in
+    Settings → Users → N → *Run in background* (`packages/apps/Settings/.../users/UserDetailsSettings.java:242-243`)
+    or with `pm set-user-restriction --user N no_run_in_background 1`. Setting it while N is already in the
+    background stops N at once (`UserRestrictionsUtils.java:735-742`).
+  - Power-menu **End session** (`GlobalActionsDialogLite.java:1281-1305`) falls back to
+    `ActivityManager.logoutUser` when no device-owner logout exists (`UserLogoutInteractor.kt:59-67`).
+    That path switches to user 0 and then calls `stopUser(N, allowDelayedLocking=false)` (`UC:1182-1230`).
+    It requires only that N is a non-system user allowed to switch (`UserManagerService.java:3396-3411`).
+    The *device-owner* gate (`DevicePolicyManagerService.java:12652-12656`, `:19467-19472`) applies
+    only to the DPM logout path.
+- **Any stop of a full secondary user evicts its key** on GrapheneOS defaults:
+  - `config_multiuserDelayUserDataLocking` is false (`core/res/res/values/config.xml:3307`), and
+    only the Private-space user type allows delayed locking (`UserTypeFactory.java:345`). So
+    `canDelayDataLockingForUser` returns false (`UC:1785-1794`).
+  - The eviction chain is `finishUserStopped` → `dispatchUserLocking` → `LockSettingsInternal.lockUser` →
+    `StorageManager.lockCeStorage` and keystore lock (`UC:1660-1713`).
+  - The eviction is skipped if N is restarted before the FgThread task runs (`UC:1709-1711`).
+- **Without the restriction**, a plain switch leaves N running and unlocked until one of these:
+  - an LRU stop past the running-user limit (`maxRunningUsers = max(RAM_GB-2, 3)`,
+    `ActivityManagerService.java:9733-9736`);
+  - 26 h of background (`config_backgroundUserConsideredDispensableTimeSecs`);
+  - an explicit stop.
+- `UserControllerHelper` (GrapheneOS) only adds the per-user `disallow_delayed_locking_on_user_stop`
+  setting (`UserControllerHelper.java:14-24`, read at `UC:1786`). It matters only for Private space.
+- 3a. Confirm on the emulator (Stage 1 item 2) that the restriction plus End session behave as
+  read. Patch only if Stage 3 must not depend on a setting. The minimal patch would be in
+  `stopUserOnSwitchIfEnforced` (`UC:2741-2747`).
+- 3b. The per-user toggle already exists: *Run in background*, off. The remaining work is
+  UX: say clearly that turning it off evicts the user's keys on every switch.
 
 ### Stage 4 — automatic PIN dispatch (fork-only)
 
