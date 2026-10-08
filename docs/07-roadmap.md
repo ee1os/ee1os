@@ -11,9 +11,9 @@
 - [x] Verify every `file:line` reference in docs 03, 04, 06 against the pinned SHAs (2026-10-08, full tree;
       all project SHAs equal the doc-01 table; 4 refs corrected: `UserController:1323-1324`,
       `UserManagerService:3362-3367`, `DevicePolicyManagerService:12652-12656`, SP-manager comment 88–160)
-- [ ] Confirm the upstream issue number for the BFU-credential discussion (doc 04 cites
-      #8505 from an unverified source) and read the maintainers' comments there
-- [ ] Read GrapheneOS contribution expectations (code style, how features are proposed)
+- [x] Confirm the upstream issue number (2026-10-08): #8505 "Feature: BFU PIN" is real and open,
+      with no team reply yet. Maintainer positions from related issues are in doc 04 → *Maintainer positions*
+- [x] Read GrapheneOS contribution expectations (2026-10-08) → *Upstream conversation* below
 - [x] Add locksettings tests path to the sparse set (2026-10-08, plus `tests/DuressPasswordTest/`)
 
 ### Test environment
@@ -178,6 +178,16 @@ behaviour that the emulator cannot show.
 - After Stage 3: the always-evict session end, if it turned out to need a patch.
 - Stages 4–5 stay in the fork unless maintainers ask.
 - Post where maintainers ask for it (issue tracker / development chat); expect design changes.
+
+How GrapheneOS takes contributions (checked 2026-10-08):
+- Code goes in as GitHub PRs on the per-component repos (e.g. `platform_frameworks_base`), and
+  external PRs do get merged.
+- Feature requests go to `os-issue-tracker`. Discussion goes to the chat rooms or forum, not the
+  tracker ("Please don't use the issue tracker for discussion",
+  [#29](https://github.com/GrapheneOS/os-issue-tracker/issues/29)).
+- Style is upstream style: 4-space indent, braces always, 100 columns
+  (<https://grapheneos.org/build>, *Development guidelines*). Expect maintainers to split,
+  reword and reorder commits. Upstream licences stay as they are, and there is no CLA.
 
 ### Not planned
 

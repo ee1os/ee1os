@@ -9,11 +9,43 @@ Status: **proposal, nothing implemented.** Revision references: frameworks_base 
 
 Today there are exactly two outcomes besides "wrong": unlock, and wipe. Upstream has an open
 discussion about a third: a credential that returns the device to the Before-First-Unlock
-state (os-issue-tracker #8505 — number taken from the original idea sketch, **verify before
-citing it anywhere**). BFU is the state in which no user's credential-encrypted storage keys
+state ([os-issue-tracker #8505](https://github.com/GrapheneOS/os-issue-tracker/issues/8505)
+"Feature: BFU PIN", open since 2026-08-11, verified 2026-10-08; no team reply yet).
 are in memory; today the owner reaches it with a reboot or the auto-reboot timer.
 
 A dispatch table makes that a small addition instead of a second copy of the duress code.
+
+### Maintainer positions (checked 2026-10-08)
+
+Quotes are thestinger's.
+
+- **Only a reboot reaches BFU.** Clearing memory without one is "fundamentally not possible"
+  ([#4481](https://github.com/GrapheneOS/os-issue-tracker/issues/4481)). A request that
+  specifies anything else "is not going to be accepted"
+  ([#7207](https://github.com/GrapheneOS/os-issue-tracker/issues/7207)). So `REBOOT_BFU` has
+  to be a real reboot (Q3 is only about which reboot call to use).
+- **A reboot shortcut is welcome:**
+  - "We'd rather add a shortcut for reboot instead of lockdown mode"
+    ([#4612](https://github.com/GrapheneOS/os-issue-tracker/issues/4612)).
+  - "There can be more complexity for duress PIN/password but not via fingerprints … it would
+    make more sense just to have a better shortcut for rebooting"
+    ([#6433](https://github.com/GrapheneOS/os-issue-tracker/issues/6433)).
+  - The one counterpoint is about a power-button gesture, not a credential: "We wouldn't want to
+    power off or reboot for something meant for duress"
+    ([#4426](https://github.com/GrapheneOS/os-issue-tracker/issues/4426)).
+- Multiple duress passwords:
+  [#3839](https://github.com/GrapheneOS/os-issue-tracker/issues/3839) is open, but the
+  delegated-wipe use case was called "very niche". That bears on Q1 (table vs. a fixed second pair).
+- **A credential that switches to a secondary user was rejected**
+  ([#8675](https://github.com/GrapheneOS/os-issue-tracker/issues/8675) closed as a duplicate,
+  [#8409](https://github.com/GrapheneOS/os-issue-tracker/issues/8409),
+  [#8412](https://github.com/GrapheneOS/os-issue-tracker/issues/8412)). "We aren't going to add
+  features which depend on adversaries not knowing about them." This confirms that roadmap
+  Stage 4 stays fork-only.
+- Per-profile wipe "is something we could implement" but cannot be deniable
+  ([#3598](https://github.com/GrapheneOS/os-issue-tracker/issues/3598),
+  [#4497](https://github.com/GrapheneOS/os-issue-tracker/issues/4497)). The duress credential is
+  global ([#7825](https://github.com/GrapheneOS/os-issue-tracker/issues/7825)).
 
 ## Actions considered
 

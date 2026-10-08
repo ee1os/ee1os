@@ -44,7 +44,10 @@ work; storage keys, OTA/update, verified boot and session lifecycle are the othe
 
 - **Hiding the existence of an environment / forensic deniability.** Out of scope.
   Rationale: (a) GrapheneOS developers have consistently argued that this cannot be delivered
-  honestly on Android — on-disk metadata, storage accounting and usage patterns reveal it — and
+  honestly on Android ([#5247](https://github.com/GrapheneOS/os-issue-tracker/issues/5247): "It's
+  not possible to make hidden profiles with plausible deniability";
+  [#2175](https://github.com/GrapheneOS/os-issue-tracker/issues/2175),
+  [#8409](https://github.com/GrapheneOS/os-issue-tracker/issues/8409)) — on-disk metadata, storage accounting and usage patterns reveal it — and
   that a false promise of deniability endangers users more than it helps; (b) a design review on 2026-10-06
   (see *Design notes* in `07-roadmap.md`) independently found the same
   for a secondary-user design. A proposal claiming this would not be accepted upstream.
