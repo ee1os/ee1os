@@ -89,9 +89,20 @@ sequence) is appropriate here, versus `PowerManager.reboot`, is open question Q3
 3. Cases: primary unlock unaffected; alternate at lockscreen → reboot; alternate at an in-app
    credential confirmation → reboot; alternate equal to duress rejected at enrolment; duress
    still wipes; version-0 blob upgrade; wrong credential timing with 0 / 1 / 2 alternates.
-4. Unit tests alongside existing locksettings tests
-   (`frameworks_base/services/tests/servicestests/…/locksettings/` — not in the sparse set
-   yet; add the path to `scripts/sync-src.sh`).
+4. Tests (B6, checked 2026-10-08 in the full tree; paths relative to `frameworks/base/`):
+   - **No unit test covers duress today.** Every locksettings unit test gets a bare Mockito
+     mock from `MockInjector.getDuressPasswordHelper`
+     (`services/tests/servicestests/src/com/android/server/locksettings/LockSettingsServiceTestable.java:186-191`).
+     That is the hook a unit test would change to return a real helper, or a spy, wired to
+     `MockSyntheticPasswordManager` (Weaver fake, `MockSyntheticPasswordManager.java:33-75`). The
+     production injector is at `LockSettingsService.java:645-650`. The harness to copy is
+     `BaseLockSettingsServiceTests.java:94` (`:211-230`). Run with
+     `atest FrameworksServicesTests:com.android.server.locksettings`.
+   - **End-to-end template:** GrapheneOS's host test `tests/DuressPasswordTest/`
+     (`java_test_host` `DuressPasswordTest`, `atest DuressPasswordTest`). It enrols through
+     `cmd lock_settings set-duress-credentials` (`DuressPasswordTest.java:75-79`), types the
+     credential with `input text` (`:92`), and checks Weaver reads via `WeaverOpCapturer`
+     output (`:59`). A `RebootBfuTest` should copy this test.
 
 ## Open questions
 

@@ -75,6 +75,15 @@ update_engine owns the slots:
 
 - Confirm the Virtual A/B details against the device tree of the actual target Pixel
   (which partitions are true A/B, which are dynamic/snapshotted).
-- `system_core/fs_mgr` is no longer at that path on the `17` branch (sparse pattern matches
-  nothing); locate where fstab / first-stage mount handling lives now and fix
-  `scripts/sync-src.sh`.
+- ~~Locate fs_mgr on `17`~~ (B7, 2026-10-08): it is its own project now, `system/fs/fs_mgr` =
+  `platform_system_fs_fs_mgr` (`.repo/manifests/default.xml:925`). It contains `libfstab/`
+  (`slotselect.cpp`), `libsnapshot/` (Virtual A/B), `liblp/`, `libdm/` and `libfs_avb/`.
+  First-stage mount is still in `system/core/init/first_stage_mount.cpp`. `sync-src.sh` is fixed.
+- **The emulator is not A/B.** goldfish sets `AB_OTA_UPDATER := none`
+  (`device/generic/goldfish/board/BoardConfigCommon.mk:39`), and its fstab
+  (`device/generic/goldfish/board/fstab/x86`) has logical partitions in `super` but no
+  `slotselect`. Nothing about slots or Virtual A/B can be tested on it. Cuttlefish is the A/B
+  reference available in the tree: `device/google/cuttlefish/shared/config/fstab.in` (all
+  logical partitions `slotselect`), with `AB_OTA_UPDATER := true` and Virtual A/B with
+  compression (`shared/BoardConfig.mk:449`, `shared/device.mk:56`). No Pixel device trees are
+  in the tree (only `device/google/*-kernels`).

@@ -16,10 +16,11 @@ Upstream base per `src/platform_manifest/default.xml:8`: `android-17.0.0_r1`.
 
 | Dir | GrapheneOS repo | SHA | Sparse paths |
 |---|---|---|---|
-| `frameworks_base` | platform_frameworks_base | `84183aff` | locksettings, pm, internal/widget, android/os, power, ext, keyguard, admin, devicepolicy, recoverysystem, StorageManagerService, UserController |
+| `frameworks_base` | platform_frameworks_base | `84183aff` | locksettings (+ its servicestests), `tests/DuressPasswordTest`, `UserControllerHelper`, pm, internal/widget, android/os, power, ext, keyguard, admin, devicepolicy, recoverysystem, StorageManagerService, UserController |
 | `system_vold` | platform_system_vold | `a47ab7c` | all |
 | `packages_apps_Settings` | platform_packages_apps_Settings | `e5c0d9d` | settings/password, settings/security, settings/ext, strings.xml |
-| `system_core` | platform_system_core | `322ff51` | fs_mgr, init, rootdir |
+| `system_core` | platform_system_core | `322ff51` | init, rootdir |
+| `system_fs_fs_mgr` | platform_system_fs_fs_mgr | `f2de922` | all (fs_mgr moved out of system_core on `17`; added 2026-10-08) |
 | `hardware_interfaces` | platform_hardware_interfaces | `10f50d7` | boot, weaver, gatekeeper |
 | `system_update_engine` | platform_system_update_engine | `79f478a` | all |
 | `bootable_recovery` | platform_bootable_recovery | `4201242` | all |

@@ -14,7 +14,7 @@
 - [ ] Confirm the upstream issue number for the BFU-credential discussion (doc 04 cites
       #8505 from an unverified source) and read the maintainers' comments there
 - [ ] Read GrapheneOS contribution expectations (code style, how features are proposed)
-- [ ] Add locksettings tests path to the sparse set
+- [x] Add locksettings tests path to the sparse set (2026-10-08, plus `tests/DuressPasswordTest/`)
 
 ### Test environment
 
@@ -164,8 +164,8 @@ Each item is self-contained; write findings into the named doc, with citations.
 | B3 | Diff duress code between branches `16` and `17` (did the hook move?) | doc 03 |
 | B4 | Measure/estimate stretch cost per failed attempt with N alternates (D6) | doc 04 |
 | B5 | Find how the `Secondary` lock domain (fingerprint second factor) interacts with the hook | doc 04 Q4 |
-| B6 | Find the locksettings unit tests covering duress, list what exists | doc 04 test plan |
-| B7 | Locate fstab / first-stage mount sources on branch `17`; fix sparse paths | doc 06, sync script |
+| B6 | ~~Find the locksettings unit tests covering duress, list what exists~~ **done 2026-10-08**: none at unit level; host test `DuressPasswordTest` is the template | doc 04 test plan |
+| B7 | ~~Locate fstab / first-stage mount sources on branch `17`; fix sparse paths~~ **done 2026-10-08**: `system/fs/fs_mgr`; emulator is not A/B | doc 06, sync script |
 | B8 | Draft the Settings screen flow by reading `DuressPassword*Activity` | doc 04 |
 
 ## Design notes

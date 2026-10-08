@@ -8,10 +8,11 @@ mkdir -p "$ROOT/src"; cd "$ROOT/src"
 
 # name|dir|sparse paths ('/*' = everything)
 REPOS=(
-  "platform_frameworks_base|frameworks_base|/services/core/java/com/android/server/locksettings/ /services/core/java/com/android/server/pm/ /core/java/com/android/internal/widget/ /core/java/android/os/ /services/core/java/com/android/server/power/ /services/core/java/com/android/server/StorageManagerService.java /core/java/android/ext/ /services/core/java/com/android/server/ext/ /packages/SystemUI/src/com/android/keyguard/ /core/java/android/app/admin/ /services/devicepolicy/ /services/core/java/com/android/server/am/UserController.java /services/core/java/com/android/server/recoverysystem/"
+  "platform_frameworks_base|frameworks_base|/services/core/java/com/android/server/locksettings/ /services/core/java/com/android/server/pm/ /core/java/com/android/internal/widget/ /core/java/android/os/ /services/core/java/com/android/server/power/ /services/core/java/com/android/server/StorageManagerService.java /core/java/android/ext/ /services/core/java/com/android/server/ext/ /packages/SystemUI/src/com/android/keyguard/ /core/java/android/app/admin/ /services/devicepolicy/ /services/core/java/com/android/server/am/UserController.java /services/core/java/com/android/server/recoverysystem/ /services/tests/servicestests/src/com/android/server/locksettings/ /services/core/java/com/android/server/am/UserControllerHelper.java /tests/DuressPasswordTest/"
   "platform_system_vold|system_vold|/*"
   "platform_packages_apps_Settings|packages_apps_Settings|/src/com/android/settings/password/ /src/com/android/settings/security/ /src/com/android/settings/ext/ /res/values/strings.xml"
-  "platform_system_core|system_core|/fs_mgr/ /init/ /rootdir/"
+  "platform_system_core|system_core|/init/ /rootdir/"
+  "platform_system_fs_fs_mgr|system_fs_fs_mgr|/*"
   "platform_hardware_interfaces|hardware_interfaces|/boot/ /weaver/ /gatekeeper/"
   "platform_system_update_engine|system_update_engine|/*"
   "platform_bootable_recovery|bootable_recovery|/*"
