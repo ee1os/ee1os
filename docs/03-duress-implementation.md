@@ -98,6 +98,36 @@ never match an alternate. Every other site carries something a person typed.
 
 No reboot into recovery is needed: the keys are gone before power-off.
 
+## Changes since 16 (B3, 2026-10-09)
+
+Compared with GrapheneOS tag `2026061602`, the last Android 16 release (frameworks_base
+`7d409cf5`, Settings `f96d94cb`). `platform_frameworks_base` has no `16` branch any more.
+Reference clones are in `/mnt/flash/scratch/grapheneos/ref-16/` on n5.
+
+- **The duress code itself is byte-identical.** That covers `DuressPasswordHelper`,
+  `DuressCredential(s)`, `DuressWipe`, `ExtendedWipeWithoutReboot`, the body of
+  `deleteSecrets`, `tests/DuressPasswordTest`, `LockDomain`, and the Settings
+  `DuressPassword*Activity`. The hook is the same `try/finally` (16 `LockSettingsService.java:2554-2564`,
+  17 `:2769-2779`). GrapheneOS rebases the feature as four commits that keep their 2024 author
+  dates.
+- The changes are in the surrounding code:
+  - `checkCredential` now returns `VerifyCredentialResponse` instead of a boolean plus an
+    exception (`LockPatternUtils.java:580`). The shell command's `--old` check was moved to that API.
+  - The software rate limiter used to sit behind a flag and is now always on.
+  - The default scrypt `logN` is now always 9 (in 16 it was 11 without
+    `scryptParameterChange`). Each record stores its own `logN`, so duress values enrolled on 16
+    still verify on 17.
+  - `doVerifyCredentialInner` now zeroizes the synthetic password in its own `finally`. An
+    action in the outer hook can't see it, which is fine for actions that only reduce access.
+  - In Settings, the duress screen is also reachable from Safety Center
+    (`DuressPasswordPrefController`, `safety_center_device_unlock_subpage.xml:85`).
+- For patches: anything touching the duress files should carry over between releases
+  unchanged; callers of `checkCredential` need the 17 API.
+- Applies to both releases: `checkOwnerCredential` itself goes through `checkCredential`
+  (`DuressPasswordHelper.java:72`). So a credential typed into the owner-confirmation field
+  during duress setup is also checked against the duress values, and typing the duress PIN there
+  wipes the device. The same will hold for the `REBOOT_BFU` enrolment screen.
+
 ## Properties to preserve in any extension
 
 - P1. Primary credential always takes precedence over alternates.
