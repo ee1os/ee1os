@@ -1,43 +1,50 @@
 #!/usr/bin/env bash
-# Phase W1/W2 helper: build the image, open a shell, or build the emulator target.
-# Runs as faeton via sudo docker; nothing is installed on the TrueNAS host itself.
-#   run.sh image     build the container image (once)
-#   run.sh shell     interactive shell in the build container
-#   run.sh build     lunch + m for the emulator target (log: /src/build.log)
-#   run.sh emulator  start the emulator headless; adb on host 127.0.0.1:5555
+# Build container for the GrapheneOS 17 tree on n5. See docs/08-development-and-testing.md.
+#   run.sh image              build the container image (once, or after Dockerfile changes)
+#   run.sh shell              interactive shell, lunch already done
+#   run.sh build [targets]    m -j$JOBS [targets]          (log: /src/build.log)
+#   run.sh emulator           start the emulator headless; adb at 127.0.0.1:5555 on n5
+#   run.sh emulator-stop      stop it
+#   run.sh exec <cmd...>      run a command with lunch done (adb, atest, tests/*.sh)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC=/mnt/flash/scratch/grapheneos
+ENVS=/mnt/flash/home/faeton/work/grapheneos-envs   # grapheneos-envs symlinks here
 IMAGE=grapheneos-build:24.04
-NAME=grapheneos-build
-JOBS="${JOBS:-12}"            # roadmap: cap at -j12, n5 runs other services
-MEM="${MEM:-48g}"             # container memory cap; AOSP needs ~32 GB at -j12
-TARGET="${TARGET:-sdk_phone64_x86_64}"
-VARIANT="${VARIANT:-userdebug}"
+JOBS="${JOBS:-12}"
+MEM="${MEM:-48g}"
+LUNCH="${LUNCH:-sdk_phone64_x86_64-cur-userdebug}"
+EMU_ARGS="${EMU_ARGS:-}"      # e.g. EMU_ARGS=-wipe-data after a duress test
 
 KVM_GID="$(stat -c %g /dev/kvm)"
-common=(--rm --name "$NAME" --memory "$MEM" --memory-swap "$MEM"
-        -v "$SRC:/src" --device /dev/kvm --group-add "$KVM_GID"
-        -e JOBS="$JOBS" -e TARGET="$TARGET" -e VARIANT="$VARIANT")
+common=(--rm --memory "$MEM" --memory-swap "$MEM" --network host
+        -v "$SRC:/src" -v "$ENVS:$ENVS"
+        --device /dev/kvm --group-add "$KVM_GID"
+        -e JOBS="$JOBS" -e LUNCH="$LUNCH" -e EMU_ARGS="$EMU_ARGS")
+setup='source build/envsetup.sh >/dev/null && lunch "$LUNCH" >/dev/null'
+
+run() { sudo docker run "${common[@]}" "$@"; }
 
 case "${1:-}" in
   image)
     sudo docker build -t "$IMAGE" "$HERE" ;;
   shell)
-    sudo docker run -it "${common[@]}" "$IMAGE" bash ;;
+    run -it "$IMAGE" bash -c "$setup; exec bash" ;;
   build)
-    sudo docker run "${common[@]}" "$IMAGE" bash -c '
-      set -e; source build/envsetup.sh
-      lunch "$TARGET-cur-$VARIANT"
-      m -j"$JOBS"' 2>&1 | tee -a "$SRC/build.log" ;;
+    shift
+    run --name grapheneos-build "$IMAGE" bash -c "$setup; m -j\$JOBS $*" 2>&1 \
+      | tee -a "$SRC/build.log" ;;
   emulator)
-    # host network: the emulator binds adb to 127.0.0.1:5555, which is then the host's
-    # loopback (reach it from m3max with: ssh -L 5555:127.0.0.1:5555 n5)
-    sudo docker run -d "${common[@]}" --network host "$IMAGE" bash -c '
-      set -e; source build/envsetup.sh
-      lunch "$TARGET-cur-$VARIANT"
-      emulator -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -writable-system \
-        -ports 5554,5555' ;;
+    # host network: the emulator binds adb to 127.0.0.1:5555 on n5 itself;
+    # from m3max: ssh -L 5555:127.0.0.1:5555 n5, then adb connect 127.0.0.1:5555
+    run -d --name grapheneos-emu "$IMAGE" bash -c "$setup; exec emulator -no-window \
+      -no-audio -no-boot-anim -gpu swiftshader_indirect -writable-system \
+      -ports 5554,5555 \$EMU_ARGS" ;;
+  emulator-stop)
+    sudo docker stop grapheneos-emu ;;
+  exec)
+    shift
+    run "$IMAGE" bash -c "$setup; $*" ;;
   *)
-    sed -n 2,7p "$0"; exit 2 ;;
+    sed -n 2,8p "$0"; exit 2 ;;
 esac
