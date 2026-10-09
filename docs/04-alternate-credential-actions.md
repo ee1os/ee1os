@@ -230,5 +230,9 @@ Draft for a *Reboot PIN* screen:
   - The auto-reboot timer is independent of LSS: `services/core/java/com/android/server/policy/keyguard/AutoReboot.java:24-38`
     is driven by keyguard visibility (`KeyguardServiceDelegate.java:227`, `sys.auto_reboot_ctl`).
     A failed attempt keeps the keyguard up, so there is no race; `REBOOT_BFU` only comes earlier.
-  - Still open: PIN scrambling (UI only, presumably no effect).
+  - PIN scrambling (B10) is layout only. `KeyguardPinBasedInputView.setupPinScrambling`
+    (`frameworks/base/packages/SystemUI/src/com/android/keyguard/KeyguardPinBasedInputView.java:326-349`)
+    shuffles which digit each key shows, so the credential is the same digit string. It has
+    separate settings for the primary and second-factor PIN
+    (`KeyguardPinBasedInputViewController.java:117-122`). No effect on alternates.
 - Q5. Should a matched reversible alternate count toward the failed-attempt counter?

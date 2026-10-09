@@ -168,7 +168,7 @@ in doc 08.
 | B7 | fstab / first-stage mount on `17` | `system/fs/fs_mgr`; emulator is not A/B; doc 06 |
 | B8 | Settings screen flow | duress enrolment has no collision check; doc 04 *Settings flow* |
 | B9 | Where can enrolment probe a candidate against the owner's Secondary PIN without the duress hook and without counting a failure? | nowhere: every path hits the rate limiter and Weaver; ask for the second-factor PIN at enrolment instead (doc 04 *Settings flow* 5) |
-| B10 | PIN scrambling vs alternates (doc 04 Q4) | open |
+| B10 | PIN scrambling vs alternates (doc 04 Q4) | layout only, credential unchanged, no effect |
 
 ## Design notes
 
