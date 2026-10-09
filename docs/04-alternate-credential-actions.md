@@ -164,8 +164,15 @@ Draft for a *Reboot PIN* screen:
    - against the owner's Secondary PIN: verify against that domain.
 
    **Never probe through `checkCredential`/`verifyCredential`.** They run the duress `finally`,
-   so a candidate equal to the duress PIN would wipe the device. Probes need an internal path
-   without the hook, and it must not count as a failed attempt; check both on the emulator.
+   so a candidate equal to the duress PIN would wipe the device. Calling the inner path
+   (`doVerifyCredentialInner`) skips the hook but is no better. Every verification goes
+   through the software rate limiter (`LockSettingsService.java:2816`) and the LSKF protector,
+   i.e. Weaver (`:2838`). So a non-colliding candidate — the normal case — would be recorded as
+   a failed attempt against the owner's second-factor PIN, and kept as a "wrong guess"
+   (`SoftwareRateLimiter.java:400`). **Resolution (B9):** don't probe. When second-factor
+   unlock is enabled, the enrolment screen also asks for the owner's second-factor PIN, which
+   is verified once (a match costs nothing). The candidate is then compared in memory with both
+   owner credentials, and all copies are zeroized.
    Run the same checks in reverse in `setDuressCredentials`. A collision raises an error with
    a reason code, shown in Settings as a fixed localized message (`reboot_pin_error_collision`),
    not as `e.toString()` the way the duress errors are shown today.

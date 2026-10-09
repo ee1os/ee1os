@@ -127,7 +127,8 @@ gate says when a stage is done.
 3. Reboot PIN at an in-app credential confirmation (Settings → re-enter PIN) → reboots.
 4. Reboot PIN at the fingerprint second-factor prompt → reboots (doc 04 Q4).
 5. Duress PIN still wipes from the keyguard (destructive, last).
-6. Enrolment rejects: reboot PIN = owner PIN, = duress PIN, = second-factor PIN.
+6. Enrolment rejects: reboot PIN = owner PIN, = duress PIN, = second-factor PIN; the owner's
+   failed-attempt counter is unchanged afterwards.
 7. A wrong PIN looks the same (message and timing) with 0, 1 and 2 alternates enrolled.
 8. Storage upgrade: duress enrolled on an unmodified build, then the patched build boots and
    duress still wipes.
