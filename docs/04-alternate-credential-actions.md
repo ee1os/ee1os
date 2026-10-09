@@ -113,6 +113,67 @@ sequence) is appropriate here, versus `PowerManager.reboot`, is open question Q3
   failed attempt bounded: each enrolled alternate adds one scrypt evaluation to every wrong
   entry.
 
+  Cost (B4, 2026-10-08). Duress values are stretched with the same `stretchLskf` the owner's
+  credential uses (`DuressCredential.java:23-33` → `SyntheticPasswordManager.java:2244-2252`):
+  scrypt N=2^9, r=2^3, p=2^1 (`:213-215`), 32-byte output, 512 KiB of memory. AOSP picked these
+  to stay under ~50 ms on the slowest form factors (`:200-211`). On n5 (x86, one thread) one
+  evaluation takes 1.4 ms; a phone's efficiency core will be several times slower. Matching is
+  type-specific: a wrong PIN is stretched once per enrolled *PIN* alternate, never against the
+  password ones (`DuressPasswordHelper.java:108-118`), plus one storage read
+  (`DuressCredentials.maybeGet`).
+  - With duress plus `REBOOT_BFU`, a wrong PIN costs two stretches, under ~100 ms worst case.
+  - This runs on the background thread (`:46-62`), after the response has gone back to the
+    caller. So it does not change what the user sees when they type a wrong PIN (D4). It only
+    delays when an action starts.
+  - Giving every alternate its own salt keeps the cost linear in the number of alternates. A
+    shared salt would mean one stretch and N comparisons, but the stored values could then be
+    compared with each other. Per-entry salts and the D6 limit are the simpler choice.
+
+## Settings flow (B8, read 2026-10-08)
+
+Today's duress screens (paths under `packages/apps/Settings/`):
+
+- **Entry.** Preference `duress_password` on the Safety Center *Device unlock* subpage
+  (`res/xml/safety_center_device_unlock_subpage.xml:84-88`). Its controller is
+  `src/com/android/settings/safetycenter/ui/DuressPasswordPrefController.java:20-31`. It is
+  shown to the system user only (`src/com/android/settings/ext/ExtSettingControllerHelper.java:28-30`).
+- **Main screen** `DuressPasswordMainActivity`:
+  - Gets the owner credential through `ChooseLockSettingsHelper` with `setReturnCredentials(true)` (`:74-79`).
+  - Lists Add, or Update/Delete, depending on `hasDuressCredentials` (`:86-104`).
+  - Passes the owner credential to setup in the intent (`:120-125`).
+  - The shared base `DuressPasswordActivity` sets `FLAG_SECURE` (`:21`) and finishes when the screen is backgrounded, so the credential has to be re-entered (`:32-43`).
+- **Setup screen** `DuressPasswordSetupActivity` (`res/layout/duress_password_setup.xml`):
+  - A PIN pair and a password pair, both required (`:125-131`).
+  - Validation is `validateDuressCredential`: length ≥ 4, LOW complexity, no device-policy input (`LockPatternUtils.java:2231-2236`).
+  - A warning dialog on first add (`:161-168`), then `setDuressCredentials` (`:142`).
+- **Server:** `DuressPasswordHelper.setDuressCredentials` (`:81-100`) checks the owner credential and validates. **It does no collision check**: a duress PIN equal to the owner's PIN is stored, and can never fire (P1).
+
+Draft for a *Reboot PIN* screen:
+
+1. Preference `reboot_pin` after `duress_password`, with a `RebootPinPrefController` copied
+   from the duress controller (system user only).
+2. `RebootPinMainActivity extends DuressPasswordActivity`; the base class is reused as is. The
+   owner-credential step and action list are copied, using `has/deleteRebootCredential`.
+3. `RebootPinSetupActivity` + `reboot_pin_setup.xml` with one PIN pair (D6). Validation is
+   shared, ideally with `validateDuressCredential` renamed `validateAlternateCredential`.
+4. Block enrolment when the owner has no screen lock. Today duress enrolment proceeds with a
+   none credential (Main `:71-72`), and a reboot PIN is meaningless without a lock.
+5. **Collision checks run in system_server, after the owner check:**
+   - against the duress values: `DuressCredential.verify`, as at `DuressPasswordHelper.java:113-114`;
+   - against the owner's Primary credential: compare with the owner credential just verified;
+   - against the owner's Secondary PIN: verify against that domain.
+
+   **Never probe through `checkCredential`/`verifyCredential`.** They run the duress `finally`,
+   so a candidate equal to the duress PIN would wipe the device. Probes need an internal path
+   without the hook, and it must not count as a failed attempt; check both on the emulator.
+   Run the same checks in reverse in `setDuressCredentials`. A collision raises an error with
+   a reason code, shown in Settings as a fixed localized message (`reboot_pin_error_collision`),
+   not as `e.toString()` the way the duress errors are shown today.
+6. New strings in `strings_ext.xml`: `reboot_pin_pref_title`, `reboot_pin_description`, the
+   enter/confirm labels, the action and toast strings, and `reboot_pin_save_error` /
+   `reboot_pin_delete_error` / `reboot_pin_error_collision`. Button strings are reused from
+   `duress_pwd_*`.
+
 ## Test plan (`REBOOT_BFU`, roadmap Stage 2)
 
 1. Emulator / Cuttlefish build of GrapheneOS 17 with the patch.
