@@ -69,8 +69,12 @@ Memory: Soong sizes its highmem pool (metalava, R8, …) from the host's RAM via
 (`build/soong/ui/build/config_linux.go:19-27`, `config.go:1588-1616`). Inside the container
 it sees all 91 GB and ignores the cap, so `run.sh` passes `NINJA_HIGHMEM_NUM_JOBS`. n5 has
 no swap: exceeding the cap kills the build, not other services. The largest single process is
-Soong's analysis of the whole tree; measure it once with `run.sh build nothing` and read the
-container's peak (`docker stats`). The container uses host networking, so adb and the emulator ports are on
+Soong's analysis of the whole tree. **Measured 2026-10-10:** `run.sh build nothing` with a
+28 GB cap. `soong_build` was OOM-killed inside the container at 29 GB RSS, about 2 minutes
+in; other services were unaffected. The analysis can't be made smaller from outside:
+`soong_build` runs under `env -i` (no `GOMEMLIMIT`/`GOGC`) and with `GOMAXPROCS` = all CPUs
+(`build/blueprint/bootstrap/command.go:71`). So a build host needs more than 28 GB for the
+container. On n5 that only works with more headroom (an idle ollama, or swap). The container uses host networking, so adb and the emulator ports are on
 n5's loopback. From m3max: `ssh -L 5555:127.0.0.1:5555 n5`, `adb connect 127.0.0.1:5555`,
 `scrcpy`.
 
