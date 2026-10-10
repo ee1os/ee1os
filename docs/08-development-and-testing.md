@@ -9,7 +9,7 @@ GrapheneOS builds only on x86_64 Linux (<https://grapheneos.org/build>).
 
 | Machine | Role |
 |---|---|
-| `n5` | Build host and emulator host. TrueNAS SCALE, so nothing is installed on the host: the build runs in a Docker container. 24 threads, 91 GB RAM shared with other services → `-j12`, 48 GB container cap. |
+| `n5` | Build host and emulator host. TrueNAS SCALE, so nothing is installed on the host: the build runs in a Docker container. 24 threads, 91 GB RAM shared with Immich, ollama etc. → `-j8`, 28 GB container cap, one highmem job. |
 | m3max | Editor (remote over SSH), `adb`, `scrcpy` for the emulator screen. |
 | test Pixel | Stage 6 only. Dedicated device, own signing keys, never a daily phone. |
 | `de1` | Fallback build host (8 threads, 62 GB RAM, Debian 13 → same container). |
@@ -62,8 +62,15 @@ owned by `faeton`) and `run.sh`:
 | `run.sh emulator` / `emulator-stop` | headless emulator in the background, adb on n5's `127.0.0.1:5555` |
 | `run.sh exec '<cmd>'` | one command with `lunch` done, e.g. `adb`, `atest`, `tests/*.sh` |
 
-Defaults: `LUNCH=sdk_phone64_x86_64-cur-userdebug`, `JOBS=12`, `MEM=48g`; all overridable
-by environment. The container uses host networking, so adb and the emulator ports are on
+Defaults: `LUNCH=sdk_phone64_x86_64-cur-userdebug`, `JOBS=8`, `MEM=28g`, `HIGHMEM=1`; all
+overridable by environment.
+
+Memory: Soong sizes its highmem pool (metalava, R8, …) from the host's RAM via `sysinfo`
+(`build/soong/ui/build/config_linux.go:19-27`, `config.go:1588-1616`). Inside the container
+it sees all 91 GB and ignores the cap, so `run.sh` passes `NINJA_HIGHMEM_NUM_JOBS`. n5 has
+no swap: exceeding the cap kills the build, not other services. The largest single process is
+Soong's analysis of the whole tree; measure it once with `run.sh build nothing` and read the
+container's peak (`docker stats`). The container uses host networking, so adb and the emulator ports are on
 n5's loopback. From m3max: `ssh -L 5555:127.0.0.1:5555 n5`, `adb connect 127.0.0.1:5555`,
 `scrcpy`.
 
