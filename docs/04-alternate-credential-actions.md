@@ -3,7 +3,8 @@
 Design draft. Generalises the duress hook (doc 03) from "one alternate pair, one action"
 to "a small table of alternate credentials, each bound to an action".
 
-Status: **proposal, nothing implemented.** Revision references: frameworks_base `84183aff`.
+Status: **`REBOOT_BFU` implemented as a fork PoC** (roadmap Stage 2, see *Decisions*); the
+table and the other actions are still a proposal. Revision references: frameworks_base `84183aff`.
 
 ## Motivation
 
@@ -203,6 +204,31 @@ Draft for a *Reboot PIN* screen:
      `cmd lock_settings set-duress-credentials` (`DuressPasswordTest.java:75-79`), types the
      credential with `input text` (`:92`), and checks Weaver reads via `WeaverOpCapturer`
      output (`:59`). A `RebootBfuTest` should copy this test.
+
+## Decisions
+
+- **2026-10-10, storage: a second fixed slot, not a table (Q1 for the fork).** The reboot
+  credential is one `DuressCredential` (salt + stretched value) under its own storage key
+  `reboot_credential` (`RebootCredential.java`); the duress blob and its `VERSION` stay as they
+  are. Reason: no format change and no v0 upgrade path that could break an existing duress
+  enrolment; D6 allows one reboot credential anyway. A table is worth it only once a third
+  action exists.
+- **2026-10-10, one credential, PIN or password.** Matching is type-specific, so a reboot PIN
+  fires only where a PIN is entered: with a password lock screen the typed text is a password
+  credential and never matches. Settings has to say so.
+- **2026-10-10, Q3: `lowLevelReboot(null)`.** It sets `sys.powerctl`, so init still kills
+  processes, syncs and unmounts; it skips `ShutdownThread` (no broadcasts to apps, no dialog).
+  No reason string, so `sys.boot.reason` doesn't name the alternate.
+- **2026-10-10, Q2: fires at every user's prompt**, like duress. A reboot only takes access
+  away, and the hook has no user id.
+- **2026-10-10, Q5: counts as a failed attempt.** The primary verification has already failed
+  and been counted when the alternate is checked; not special-casing it keeps D4.
+- **2026-10-10, enrolment (B9):** `setRebootCredential(owner, ownerSecondFactor, credential)`.
+  The candidate is compared in memory with the owner credential and, if the owner has one, the
+  second-factor PIN, before those are verified (verification zeroizes parceled credentials);
+  then against duress with `DuressCredential.verify`. `setDuressCredentials` checks the reverse.
+  Errors carry fixed `collision: …` messages. Deleting works without a screen lock, setting
+  doesn't.
 
 ## Open questions
 

@@ -82,10 +82,24 @@ What worked on n5 (2026-10-10):
 - The ollama model unloaded for the analysis (`ollama stop <model>`; the service keeps running).
 - `MEM=44g MEMSWAP=68g run.sh build nothing`: analysis done in 2:20, peak **36 GB**, n5 never
   below 24 GB available.
-- The analysis reruns only when `Android.bp`/`.mk` files change. Java edits go straight to
-  compiling, which is where `JOBS`/`HIGHMEM` matter.
+- The analysis reruns when `Android.bp`/`.mk` files change **or a source file is added or
+  removed** under a glob ("Globs changed, rerunning soong"). Edits to existing files go straight
+  to compiling, which is where `JOBS`/`HIGHMEM` matter.
 - A guard runs next to every long build: `/mnt/flash/scratch/grapheneos/guard.sh` in the build's
-  tmux session. It kills the container below 4 GB available and logs to `mem.log`. The container uses host networking, so adb and the emulator ports are on
+  tmux session. It kills the container below 4 GB available and logs to `mem.log`. On
+  2026-10-10 it killed a re-analysis with the emulator (5.5 GB) and an ollama model loaded;
+  stop the emulator (`run.sh emulator-stop`) before a build that adds files.
+
+Incremental build times on n5 (2026-10-10, `JOBS=12 HIGHMEM=2 MEM=44g`):
+
+| Change | Steps | Time | Peak container RAM |
+|---|---|---|---|
+| new files in `services/core` + an `ILockSettings.aidl` method (framework.jar changes, everything above it recompiles) | ~4500 | 46:46 | 43.7 GB (into swap), during the SystemUI compile |
+| edits to existing `services/` files only | small | 2:48 | — |
+
+So keep framework (`core/`) API changes rare and batch them.
+
+The container uses host networking, so adb and the emulator ports are on
 n5's loopback. From m3max: `ssh -L 5555:127.0.0.1:5555 n5`, `adb connect 127.0.0.1:5555`,
 `scrcpy`.
 
@@ -122,7 +136,10 @@ The emulator shares one adb server with every `run.sh exec` container (host netw
 `adb connect` is needed. atest keeps its logs in the container's `/tmp`, which is gone after the
 run; copy them out when a run needs a closer look:
 `run.sh exec 'atest … > /src/t1.log 2>&1; cp -rL /tmp/atest_result_faeton/CURRENT /src/t1-logs'`.
-The first atest run builds TradeFed, so don't pass `-it` to it.
+The first atest run builds TradeFed, so don't pass `-it` to it. Instrumentation needs user 0 in
+front and unlocked: after a reboot test, run `cmd lock_settings verify --old <owner PIN>` first.
+Otherwise TradeFed reports the device unresponsive and reboots it (`sys.boot.reason` =
+`reboot,shell`).
 
 **Regression gate** (every change, every rebase): T0, T1, and duress on the emulator
 (`tests/stage1.sh duress --yes-wipe`, then `EMU_ARGS=-wipe-data run.sh emulator`). Duress must
@@ -154,12 +171,12 @@ gate says when a stage is done.
 |---|---|---|---|
 | 0 | container, first build, emulator up | T0; T1 + T2 on unmodified build as **baseline** | baseline recorded in `tests/results/`, failures there are known and listed |
 | 1 | none (unmodified build) | T3 `tests/stage1.sh` items 1–5, T4 for keyguard steps | every item has an observed result; doc 07 Stage 1/3/5 updated with it |
-| 2a | `frameworks/base`: action table, storage v1, `RebootBfuAction`, shell command, collision checks | T0, T1 with new unit tests (helper not mocked), regression gate | unit tests green, duress unchanged |
+| 2a | `frameworks/base`: reboot credential slot, `RebootBfu`, shell command, collision checks | T0, T3 `tests/stage2.sh`, T1 with new unit tests (helper not mocked), regression gate | unit tests green, duress unchanged |
 | 2b | `packages/apps/Settings`: Reboot PIN screens | T0, T4 Settings checklist | enrol / update / delete / collision errors work |
 | 2c | `RebootBfuTest` host test | T2, T4 matrix | matrix fully green, wrong-PIN timing unchanged (D4) |
-| 3 | probably none; maybe wording in Settings | T3 eviction scenarios, T4 End session | eviction confirmed for restriction and End session |
+| 3 | `AccountsDb` close fix (3c); maybe wording in Settings | T3 eviction scenarios, `tests/stage3.sh openfiles`, T4 End session | eviction confirmed for restriction and End session; no CE file open after a stop |
 | 4 | keyguard dispatch (fork-only) | T1, T3 crossing script, T4 | design notes 1–7 in doc 07 each covered by a test |
-| 5 | experiment | T3 boot-order script | in/out decision recorded in doc 00 |
+| 5 | experiment; backup fix | T3 boot-order script (`tests/stage1.sh bootorder` on the patched build) | in/out decision recorded in doc 00 |
 | 6 | flash test Pixel (manual) | T5 | hardware throttling and wipe observed |
 
 ### T4 checklist for `REBOOT_BFU` (Stage 2)

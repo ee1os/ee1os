@@ -9,13 +9,25 @@ test levels, per-stage gates — is in `08-development-and-testing.md`.
 |---|---|---|
 | 0 | Groundwork: docs, source, dev environment | done except adb from m3max; baseline in `tests/results/2026-10-10-stage0-T1-T2.md` |
 | 1 | Baseline experiments on the unmodified emulator | done 2026-10-10 (`tests/results/2026-10-10-stage1-T3.md`); keyguard entry left for T4 |
-| 2 | `REBOOT_BFU` alternate credential | design ready (doc 04) |
-| 3 | Environment B via the lockscreen user switcher | eviction confirmed; open: `accounts_ce.db` stays open after stop (3c) |
+| 2 | `REBOOT_BFU` alternate credential | 2a done 2026-10-10, passes on the emulator (`tests/results/2026-10-10-stage2-T3.md`); next 2b Settings, 2c unit tests |
+| 3 | Environment B via the lockscreen user switcher | eviction confirmed; 3c found and fixed (`tests/results/2026-10-10-stage3-T3.md`); next 3b wording, End session check |
 | 4 | Automatic PIN dispatch | design notes only |
-| 5 | B before A after boot | blocked: unlocking B first crashes system_server (backup) |
+| 5 | B before A after boot | backup crash fixed; B unlocks first, but has no shared storage (`tests/results/2026-10-10-stage5-T3.md`) |
 | 6 | Real device | not started |
 
 All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*).
+
+**Next, in order (2026-10-10):**
+
+1. 2c groundwork: action hook in the helper, unit tests with a real helper. Batch any other
+   `core/` change with it, since a framework API change costs a ~47 min build on n5 (doc 08).
+2. 2b: Reboot PIN screens in the Settings fork (doc 04 *Settings flow*).
+3. One T4 session from m3max (adb over the ssh tunnel, scrcpy): duress and reboot PIN typed
+   at the keyguard, power-menu End session (Stage 3a), the 2b screens. Closes Stage 0's last
+   item too.
+4. Stage 5 reading: can N's storage come up while user 0 is locked? Then in/out in doc 00.
+5. Stage 4 design → code, once 3 is closed.
+6. Stage 6 needs the test Pixel and its own keys (manual, doc 08).
 
 ## Stages
 
@@ -76,13 +88,23 @@ answers an open question; results go to `tests/results/`.
 Deliverable: commits on `envs-17` in both forks, exported to `patches/02-reboot-bfu/`, plus
 test results. Design: doc 04.
 
-- 2a. system_server: action chosen per entry instead of hard-coded in `DuressPasswordHelper`;
-  storage v1 with an action byte and v0 upgrade; `RebootBfuAction`; enrolment collision
-  checks that never go through `checkCredential` (doc 04, *Settings flow* item 5);
-  `cmd lock_settings set-reboot-credential` for scripted enrolment.
+- 2a. system_server, done 2026-10-10 (fork `envs-17`): one reboot credential in its own storage
+  slot instead of a table (doc 04 *Decisions*), checked after duress in
+  `DuressPasswordHelper`; `RebootBfu` (`lowLevelReboot`); collision checks in memory against
+  the owner credential, the second-factor PIN and duress, both directions;
+  `ILockSettings.setRebootCredential` / `hasRebootCredential`;
+  `cmd lock_settings set-reboot-credential` for scripted enrolment. Tests: `tests/stage2.sh`.
+  **Results 2026-10-10:** every collision refused in both directions; reboot PIN at the
+  owner's and at envB's prompt → down within 2 s, back in BFU after ~25 s, owner PIN unlocks with
+  data intact, boot reason a plain `reboot,`; wrong/right PINs never reboot; wrong-PIN response
+  time unchanged with 0, 1 or 2 alternates (D4). Patch: `patches/02-reboot-bfu/`.
 - 2b. Settings screen as drafted in doc 04 → *Settings flow*.
 - 2c. Unit tests (duress helper wired for real instead of mocked), host test `RebootBfuTest`
-  modelled on `DuressPasswordTest`, manual matrix (doc 08).
+  modelled on `DuressPasswordTest` (needs Weaver, so T5), manual matrix (doc 08). Keyguard
+  entry of the reboot PIN is a T4 check, as for duress. First: the helper calls
+  `DuressWipe.run` / `RebootBfu.run` statically, so a real helper in a unit test would wipe or
+  reboot the test device; move the two actions behind an overridable method and let
+  `LockSettingsServiceTestable` (`:185-190`) return a real helper with that method stubbed.
 
 ### Stage 3 — environment B via the existing lockscreen user switcher
 
@@ -126,12 +148,16 @@ credential is checked, so there is no cross-user throttling and no duress race.
   `stopUserOnSwitchIfEnforced` (`UC:2741-2747`).
 - 3b. The toggle exists (*Run in background* off). Remaining work is wording: say that it
   evicts the user's keys on every switch.
-- 3c. **Open (Stage 1, 2026-10-10):** after N stops, system_server keeps
-  `/data/system_ce/N/accounts_ce.db` (+ `-wal`, `-shm`) open, so vold removes the key with busy
-  files and that database stays readable. `purgeUserData` runs before the lock
-  (`AccountManagerService.java:1581-1596`); the CE file is attached to the DE connection
-  (`AccountsDb.java:1362`). Find out why the descriptors survive `close()`, check other
-  holders with `lsof` after each stop, and decide whether a patch belongs in Stage 3.
+- 3c. **Found 2026-10-10, patched in the fork.** After N stops, system_server kept
+  `/data/system_ce/N/accounts_ce.db` (+ `-wal`, `-shm`) open, so vold removed the key with busy
+  files and that database stayed readable. `purgeUserData` calls `AccountsDb.close()`
+  (`AccountManagerService.java:1581-1596`), which closed only the DE helper
+  (`AccountsDb.java:1456-1458` at `84183aff`). Since AOSP e866ee92 / 083147324f7b ("Remove detach_de_ce
+  flag") the CE database is a separate `CeDatabaseHelper` (`:181`, `:1362-1365`) that nothing
+  closed. `lsof` after a stop (`probe` with Settings, Dialer, Camera, Sync opened in N): 89 CE
+  files open while N runs, only these three after the stop. Fix: close `mCeDatabase` too
+  (fork `ce54caed`, `patches/03-environment-b/`). Retest on the fixed build: 93 CE files open
+  while N runs, none after the stop, no vold warning. Stage 3 depends on this patch.
 
 ### Stage 4 — automatic PIN dispatch
 
@@ -155,10 +181,32 @@ Upstream has rejected switch-to-user PINs (#8675, #8409), so this is fork-only b
 
 Only if Stage 1 item 3 looked workable. Decide in/out and record it in doc 00.
 
-Stage 1 item 3 (2026-10-10): not workable as is. Unlocking N while the owner is locked
-crashes system_server in `BackupManagerService` (Stage 1 results). Going on would need at
-least a backup fix (open the per-user preferences through a user context, or skip backup for N
-until user 0 unlocks), and probably a sweep of other services for the same pattern.
+Stage 1 item 3 (2026-10-10): unlocking N while the owner is locked crashes system_server in
+`BackupManagerService` (Stage 1 results). Cause, read 2026-10-10:
+
+- `UserBackupPreferences` opens `/data/system_ce/N/backup/backup_preferences` (N's CE, unlocked)
+  with `getSharedPreferences(File)` on the system context (`UserBackupPreferences.java:37-41`).
+- The system context is flagged credential-protected because its `LoadedApk` has no data dirs
+  (`ContextImpl.java:3947-3952`), and `credentialProtectedStorageCheck` throws unless
+  `myUserId()`, always 0 in system_server, is unlocked (`:687-701`). It is a throw, uncaught on
+  the backup thread.
+- Fix: `createDeviceProtectedStorageContext().getSharedPreferences(file, …)`: same file, no
+  check. The same idiom is used in `services/usb/java/com/android/server/usb/UsbDeviceManager.java:1132-1136`.
+- Sweep of every `getSharedPreferences` in `services/` and `core/java/com/android/server`: no
+  other call on the raw system context runs for N after boot. `AuthenticationStatsPersister`
+  (`biometrics/AuthenticationStatsPersister.java:69`) uses it but only receives user 0's
+  unlock; `RecoverySystemService` (`:229-233`) runs before `setSystemProcess`, when the check is
+  off.
+
+**Experiment 2026-10-10 with the fix** (fork `d34c6e71`, `patches/05-boot-order/`): N unlocks
+first, owner stays `RUNNING_LOCKED`, no crash. Next blocker: N's shared storage stays
+`unmountable` ("Reporting emulated;10 unmounted due to system locked", "Not ready to bind to the
+ExternalStorageService for user 10"). The FUSE daemon for every user is the system user's
+MediaProvider, and StorageManagerService hides volumes while user 0 is locked
+(`StorageManagerService.java:3931-3934`, `:3995-4001`). That is a structural owner-first
+dependency, unlike the backup crash. Next step is reading: can MediaProvider's
+ExternalStorageService start for N while user 0 is locked, and what in N breaks without
+`/sdcard`. Decide in/out after that (doc 00).
 
 ### Stage 6 — real device
 
