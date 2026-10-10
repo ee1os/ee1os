@@ -126,7 +126,9 @@ The first atest run builds TradeFed, so don't pass `-it` to it.
 
 **Regression gate** (every change, every rebase): T0, T1, and duress on the emulator
 (`tests/stage1.sh duress --yes-wipe`, then `EMU_ARGS=-wipe-data run.sh emulator`). Duress must
-still fire from every prompt it fires from today (doc 00 hard requirement).
+still fire from every prompt it fires from today (doc 00 hard requirement). The script enters the
+duress PIN through `cmd lock_settings verify`; `adb shell input text` doesn't reach the keyguard
+bouncer on this build, so the keyguard itself is a T4 check.
 `DuressPasswordTest` can't run on goldfish: it asserts Weaver reads after every verify
 (`DuressPasswordTest.java:59`), so it runs at T5 on the test Pixel.
 

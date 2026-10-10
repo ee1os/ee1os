@@ -8,7 +8,7 @@ test levels, per-stage gates — is in `08-development-and-testing.md`.
 | Stage | What | Status |
 |---|---|---|
 | 0 | Groundwork: docs, source, dev environment | done except adb from m3max; baseline in `tests/results/2026-10-10-stage0-T1-T2.md` |
-| 1 | Baseline experiments on the unmodified emulator | items 1, 2, 3, 5 done 2026-10-10; item 4 (duress) left |
+| 1 | Baseline experiments on the unmodified emulator | done 2026-10-10 (`tests/results/2026-10-10-stage1-T3.md`); keyguard entry left for T4 |
 | 2 | `REBOOT_BFU` alternate credential | design ready (doc 04) |
 | 3 | Environment B via the lockscreen user switcher | eviction confirmed; open: `accounts_ce.db` stays open after stop (3c) |
 | 4 | Automatic PIN dispatch | design notes only |
@@ -67,7 +67,9 @@ answers an open question; results go to `tests/results/`.
   `allow_user_switching_when_system_user_locked`.
 - Item 5: 4 mismatches, then `Request throttled`; right PIN accepted after 65 s. Goldfish has no
   Weaver, so this is the software limiter only.
-- Item 4 not run yet.
+- Item 4: duress fires from the shell verify (same `checkCredential` entry as the bouncer); the
+  next boot stops at `init_user0_failed`. `input text` doesn't reach the keyguard bouncer, so
+  keyguard entry is checked by hand (T4).
 
 ### Stage 2 — `REBOOT_BFU` alternate credential
 
