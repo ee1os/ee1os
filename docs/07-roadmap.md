@@ -8,11 +8,11 @@ test levels, per-stage gates — is in `08-development-and-testing.md`.
 | Stage | What | Status |
 |---|---|---|
 | 0 | Groundwork: docs, source, dev environment | done except adb from m3max; baseline in `tests/results/2026-10-10-stage0-T1-T2.md` |
-| 1 | Baseline experiments on the unmodified emulator | script ready (`tests/stage1.sh`), waiting for first build |
+| 1 | Baseline experiments on the unmodified emulator | items 1, 2, 3, 5 done 2026-10-10; item 4 (duress) left |
 | 2 | `REBOOT_BFU` alternate credential | design ready (doc 04) |
-| 3 | Environment B via the lockscreen user switcher | likely no patch; confirm in Stage 1 |
+| 3 | Environment B via the lockscreen user switcher | eviction confirmed; open: `accounts_ce.db` stays open after stop (3c) |
 | 4 | Automatic PIN dispatch | design notes only |
-| 5 | B before A after boot | depends on Stage 1 item 3 |
+| 5 | B before A after boot | blocked: unlocking B first crashes system_server (backup) |
 | 6 | Real device | not started |
 
 All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*).
@@ -55,6 +55,19 @@ answers an open question; results go to `tests/results/`.
    Destroys the emulator's data; run last, restart with `EMU_ARGS=-wipe-data`.
 5. Lockout schedule with repeated wrong PINs (`SoftwareRateLimiter.java:107-129`): 5 failures →
    1 min, 10 → 4 h, 13 → 4 days, per the table.
+
+**Results 2026-10-10** (`tests/results/2026-10-10-stage1-T3.md`):
+
+- Item 2 as read: a plain switch leaves N `RUNNING_UNLOCKED`; `am stop-user -w` returns before
+  the key is removed (CE names encrypted after 4–5 s); `no_run_in_background` stops N on switch
+  away and locks it at once. But see 3c: one CE database stays open.
+- Item 3: owner stays `RUNNING_LOCKED`; unlocking N first crashes system_server in the backup
+  service (`UserBackupManagerService.java:622` → `ContextImpl.java:686-701`, checks user 0's
+  unlock state for a system-context file). Stock code, reachable only through
+  `allow_user_switching_when_system_user_locked`.
+- Item 5: 4 mismatches, then `Request throttled`; right PIN accepted after 65 s. Goldfish has no
+  Weaver, so this is the software limiter only.
+- Item 4 not run yet.
 
 ### Stage 2 — `REBOOT_BFU` alternate credential
 
@@ -111,6 +124,12 @@ credential is checked, so there is no cross-user throttling and no duress race.
   `stopUserOnSwitchIfEnforced` (`UC:2741-2747`).
 - 3b. The toggle exists (*Run in background* off). Remaining work is wording: say that it
   evicts the user's keys on every switch.
+- 3c. **Open (Stage 1, 2026-10-10):** after N stops, system_server keeps
+  `/data/system_ce/N/accounts_ce.db` (+ `-wal`, `-shm`) open, so vold removes the key with busy
+  files and that database stays readable. `purgeUserData` runs before the lock
+  (`AccountManagerService.java:1581-1596`); the CE file is attached to the DE connection
+  (`AccountsDb.java:1362`). Find out why the descriptors survive `close()`, check other
+  holders with `lsof` after each stop, and decide whether a patch belongs in Stage 3.
 
 ### Stage 4 — automatic PIN dispatch
 
@@ -133,6 +152,11 @@ Upstream has rejected switch-to-user PINs (#8675, #8409), so this is fork-only b
 ### Stage 5 — B before A after boot (experiment, may be dropped)
 
 Only if Stage 1 item 3 looked workable. Decide in/out and record it in doc 00.
+
+Stage 1 item 3 (2026-10-10): not workable as is. Unlocking N while the owner is locked
+crashes system_server in `BackupManagerService` (Stage 1 results). Going on would need at
+least a backup fix (open the per-user preferences through a user context, or skip backup for N
+until user 0 unlocks), and probably a sweep of other services for the same pattern.
 
 ### Stage 6 — real device
 
