@@ -119,9 +119,15 @@ case "${1:-}" in
     header "item 4: duress"
     run cmd lock_settings set-duress-credentials --owner-credential "$OWNER_PIN" \
       --duress-pin "$DURESS_PIN" --duress-password "$DURESS_PW"
-    log "    entering duress PIN at the keyguard"
-    sh_ input keyevent KEYCODE_SLEEP; sleep 2; unlock_ui "$DURESS_PIN"
+    run cmd lock_settings check-non-ce-storage-keys
+    # the shell verify enters through checkCredential like the keyguard bouncer (doc 03, *Who
+    # reaches the hook*); typing at the keyguard is a T4 item, `input text` doesn't reach it
+    run cmd lock_settings verify --old "$DURESS_PIN"
+    sleep 1
+    # same check as DuressPasswordTest: no non-CE keys left once the wipe has run
+    run cmd lock_settings check-non-ce-storage-keys
     for i in $(seq 60); do a get-state >/dev/null 2>&1 || { log "    device gone after ${i}s"; break; }; sleep 1; done
+    a get-state >/dev/null 2>&1 && log "    device still up after 60 s: duress did not fire"
     log "    restart with: EMU_ARGS=-wipe-data run.sh emulator"
     ;;
   *)
