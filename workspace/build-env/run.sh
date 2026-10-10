@@ -13,13 +13,14 @@ ENVS=/mnt/flash/home/faeton/work/grapheneos-envs   # grapheneos-envs symlinks he
 IMAGE=grapheneos-build:24.04
 JOBS="${JOBS:-8}"
 MEM="${MEM:-28g}"
+MEMSWAP="${MEMSWAP:-$MEM}"   # RAM + swap; e.g. 52g with the n5 zram swap on
 # soong sizes its highmem pool (metalava, R8, ...) from host RAM, not the container cap
 HIGHMEM="${HIGHMEM:-1}"
 LUNCH="${LUNCH:-sdk_phone64_x86_64-cur-userdebug}"
 EMU_ARGS="${EMU_ARGS:-}"      # e.g. EMU_ARGS=-wipe-data after a duress test
 
 KVM_GID="$(stat -c %g /dev/kvm)"
-common=(--rm --memory "$MEM" --memory-swap "$MEM" --network host
+common=(--rm --memory "$MEM" --memory-swap "$MEMSWAP" --network host
         -v "$SRC:/src" -v "$ENVS:$ENVS"
         --device /dev/kvm --group-add "$KVM_GID"
         -e JOBS="$JOBS" -e NINJA_HIGHMEM_NUM_JOBS="$HIGHMEM" -e LUNCH="$LUNCH" -e EMU_ARGS="$EMU_ARGS")

@@ -74,7 +74,18 @@ Soong's analysis of the whole tree. **Measured 2026-10-10:** `run.sh build nothi
 in; other services were unaffected. The analysis can't be made smaller from outside:
 `soong_build` runs under `env -i` (no `GOMEMLIMIT`/`GOGC`) and with `GOMAXPROCS` = all CPUs
 (`build/blueprint/bootstrap/command.go:71`). So a build host needs more than 28 GB for the
-container. On n5 that only works with more headroom (an idle ollama, or swap). The container uses host networking, so adb and the emulator ports are on
+container.
+
+What worked on n5 (2026-10-10):
+- 24 GB zram swap, zstd, in RAM only; gone on reboot. Never swap on ZFS.
+  `sudo modprobe zram && echo zstd | sudo tee /sys/block/zram0/comp_algorithm && echo 24G | sudo tee /sys/block/zram0/disksize && sudo mkswap /dev/zram0 && sudo swapon -p 100 /dev/zram0`
+- The ollama model unloaded for the analysis (`ollama stop <model>`; the service keeps running).
+- `MEM=44g MEMSWAP=68g run.sh build nothing`: analysis done in 2:20, peak **36 GB**, n5 never
+  below 24 GB available.
+- The analysis reruns only when `Android.bp`/`.mk` files change. Java edits go straight to
+  compiling, which is where `JOBS`/`HIGHMEM` matter.
+- A guard runs next to every long build: `/mnt/flash/scratch/grapheneos/guard.sh` in the build's
+  tmux session. It kills the container below 4 GB available and logs to `mem.log`. The container uses host networking, so adb and the emulator ports are on
 n5's loopback. From m3max: `ssh -L 5555:127.0.0.1:5555 n5`, `adb connect 127.0.0.1:5555`,
 `scrcpy`.
 
