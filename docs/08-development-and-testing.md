@@ -109,8 +109,8 @@ still work; the sandbox only guards against undeclared inputs.
 | Level | What | Where | Command |
 |---|---|---|---|
 | T0 | It builds, no new warnings in touched files | container | `run.sh build` |
-| T1 | Unit tests, locksettings | emulator (instrumentation) | `run.sh exec 'adb connect 127.0.0.1:5555; atest FrameworksServicesTests:com.android.server.locksettings'` |
-| T2 | Host tests: GrapheneOS `DuressPasswordTest`, later `RebootBfuTest` | emulator | `run.sh exec 'atest DuressPasswordTest'` |
+| T1 | Unit tests, locksettings | emulator (instrumentation) | `run.sh exec 'atest FrameworksServicesTests:com.android.server.locksettings'` |
+| T2 | Host tests: GrapheneOS `DuressPasswordTest`, later `RebootBfuTest` | a target with a Weaver HAL (test Pixel; goldfish has none) | `run.sh exec 'atest DuressPasswordTest'` |
 | T3 | Scripted scenarios over adb (`tests/*.sh`) | emulator | `run.sh exec /src/grapheneos-envs/tests/stage1.sh <item>` |
 | T4 | Manual matrix at the real keyguard and in Settings | emulator via `scrcpy` | checklist below |
 | T5 | Hardware behaviour | test Pixel | Stage 6 checklist |
@@ -118,12 +118,30 @@ still work; the sandbox only guards against undeclared inputs.
 Results: one file per run in `tests/results/` (`YYYY-MM-DD-<stage>-<level>.md`, build
 fingerprint first line: `adb shell getprop ro.build.fingerprint`).
 
-**Regression gate** (every change, every rebase): T0, T1, T2. Duress must still fire from every
-prompt it fires from today (doc 00 hard requirement), so `DuressPasswordTest` is never skipped.
+The emulator shares one adb server with every `run.sh exec` container (host network), so no
+`adb connect` is needed. atest keeps its logs in the container's `/tmp`, which is gone after the
+run; copy them out when a run needs a closer look:
+`run.sh exec 'atest … > /src/t1.log 2>&1; cp -rL /tmp/atest_result_faeton/CURRENT /src/t1-logs'`.
+The first atest run builds TradeFed, so don't pass `-it` to it.
 
-What the emulator can't show: secure-element / Weaver hardware throttling (check whether a
-Weaver HAL exists at all), eSIM wipe, verified boot with our own key, A/B slots (goldfish is
-not A/B, doc 06).
+**Regression gate** (every change, every rebase): T0, T1, and duress on the emulator
+(`tests/stage1.sh duress --yes-wipe`, then `EMU_ARGS=-wipe-data run.sh emulator`). Duress must
+still fire from every prompt it fires from today (doc 00 hard requirement).
+`DuressPasswordTest` can't run on goldfish: it asserts Weaver reads after every verify
+(`DuressPasswordTest.java:59`), so it runs at T5 on the test Pixel.
+
+Known baseline failures (stock GrapheneOS 17, `tests/results/2026-10-10-stage0-T1-T2.md`):
+
+- T1: `WeaverHidlBasedSyntheticPasswordTests` doesn't load. Its parent switched to
+  `JUnitParamsRunner` in `18b79a00` but the HIDL subclass still uses `AndroidJUnit4`
+  (`WeaverHidlBasedSyntheticPasswordTests.java:28`), so atest reports "Completed With ERRORS".
+  Everything else passes.
+- T2: fails at `:59` on goldfish (no Weaver). The second test then fails at `:52` because the
+  first left a password set.
+
+What the emulator can't show: secure-element / Weaver throttling (goldfish has no Weaver HAL,
+so lockout is the software limiter, doc 03), eSIM wipe, verified boot with our own key, A/B
+slots (goldfish is not A/B, doc 06).
 
 ## Phases
 

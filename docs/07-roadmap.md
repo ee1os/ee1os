@@ -7,7 +7,7 @@ test levels, per-stage gates — is in `08-development-and-testing.md`.
 
 | Stage | What | Status |
 |---|---|---|
-| 0 | Groundwork: docs, source, dev environment | docs + backlog done; build container works (`lunch` OK); first build pending |
+| 0 | Groundwork: docs, source, dev environment | done except adb from m3max; baseline in `tests/results/2026-10-10-stage0-T1-T2.md` |
 | 1 | Baseline experiments on the unmodified emulator | script ready (`tests/stage1.sh`), waiting for first build |
 | 2 | `REBOOT_BFU` alternate credential | design ready (doc 04) |
 | 3 | Environment B via the lockscreen user switcher | likely no patch; confirm in Stage 1 |
@@ -30,9 +30,12 @@ All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*
 - [x] Upstream issue #8505 confirmed; maintainer positions collected (doc 04)
 - [x] Backlog B2–B8 (below)
 - [x] Build container (`workspace/build-env/`): image built, `lunch` works inside (2026-10-09)
-- [ ] First emulator build of unmodified 17, emulator boots, `adb` from m3max
-- [ ] Baseline test run on the unmodified build (doc 08, T1 + T2), results recorded
-- [ ] Check whether the emulator exposes a Weaver HAL (`adb shell service list | grep -i weaver`)
+- [x] First emulator build of unmodified 17 (2026-10-10, super partition raised to 3584 MiB),
+  emulator boots in about 25 s, `adb` works on n5
+- [ ] `adb` from m3max over the ssh tunnel (doc 08)
+- [x] Baseline test run on the unmodified build (doc 08, T1 + T2), results recorded: T1 797
+  passed, one stock test class doesn't load; T2 needs Weaver, moves to T5
+- [x] Weaver HAL on the emulator: none. Lockout there is the software limiter only
 
 ### Stage 1 — baseline experiments, no code
 
