@@ -23,7 +23,8 @@ RUN groupadd -g ${GID} faeton && useradd -m -u ${UID} -g ${GID} -s /bin/bash fae
     && groupadd -f kvm && usermod -aG kvm faeton
 
 USER faeton
+# OUT_DIR stays at its default (relative "out"): siso fails to load its config from an
+# absolute config dir, and soong derives that dir from OUT_DIR.
 ENV PATH=/src/bin:$PATH \
-    USE_CCACHE=1 CCACHE_DIR=/src/.ccache \
-    OUT_DIR=/src/grapheneos-17/out
+    USE_CCACHE=1 CCACHE_DIR=/src/.ccache
 WORKDIR /src/grapheneos-17
