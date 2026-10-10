@@ -1,0 +1,33 @@
+From d34c6e7134351518365d74eadef1eb5ebf1710e1 Mon Sep 17 00:00:00 2001
+From: Ivan Faeton Danishevskyi <faeton@gmail.com>
+Date: Sat, 10 Oct 2026 23:26:56 +0100
+Subject: [PATCH] Backup: open user preferences without the CE check of user 0
+
+UserBackupPreferences opened /data/system_ce/N/backup/backup_preferences
+through the system context, which counts as credential-protected storage
+of user 0. Unlocking user N while user 0 was still locked threw on the
+backup thread and took system_server down.
+---
+ .../com/android/server/backup/UserBackupPreferences.java    | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/services/backup/java/com/android/server/backup/UserBackupPreferences.java b/services/backup/java/com/android/server/backup/UserBackupPreferences.java
+index bb8bf52187c5..2a642c03aa38 100644
+--- a/services/backup/java/com/android/server/backup/UserBackupPreferences.java
++++ b/services/backup/java/com/android/server/backup/UserBackupPreferences.java
+@@ -36,7 +36,11 @@ public class UserBackupPreferences {
+ 
+     UserBackupPreferences(Context conext, File storageDir) {
+         File excludedKeysFile = new File(storageDir, PREFERENCES_FILE);
+-        mPreferences = conext.getSharedPreferences(excludedKeysFile, Context.MODE_PRIVATE);
++        // The system context counts as credential-protected storage of user 0, so opening a
++        // file of another user through it throws while user 0 is locked. The path is absolute,
++        // the device-protected context only skips that check.
++        mPreferences = conext.createDeviceProtectedStorageContext()
++                .getSharedPreferences(excludedKeysFile, Context.MODE_PRIVATE);
+         mEditor = mPreferences.edit();
+     }
+ 
+-- 
+2.39.5
+

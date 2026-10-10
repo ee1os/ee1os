@@ -1,0 +1,30 @@
+From ce54caed10fd50bbb913fff83e5787b8454d481c Mon Sep 17 00:00:00 2001
+From: Ivan Faeton Danishevskyi <faeton@gmail.com>
+Date: Sat, 10 Oct 2026 22:28:39 +0100
+Subject: [PATCH] AccountsDb: close the CE database on close()
+
+Since the CE database got its own connection (e866ee92, 083147324f7b),
+close() only closed the DE one. accounts_ce.db stayed open after a
+user was stopped and vold removed the CE key with busy files.
+---
+ .../core/java/com/android/server/accounts/AccountsDb.java     | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/services/core/java/com/android/server/accounts/AccountsDb.java b/services/core/java/com/android/server/accounts/AccountsDb.java
+index 338aee3aafcd..65d6ec4e6c6f 100644
+--- a/services/core/java/com/android/server/accounts/AccountsDb.java
++++ b/services/core/java/com/android/server/accounts/AccountsDb.java
+@@ -1455,6 +1455,10 @@ class AccountsDb implements AutoCloseable {
+     @Override
+     public void close() {
+         mDeDatabase.close();
++        // CE database has its own connection, keep it from holding files of a stopped user open
++        if (mCeDatabase != null) {
++            mCeDatabase.close();
++        }
+     }
+ 
+     static void deleteDbFileWarnIfFailed(File dbFile) {
+-- 
+2.39.5
+
