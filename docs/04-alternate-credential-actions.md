@@ -182,6 +182,29 @@ Draft for a *Reboot PIN* screen:
    `reboot_pin_delete_error` / `reboot_pin_error_collision`. Button strings are reused from
    `duress_pwd_*`.
 
+**Built 2026-10-11** (Settings fork `envs-17`), following the draft with these differences:
+
+- Names: preference `reboot_credential`, `RebootCredentialPrefController`,
+  `RebootCredentialMainActivity`, `RebootCredentialSetupActivity`,
+  `res/layout/reboot_credential_setup.xml`, strings `reboot_cred_*`.
+- One credential, PIN **or** password (a radio choice), matching the service (*Decisions*,
+  one credential). The second-factor PIN field shows only when the owner has one.
+- Add needs a screen lock; Delete is offered without one, and is the only action for a record
+  that can't be read (`reboot_cred_corrupt`).
+- Collision errors map the service's fixed `collision: …` messages to strings; the duress
+  screen maps `collision: reboot credential` the same way.
+- The description says in general terms when the reboot credential is deleted automatically.
+  Telling the owner *that* it happened needs a stored reason from the service: not built.
+- Cleanup: the shared base class still runs its delayed `System.gc()`; on top of that the
+  setup screen zeroizes the credentials it creates in a `finally`, clears its fields when it
+  goes away and keeps them out of the saved state. The owner credential travels in the intent,
+  as in the duress screens, and is removed from it when setup ends; unlike the duress screen,
+  it isn't kept in the saved instance state (a recreated screen asks again), and the main
+  screen zeroizes it when it finishes. Strings that Android copies internally can't be wiped.
+- Both screens finish at once for anyone but the system user (the service always checks user
+  0's credential). Status errors other than a corrupt record are shown as errors, not as
+  corruption; no screen lock and no record shows "Set a screen lock first".
+
 ## Test plan (`REBOOT_BFU`, roadmap Stage 2)
 
 1. Emulator / Cuttlefish build of GrapheneOS 17 with the patch.
@@ -227,25 +250,43 @@ Draft for a *Reboot PIN* screen:
   restores the users' synthetic passwords on the next boot (`RebootEscrowManager.java:935`,
   `LockSettingsService.java:4476`), so the reboot would not end in BFU. `RebootBfu` calls
   `RebootEscrowManager.clearRebootEscrow()` before rebooting; a failure there is logged and the
-  reboot still happens. The emulator has no escrow HAL: the armed case is a Stage 6 check.
+  reboot still happens. The emulator's escrow HAL fails: the armed case is a Stage 6 check.
+  *Tightened 2026-10-11:* `RebootEscrowManager.clearRebootEscrowForReboot()` deletes the users'
+  escrow blobs before and after clearing the provider (so a provider that throws leaves nothing
+  to restore). It holds a lock that capture's write and the whole arm also take, so an
+  operation already running either finishes first and is wiped, or sees the flag and stops;
+  preparing, capturing and arming are refused until the reboot. The flag is never reset: if
+  the reboot doesn't happen, resume on reboot stays off until the next boot. `RebootBfu` asks
+  for the reboot up to three times (`lowLevelReboot` returns only when init didn't reboot
+  within 20 s).
 - **2026-10-11, owner credential changes.** The reboot credential is deleted when the owner
   removes the screen lock, and when the owner's new primary or second-factor credential is
   equal to it (`DuressPasswordHelper.onLockCredentialChanged`, called from
-  `onPostLockCredentialChanged`, which every change path goes through, the reset-token path
-  included). Deleting instead of refusing the change: a refusal would need a check before every
+  `onPostLockCredentialChanged`: ordinary changes `LockSettingsService.java:2232`, reset token
+  `:4390`, the automatic second-factor clear `:3702`; unified-profile changes bypass it, which
+  doesn't matter for an owner-only credential). An enrolment that overlaps an owner change is
+  refused (`owner credential changed, try again`): a change counter, bumped when a change of
+  user 0 *starts* (`setLockCredentialInternal`, the token path) and again when it completes,
+  is sampled before the owner checks and compared under the lock before the save. A change
+  attempt that fails also bumps it; the enrolment is then refused and retried (fails closed). Deleting instead of refusing the change: a refusal would need a check before every
   change path, and an equal credential can't fire anyway. Duress keeps its current behaviour
   (not touched on owner changes). Settings should say when this happened.
 - **2026-10-11, a queued reboot is dropped after a successful verification of the same user.**
-  The check runs on a background thread after the binder call returns; if the right credential
-  of that user is verified while the reboot attempt waits, the reboot is dropped. Duress is
-  never dropped. Biometric unlock doesn't go through `doVerifyCredential` and can't drop it.
+  The check runs on a background thread after the binder call returns; if any credential of
+  that user verifies (either domain, including a Settings confirmation) while the reboot
+  attempt waits, the reboot is dropped. Best effort: a verification after the last check, just
+  before the reboot call, doesn't stop it. Duress is never dropped. Biometric unlock doesn't go
+  through `doVerifyCredential` and can't drop it.
 - **2026-10-11, precedence is per attempt.** One worker thread checks attempts in order. A
   reboot attempt queued before a duress attempt reboots before the wipe is checked; the wipe
   is then lost. Accepted: two different alternates typed within a second or two.
-- **2026-10-11, unreadable records.** A stored record that can't be parsed disables only its
-  own action: the error is caught on the worker thread (only the exception type is logged, the
-  record never), enrolment reports `corrupt reboot credential record`, and deleting never
-  parses, so it always works.
+- **2026-10-11, unreadable records.** A stored reboot record that can't be parsed disables only
+  its own action: the error is caught on the worker thread (only the exception type is logged,
+  the record never), enrolment reports `corrupt reboot credential record`, and deleting never
+  parses, so it always works. The parser checks every length before allocating, requires the
+  exact record size (32-byte hash, 16-byte salt, no handle) and only the scrypt parameters this
+  device writes, so a damaged record can't cost more memory or stretching than a valid one. The
+  duress record keeps the stock parser, which trusts its lengths.
 - **2026-10-10, Q2: fires at every user's prompt**, like duress. A reboot only takes access
   away. (The hook gets the user id since 2026-10-11, used only to drop stale reboots.)
 - **2026-10-10, Q5: keeps the normal accounting.** The primary verification has already failed

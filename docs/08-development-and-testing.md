@@ -174,7 +174,7 @@ gate says when a stage is done.
 | 0 | container, first build, emulator up | T0; T1 + T2 on unmodified build as **baseline** | baseline recorded in `tests/results/`, failures there are known and listed |
 | 1 | none (unmodified build) | T3 `tests/stage1.sh` items 1–5, T4 for keyguard steps | every item has an observed result; doc 07 Stage 1/3/5 updated with it |
 | 2a | `frameworks/base`: reboot credential slot, `RebootBfu`, shell command, collision checks, lifecycle | T0, T3 `tests/stage2.sh` (every item), T1 incl. `AlternateCredentialsTests` (real helper, counting actions), regression gate | every check prints PASS; stock T1 unchanged; duress unchanged |
-| 2b | `packages/apps/Settings`: Reboot PIN screens | T0, T4 Settings checklist | enrol / update / delete / collision errors work |
+| 2b | `packages/apps/Settings`: Reboot PIN screens | T0, T3 `tests/stage2b.sh screens` (uiautomator), T4 Settings checklist | enrol / update / delete / collision errors work; no-lock, corrupt-record and second-factor states checked in T4 |
 | 2c | `RebootBfuTest` host test | T2, T4 matrix | matrix fully green, wrong-PIN timing unchanged (D4) |
 | 3 | `AccountsDb` close fix (3c); maybe wording in Settings | T3 eviction scenarios, `tests/stage3.sh openfiles`, T4 End session | eviction confirmed for restriction and End session; no CE file open after a stop |
 | 4 | keyguard dispatch (fork-only) | T1, T3 crossing script, T4 | design notes 1–7 in doc 07 each covered by a test |
@@ -205,3 +205,23 @@ Build for the device target with release signing (GrapheneOS build guide, *Gener
 release signing keys*), flash with the bootloader unlocked, set our AVB key, lock the
 bootloader again. Then repeat the T4 checklist and observe Weaver throttling with repeated
 wrong PINs. Never automated from this repo.
+
+Checklist for the first session, shell first so the hour goes to what only hardware shows
+(userdebug-style `adb` access is assumed for the shell steps; on a user build use the
+screens). Record each result in `tests/results/` like the emulator runs.
+
+1. Baseline: owner PIN, envB with its own PIN (`stage1.sh setup`). `getprop
+   ro.boot.verifiedbootstate` = `yellow` (own AVB key, locked).
+2. Weaver: wrong owner PINs one at a time, note each response and timeout
+   (`cmd lock_settings verify --old 0000`), stop before a long lockout. Compare with the
+   emulator (software limiter only, Stage 1 item 5).
+3. Reboot PIN at the owner's and envB's prompt (`stage2.sh reboot`, `reboot-b`): BFU after
+   boot, owner data intact, boot reason equal to a power-menu restart.
+4. Armed escrow: `cmd recovery request-lskf com.android.shell`, unlock, `cmd recovery
+   is-lskf-captured com.android.shell` = true, then the reboot PIN. After boot the owner
+   must be `RUNNING_LOCKED`. Then once with a real resume-on-reboot update, to see that the
+   normal path still works when the reboot PIN isn't used.
+5. Duress, last: duress PIN at the keyguard; device off, next boot can't decrypt, eSIM gone.
+   Reflash afterwards.
+6. Stage 5 on hardware, if still in: `stage5.sh storage`.
+

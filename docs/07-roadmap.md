@@ -9,7 +9,7 @@ test levels, per-stage gates — is in `08-development-and-testing.md`.
 |---|---|---|
 | 0 | Groundwork: docs, source, dev environment | done except adb from m3max; baseline in `tests/results/2026-10-10-stage0-T1-T2.md` |
 | 1 | Baseline experiments on the unmodified emulator | done 2026-10-10 (`tests/results/2026-10-10-stage1-T3.md`); keyguard entry left for T4 |
-| 2 | `REBOOT_BFU` alternate credential | 2a system side done 2026-10-11: review fixes in, `stage2.sh` all PASS, unit tests with the real helper 15/15 (`tests/results/2026-10-11-stage2-T3.md`); open: keyguard entry (T4), escrow armed case (Stage 6); next 2b Settings |
+| 2 | `REBOOT_BFU` alternate credential | 2a implemented and tested on the emulator after three reviews (`stage2.sh` PASS, escrow SKIP; T1 819/0 incl. 22 new tests; `tests/results/2026-10-11-stage2-T3.md`); 2b screens built, `stage2b.sh` PASS (`2026-10-11-stage2b-T3.md`); open: owner decision on storage (doc 00), keyguard entry and screen states (T4), armed escrow and Weaver (Stage 6) |
 | 3 | Environment B via the lockscreen user switcher | eviction confirmed; 3c fixed, rerun with assertions PASS (`tests/results/2026-10-11-stage3-T3.md`); next 3b wording, End session check |
 | 4 | Automatic PIN dispatch | design notes only |
 | 5 | B before A after boot | backup crash fixed; storage service started by the first unlocked user: B unlocks first with working shared storage and MediaStore, owner stays locked (`tests/results/2026-10-11-stage5-T3.md`); in/out still open |
@@ -17,21 +17,31 @@ test levels, per-stage gates — is in `08-development-and-testing.md`.
 
 All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*).
 
-**Next, in order (2026-10-11):**
+**Next, in order (2026-10-11, after the third review).** Work that needs neither a person at
+the screen nor the Pixel comes first, so the T4 session doesn't block it.
 
-1. 2b: Reboot PIN screens in the Settings fork (doc 04 *Settings flow*). They have to say
-   that a reboot PIN only fires where a PIN is typed, that each use counts as a failed attempt
-   of the user whose prompt was used, and when the reboot PIN was deleted by an owner change.
-2. Stage 5 coverage before the in/out decision: apps in N using storage (camera, documents),
-   N stopped and restarted while the owner is locked, the `UserManager` warning at the mount,
-   the launcher / AppWidget / Shortcut errors from 2026-10-10. Then in/out in doc 00.
-3. One T4 session from m3max (adb over the ssh tunnel, scrcpy): doc 08 T4 checklist (keyguard
-   entry, auto-confirm length, second-factor prompt, boot reason against a power-menu restart),
-   power-menu End session (Stage 3a), the 2b screens, Stage 5 on screen. Closes Stage 0's last
-   item too.
-4. Stage 4 design → code, once 3 is closed.
-5. Stage 6 needs the test Pixel and its own keys (manual, doc 08): Weaver throttling, the
-   armed reboot escrow case, eSIM wipe.
+1. Owner decision on doc 00 *Decisions* "Open (2026-10-11)": storage of access-reducing
+   alternates against the hard requirement. Stage 2 isn't claimed complete before it.
+2. Stage 3 wording (3b) and the isolation evaluation (doc 00 goal 3) in this doc's Stage 3,
+   from the Stage 1 and 3 results, with the pending T4 / hardware evidence marked as such.
+3. Stage 5 automated coverage: an ordinary app in N using `StorageManager`, app storage,
+   MediaStore insert/read, documents; negative checks against owner files; N stopped and
+   restarted while the owner is locked; MediaProvider death; owner unlock during N's I/O; the
+   `UserManager` warning (`UserManager.java:4197`, a binder identity not cleared in
+   `getConnectionUserIdForVolume`). Then in/out in doc 00. The storage patch only changes anything when a
+   user unlocks while user 0 is locked; from the UI that needs
+   `allow_user_switching_when_system_user_locked` (adb and system APIs can do it without).
+4. Device checklist for Stage 6 written now, shell-driven (doc 08), so the first hour on the
+   Pixel goes to what only it can show: Weaver throttling, armed escrow, a real reboot to
+   BFU, the duress wipe.
+5. One prepared T4 session from m3max (adb over the ssh tunnel, scrcpy): doc 08 T4 checklist
+   (keyguard entry, auto-confirm length, second-factor prompt, boot reason against a
+   power-menu restart), the 2b screens and their states (no lock, corrupt record, second
+   factor), power-menu End session (Stage 3a), Stage 5 on screen; destructive duress last.
+6. Stage 4 behind its design gate: Weaver persists a failure before comparing (*Design
+   notes*, `IWeaver.aidl:83-98`), so automatic dispatch can't hide a crossing from the
+   hardware counter. It serves the opening sketch's UX, not the isolation evaluation.
+7. Stage 6 on the Pixel when it is available.
 
 ## Stages
 
@@ -179,6 +189,27 @@ credential is checked, so there is no cross-user throttling and no duress race.
   files open while N runs, only these three after the stop. Fix: close `mCeDatabase` too
   (fork `ce54caed`, `patches/03-environment-b/`). Retest on the fixed build: 93 CE files open
   while N runs, none after the stop, no vold warning. Stage 3 depends on this patch.
+
+**Isolation evaluation, first version (2026-10-11; doc 00 goal 3).** What the emulator runs
+show, with the fork's 3c patch:
+
+| Property | Status | Evidence |
+|---|---|---|
+| B has its own credential, synthetic password and CE key | by construction | secondary user, doc 02 (not separately tested) |
+| B's CE storage locked after *Run in background* off + switch away | shown | Stage 1 item 2: CE names encrypted at once |
+| … after `am stop-user` | shown | CE names encrypted after 4–5 s; 3c: no CE file left open (`2026-10-11-stage3-T3.md`) |
+| … after power-menu End session | read, not run | `UC:1182-1230`; T4 |
+| Plain switch without the restriction | **not isolated**: B stays unlocked | Stage 1 item 2 (checked to 30 s) |
+| A's CE key while B is in use | stays in memory until reboot | `UC:1323-1324`; accepted (doc 00 *Decisions*); `REBOOT_BFU` covers it |
+| After a reboot, nothing is unlocked until a credential is entered | shown | Stage 2 `reboot` / `reboot-b`: owner `RUNNING_LOCKED`, sentinel unreadable |
+| B usable before A after boot | experiment, works on the emulator | Stage 5 (backup fix + storage patch) |
+| Duress still wipes everything from any prompt | shown for the shell prompt | Stage 1 item 4, 2026-10-11 regression; keyguard entry is T4 |
+| Throttling of B's PIN | software limiter only on the emulator | Stage 1 item 5; Weaver is Stage 6 |
+
+Not evaluated yet (no claim either way): what A and B share at device level (radios and
+their configuration, public volumes, device identifiers, the user list itself; existence of B
+is visible by design, doc 00 *Non-goals*); whether apps or services of A keep anything of B
+in memory after B stops beyond the 3c case; behaviour on hardware.
 
 ### Stage 4 — automatic PIN dispatch
 
