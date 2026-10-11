@@ -1,0 +1,704 @@
+From a64a09673a2304b24454dbf61f336fa8c04e34f5 Mon Sep 17 00:00:00 2001
+From: Ivan Faeton Danishevskyi <faeton@gmail.com>
+Date: Sun, 11 Oct 2026 12:21:08 +0100
+Subject: [PATCH] Add reboot PIN screens
+
+Add, update or delete the owner's reboot PIN or password, next to the duress password
+on the device unlock page. Duress errors name a collision with it.
+---
+ AndroidManifest.xml                           |  14 ++
+ res/layout/reboot_credential_setup.xml        |  75 ++++++
+ res/values/strings_ext.xml                    |  32 +++
+ .../safety_center_device_unlock_subpage.xml   |   6 +
+ .../ui/RebootCredentialPrefController.java    |  32 +++
+ .../security/DuressPasswordSetupActivity.java |  12 +-
+ .../RebootCredentialMainActivity.java         | 215 +++++++++++++++++
+ .../RebootCredentialSetupActivity.java        | 220 ++++++++++++++++++
+ 8 files changed, 605 insertions(+), 1 deletion(-)
+ create mode 100644 res/layout/reboot_credential_setup.xml
+ create mode 100644 src/com/android/settings/safetycenter/ui/RebootCredentialPrefController.java
+ create mode 100644 src/com/android/settings/security/RebootCredentialMainActivity.java
+ create mode 100644 src/com/android/settings/security/RebootCredentialSetupActivity.java
+
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index 008fcd1817f..cbcb77a88bd 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -3393,6 +3393,20 @@
+             android:theme="@style/GlifTheme.Light"
+             android:exported="false" />
+ 
++        <activity android:name=".security.RebootCredentialMainActivity"
++            android:excludeFromRecents="true"
++            android:theme="@style/GlifTheme.Light"
++            android:permission="android.permission.MANAGE_SAFETY_CENTER"
++            android:exported="false">
++            <meta-data android:name="com.android.settings.HIGHLIGHT_MENU_KEY"
++                       android:value="@string/menu_key_safety_center"/>
++        </activity>
++
++        <activity android:name=".security.RebootCredentialSetupActivity"
++            android:excludeFromRecents="true"
++            android:theme="@style/GlifTheme.Light"
++            android:exported="false" />
++
+         <activity android:name=".biometrics.fingerprint.FingerprintEnrollSuggestionActivity"
+             android:exported="true"
+             android:icon="@drawable/ic_suggestion_fingerprint">
+diff --git a/res/layout/reboot_credential_setup.xml b/res/layout/reboot_credential_setup.xml
+new file mode 100644
+index 00000000000..e9e5ea24ef9
+--- /dev/null
++++ b/res/layout/reboot_credential_setup.xml
+@@ -0,0 +1,75 @@
++<?xml version="1.0" encoding="utf-8"?>
++
++<com.google.android.setupdesign.GlifLayout
++    xmlns:android="http://schemas.android.com/apk/res/android"
++    android:id="@+id/glif_layout"
++    android:layout_width="match_parent"
++    android:layout_height="match_parent"
++    android:icon="@drawable/ic_lock"
++>
++    <LinearLayout
++        android:layout_width="match_parent"
++        android:layout_height="match_parent"
++        android:orientation="vertical"
++        style="@style/SudContentFrame">
++
++        <RadioGroup
++            android:id="@+id/credential_type"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:orientation="horizontal"
++            android:checkedButton="@+id/type_pin">
++
++            <RadioButton
++                android:id="@id/type_pin"
++                android:layout_width="wrap_content"
++                android:layout_height="wrap_content"
++                android:text="@string/reboot_cred_type_pin" />
++
++            <RadioButton
++                android:id="@+id/type_password"
++                android:layout_width="wrap_content"
++                android:layout_height="wrap_content"
++                android:layout_marginStart="24dp"
++                android:text="@string/reboot_cred_type_password" />
++        </RadioGroup>
++
++        <EditText
++            android:id="@+id/credential_input"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:layout_marginTop="16dp"
++            android:hint="@string/reboot_cred_enter_pin"
++            android:imeOptions="actionNext"
++            android:inputType="numberPassword" />
++
++        <EditText
++            android:id="@+id/credential_input_confirmation"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:layout_marginTop="16dp"
++            android:hint="@string/reboot_cred_confirm_pin"
++            android:imeOptions="actionDone"
++            android:inputType="numberPassword" />
++
++        <TextView
++            android:id="@+id/second_factor_title"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:layout_marginTop="32dp"
++            android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
++            android:text="@string/reboot_cred_second_factor_title"
++            android:visibility="gone" />
++
++        <EditText
++            android:id="@+id/second_factor_input"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:layout_marginTop="16dp"
++            android:hint="@string/reboot_cred_second_factor_hint"
++            android:imeOptions="actionDone"
++            android:inputType="numberPassword"
++            android:visibility="gone" />
++
++    </LinearLayout>
++</com.google.android.setupdesign.GlifLayout>
+diff --git a/res/values/strings_ext.xml b/res/values/strings_ext.xml
+index 0ac5bf5656d..af96feed8d8 100644
+--- a/res/values/strings_ext.xml
++++ b/res/values/strings_ext.xml
+@@ -221,6 +221,38 @@ Duress PIN works the same way duress password does."</string>
+     <string name="duress_pwd_save_error">Duress PIN and password were not saved.\n\nDetails:\n%1$s</string>
+     <string name="duress_pwd_delete_error">Duress PIN and password were not deleted.\n\nDetails:\n%1$s</string>
+     <string name="duress_pwd_error_dialog_dismiss">Dismiss</string>
++    <string name="duress_pwd_collision_reboot">The duress PIN or password is the same as the reboot PIN or password.</string>
++
++    <string name="reboot_cred_pref_title">Reboot PIN</string>
++    <string name="reboot_cred_description">"A reboot PIN or password can be entered instead of the user PIN or password in any place that asks for it, such as the lock screen of any user.
++
++Submitting it immediately restarts the device. After the restart, the storage of every user is locked again until that user's PIN or password is entered. Nothing is deleted.
++
++It only works where the same kind of credential is typed: a reboot PIN does nothing at a password prompt. Each use counts as a failed attempt of the user whose prompt was used. It is deleted when the owner removes the screen lock or picks a PIN or password equal to it."</string>
++    <string name="reboot_cred_type_pin">PIN</string>
++    <string name="reboot_cred_type_password">Password</string>
++    <string name="reboot_cred_enter_pin">Enter reboot PIN</string>
++    <string name="reboot_cred_confirm_pin">Confirm reboot PIN</string>
++    <string name="reboot_cred_enter_password">Enter reboot password</string>
++    <string name="reboot_cred_confirm_password">Confirm reboot password</string>
++    <string name="reboot_cred_second_factor_title">Owner second-factor PIN</string>
++    <string name="reboot_cred_second_factor_hint">Enter the PIN used after fingerprint unlock</string>
++    <string name="reboot_cred_action_add">Add reboot PIN or password</string>
++    <string name="reboot_cred_action_update">Update reboot PIN or password</string>
++    <string name="reboot_cred_action_delete">Delete reboot PIN or password</string>
++    <string name="reboot_cred_action_delete_confirmation">Delete the reboot PIN or password?</string>
++    <string name="reboot_cred_toast_added">Added reboot PIN or password</string>
++    <string name="reboot_cred_toast_updated">Updated reboot PIN or password</string>
++    <string name="reboot_cred_save_error">Reboot PIN or password was not saved.\n\nDetails:\n%1$s</string>
++    <string name="reboot_cred_delete_error">Reboot PIN or password was not deleted.\n\nDetails:\n%1$s</string>
++    <string name="reboot_cred_collision_owner">It is the same as the owner\'s PIN or password.</string>
++    <string name="reboot_cred_collision_second_factor">It is the same as the owner\'s second-factor PIN.</string>
++    <string name="reboot_cred_collision_duress">It is the same as the duress PIN or password.</string>
++    <string name="reboot_cred_needs_lock">Set a screen lock first. A reboot PIN or password can only be added when the device has a PIN or password.</string>
++    <string name="reboot_cred_status_error">The reboot PIN or password could not be checked.\n\nDetails:\n%1$s</string>
++    <string name="reboot_cred_second_factor_missing">Enter the second-factor PIN</string>
++    <string name="reboot_cred_owner_changed">The screen lock changed meanwhile. Try again.</string>
++    <string name="reboot_cred_corrupt">The stored reboot PIN or password can\'t be read. Delete it and add it again.</string>
+ 
+     <string name="alt_touchscreen_mode_title">Alternative touchscreen mode</string>
+     <string name="alt_touchscreen_mode_summary">This mode is less susceptible to ghost touches. Don’t enable it unless you are experiencing touchscreen issues.</string>
+diff --git a/res/xml/safety_center_device_unlock_subpage.xml b/res/xml/safety_center_device_unlock_subpage.xml
+index d21a7fe9617..b2a706e5d6a 100644
+--- a/res/xml/safety_center_device_unlock_subpage.xml
++++ b/res/xml/safety_center_device_unlock_subpage.xml
+@@ -87,4 +87,10 @@
+         android:title="@string/duress_pwd_pref_title"
+         settings:controller="com.android.settings.safetycenter.ui.DuressPasswordPrefController"/>
+ 
++    <Preference
++        android:key="reboot_credential"
++        android:order="1001"
++        android:title="@string/reboot_cred_pref_title"
++        settings:controller="com.android.settings.safetycenter.ui.RebootCredentialPrefController"/>
++
+ </PreferenceScreen>
+diff --git a/src/com/android/settings/safetycenter/ui/RebootCredentialPrefController.java b/src/com/android/settings/safetycenter/ui/RebootCredentialPrefController.java
+new file mode 100644
+index 00000000000..fd0a7dcd5bb
+--- /dev/null
++++ b/src/com/android/settings/safetycenter/ui/RebootCredentialPrefController.java
+@@ -0,0 +1,32 @@
++package com.android.settings.safetycenter.ui;
++
++import android.content.Context;
++import android.content.Intent;
++import android.text.TextUtils;
++
++import androidx.preference.Preference;
++
++import com.android.settings.core.BasePreferenceController;
++import com.android.settings.ext.ExtSettingControllerHelper;
++import com.android.settings.security.RebootCredentialMainActivity;
++
++public class RebootCredentialPrefController extends BasePreferenceController {
++
++    public RebootCredentialPrefController(Context context, String preferenceKey) {
++        super(context, preferenceKey);
++    }
++
++    @Override
++    public int getAvailabilityStatus() {
++        return ExtSettingControllerHelper.getGlobalSettingAvailability(mContext);
++    }
++
++    @Override
++    public boolean handlePreferenceTreeClick(Preference preference) {
++        if (!TextUtils.equals(preference.getKey(), getPreferenceKey())) {
++            return super.handlePreferenceTreeClick(preference);
++        }
++        mContext.startActivity(new Intent(mContext, RebootCredentialMainActivity.class));
++        return true;
++    }
++}
+diff --git a/src/com/android/settings/security/DuressPasswordSetupActivity.java b/src/com/android/settings/security/DuressPasswordSetupActivity.java
+index bbdfe05e000..f625c4e580f 100644
+--- a/src/com/android/settings/security/DuressPasswordSetupActivity.java
++++ b/src/com/android/settings/security/DuressPasswordSetupActivity.java
+@@ -144,7 +144,7 @@ public class DuressPasswordSetupActivity extends DuressPasswordActivity
+                 Log.e(TAG, "setDuressCredentials failed", e);
+ 
+                 var d = new AlertDialog.Builder(this);
+-                d.setMessage(getString(R.string.duress_pwd_save_error, e.toString()));
++                d.setMessage(getString(R.string.duress_pwd_save_error, describe(e)));
+                 d.setNeutralButton(R.string.duress_pwd_error_dialog_dismiss, null);
+                 d.show();
+                 return;
+@@ -169,6 +169,16 @@ public class DuressPasswordSetupActivity extends DuressPasswordActivity
+         }
+     }
+ 
++    // the service reports a collision with the reboot credential with a fixed message
++    private String describe(Exception e) {
++        for (Throwable t = e; t != null; t = t.getCause()) {
++            if (String.valueOf(t.getMessage()).startsWith("collision: reboot credential")) {
++                return getString(R.string.duress_pwd_collision_reboot);
++            }
++        }
++        return e.toString();
++    }
++
+     private boolean checkCredentialInputErrors(DuressCredentialType ct) {
+         EditText ed = requireViewById(ct.mainInputId);
+         String text = ed.getText().toString();
+diff --git a/src/com/android/settings/security/RebootCredentialMainActivity.java b/src/com/android/settings/security/RebootCredentialMainActivity.java
+new file mode 100644
+index 00000000000..0f7c733b8dc
+--- /dev/null
++++ b/src/com/android/settings/security/RebootCredentialMainActivity.java
+@@ -0,0 +1,215 @@
++package com.android.settings.security;
++
++import android.app.AlertDialog;
++import android.content.Intent;
++import android.os.Bundle;
++import android.util.Log;
++
++import androidx.annotation.DrawableRes;
++import androidx.annotation.Nullable;
++import androidx.annotation.StringRes;
++
++import com.android.internal.widget.LockscreenCredential;
++import com.android.settings.R;
++import com.android.settings.password.ChooseLockSettingsHelper;
++import com.google.android.setupdesign.GlifRecyclerLayout;
++import com.google.android.setupdesign.items.IItem;
++import com.google.android.setupdesign.items.Item;
++import com.google.android.setupdesign.items.ItemGroup;
++import com.google.android.setupdesign.items.RecyclerItemAdapter;
++
++/** Add, update or delete the owner's reboot PIN or password. Same flow as the duress screen. */
++public class RebootCredentialMainActivity extends DuressPasswordActivity
++        implements RecyclerItemAdapter.OnItemSelectedListener {
++    private static final String TAG = RebootCredentialMainActivity.class.getSimpleName();
++
++    private GlifRecyclerLayout layout;
++    private LockscreenCredential userCredential;
++    private boolean askedForUserCredentials;
++
++    @Override
++    protected void onCreate(@Nullable Bundle savedInstanceState) {
++        super.onCreate(savedInstanceState);
++        // the reboot credential belongs to the owner, the service checks user 0's credential
++        if (!getUser().isSystem()) {
++            finish();
++            return;
++        }
++
++        var layout = new GlifRecyclerLayout(this);
++        this.layout = layout;
++        layout.setIcon(getDrawable(R.drawable.ic_lock));
++        layout.setHeaderText(R.string.reboot_cred_pref_title);
++        adjustDescriptionStyle(layout);
++        layout.setDescriptionText(R.string.reboot_cred_description);
++
++        setContentView(layout);
++
++        // the owner credential isn't kept in the saved state: a recreated screen asks again
++    }
++
++    @Override
++    protected boolean hasUserCredential() {
++        return userCredential != null && !userCredential.isNone();
++    }
++
++    @Override
++    protected void onResume() {
++        super.onResume();
++
++        if (userCredential == null) {
++            if (!getLockPatternUtils().isSecure(getUserId())) {
++                userCredential = LockscreenCredential.createNone();
++            } else if (!askedForUserCredentials) {
++                var b = new ChooseLockSettingsHelper.Builder(this);
++                b.setRequestCode(REQ_CODE_OBTAIN_USER_CREDENTIALS);
++                b.setReturnCredentials(true);
++                b.setForegroundOnly(true);
++                if (!b.show()) {
++                    finish();
++                    return;
++                }
++                askedForUserCredentials = true;
++            }
++        }
++
++        updateActionList();
++    }
++
++    private void updateActionList() {
++        if (userCredential == null) {
++            Log.d(TAG, "no userCredential, skipping updateActionList");
++            return;
++        }
++
++        var g = new ItemGroup();
++
++        boolean has;
++        boolean readable = true;
++        try {
++            has = getLockPatternUtils().hasRebootCredential(userCredential);
++        } catch (RuntimeException e) {
++            if (!isCorruptRecord(e)) {
++                Log.e(TAG, "hasRebootCredential failed", e);
++                var d = new AlertDialog.Builder(this);
++                d.setMessage(getString(R.string.reboot_cred_status_error, e.toString()));
++                d.setNeutralButton(R.string.duress_pwd_error_dialog_dismiss, null);
++                d.setOnDismissListener(dialog -> finish());
++                d.show();
++                return;
++            }
++            // a stored record that can't be read: offer only to delete it
++            has = true;
++            readable = false;
++        }
++        boolean secure = getLockPatternUtils().isSecure(getUserId());
++        layout.setDescriptionText(!readable ? R.string.reboot_cred_corrupt
++                : (!secure && !has) ? R.string.reboot_cred_needs_lock
++                : R.string.reboot_cred_description);
++        if (has) {
++            // setting needs a screen lock, deleting doesn't
++            if (readable && secure) {
++                g.addChild(createItem(R.string.reboot_cred_action_update, R.drawable.ic_edit));
++            }
++            g.addChild(createItem(R.string.reboot_cred_action_delete, R.drawable.ic_delete));
++        } else if (secure) {
++            g.addChild(createItem(R.string.reboot_cred_action_add, R.drawable.ic_add_24dp));
++        }
++
++        var adapter = new RecyclerItemAdapter(g);
++        adapter.setOnItemSelectedListener(this);
++        layout.setAdapter(adapter);
++    }
++
++    // the service reports an unreadable record with a fixed message
++    static boolean isCorruptRecord(Throwable e) {
++        for (Throwable t = e; t != null; t = t.getCause()) {
++            if ("corrupt reboot credential record".equals(t.getMessage())) {
++                return true;
++            }
++        }
++        return false;
++    }
++
++    @Override
++    protected void onDestroy() {
++        super.onDestroy();
++        if (isFinishing() && userCredential != null) {
++            userCredential.zeroize();
++        }
++    }
++
++    private Item createItem(@StringRes int title, @DrawableRes int icon) {
++        var i = new Item();
++        i.setId(title);
++        i.setTitle(getText(title));
++        i.setIcon(getDrawable(icon));
++        return i;
++    }
++
++    // RecyclerItemAdapter.OnItemSelectedListener
++    @Override
++    public void onItemSelected(IItem iitem) {
++        Item item = (Item) iitem;
++        int id = item.getId();
++
++        if (id == R.string.reboot_cred_action_add || id == R.string.reboot_cred_action_update) {
++            var i = new Intent(this, RebootCredentialSetupActivity.class);
++            i.putExtra(RebootCredentialSetupActivity.EXTRA_TITLE_TEXT, id);
++            i.putExtra(RebootCredentialSetupActivity.EXTRA_USER_CREDENTIAL, userCredential);
++            allowNextOnStop = true;
++            startActivityForResult(i, REQ_CODE_SETUP);
++        } else if (id == R.string.reboot_cred_action_delete) {
++            var b = new AlertDialog.Builder(this);
++            b.setMessage(R.string.reboot_cred_action_delete_confirmation);
++            b.setPositiveButton(R.string.duress_pwd_delete_button, (dialog, which) -> {
++                try {
++                    getLockPatternUtils().deleteRebootCredential(userCredential);
++                } catch (Exception e) {
++                    Log.e(TAG, "deleteRebootCredential failed", e);
++
++                    var d = new AlertDialog.Builder(this);
++                    d.setMessage(getString(R.string.reboot_cred_delete_error, e.toString()));
++                    d.setNeutralButton(R.string.duress_pwd_error_dialog_dismiss, null);
++                    d.show();
++                    return;
++                }
++                updateActionList();
++            });
++            b.setNegativeButton(R.string.duress_pwd_cancel_button, null);
++            b.show();
++        }
++    }
++
++    static final int REQ_CODE_OBTAIN_USER_CREDENTIALS = 1;
++    static final int REQ_CODE_SETUP = 2;
++
++    @Override
++    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
++        if (requestCode == REQ_CODE_SETUP) {
++            if (resultCode == RESULT_CANCELED) {
++                finish();
++            }
++            return;
++        }
++
++        if (requestCode != REQ_CODE_OBTAIN_USER_CREDENTIALS) {
++            throw new IllegalStateException(Integer.toString(resultCode));
++        }
++
++        if (resultCode != RESULT_OK) {
++            finish();
++            return;
++        }
++
++        if (data == null) {
++            throw new IllegalStateException("data == null");
++        }
++
++        var credential = data.getParcelableExtra(ChooseLockSettingsHelper.EXTRA_KEY_PASSWORD, LockscreenCredential.class);
++        if (credential == null) {
++            throw new IllegalStateException("no returned credential");
++        }
++        userCredential = credential;
++    }
++}
+diff --git a/src/com/android/settings/security/RebootCredentialSetupActivity.java b/src/com/android/settings/security/RebootCredentialSetupActivity.java
+new file mode 100644
+index 00000000000..e5ab66d0cfd
+--- /dev/null
++++ b/src/com/android/settings/security/RebootCredentialSetupActivity.java
+@@ -0,0 +1,220 @@
++package com.android.settings.security;
++
++import static com.android.internal.widget.LockDomain.Secondary;
++import static com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_NONE;
++
++import android.app.AlertDialog;
++import android.os.Bundle;
++import android.text.InputType;
++import android.util.Log;
++import android.view.View;
++import android.widget.EditText;
++import android.widget.RadioGroup;
++import android.widget.Toast;
++
++import androidx.annotation.Nullable;
++
++import com.android.internal.widget.LockPatternUtils;
++import com.android.internal.widget.LockscreenCredential;
++import com.android.internal.widget.PasswordValidationError;
++import com.android.settings.R;
++import com.android.settings.password.ChooseLockPassword;
++import com.android.settings.password.ChooseLockPassword.ChooseLockPasswordFragment.PasswordValidationErrorConverter;
++import com.google.android.setupcompat.template.FooterBarMixin;
++import com.google.android.setupcompat.template.FooterButton;
++import com.google.android.setupdesign.GlifLayout;
++
++import java.util.List;
++import java.util.Objects;
++
++public class RebootCredentialSetupActivity extends DuressPasswordActivity {
++    static final String TAG = RebootCredentialSetupActivity.class.getSimpleName();
++    static final String EXTRA_USER_CREDENTIAL = "user_credential";
++    static final String EXTRA_TITLE_TEXT = "title";
++    private boolean isUpdate;
++    private boolean hasSecondFactor;
++
++    @Override
++    protected void onCreate(@Nullable Bundle savedInstanceState) {
++        super.onCreate(savedInstanceState);
++        if (!getUser().isSystem()) {
++            finish();
++            return;
++        }
++
++        setContentView(R.layout.reboot_credential_setup);
++
++        GlifLayout layout = requireViewById(R.id.glif_layout);
++        int headerText = getIntent().getExtras().getNumber(EXTRA_TITLE_TEXT);
++        isUpdate = headerText == R.string.reboot_cred_action_update;
++        layout.setHeaderText(headerText);
++        adjustDescriptionStyle(layout);
++
++        FooterBarMixin footerBar = layout.getMixin(FooterBarMixin.class);
++        {
++            var b = new FooterButton.Builder(this);
++            b.setText(isUpdate ? R.string.duress_pwd_update_button : R.string.duress_pwd_add_button);
++            b.setButtonType(FooterButton.ButtonType.DONE);
++            b.setListener(v -> save());
++            b.setTheme(com.google.android.setupdesign.R.style.SudGlifButton_Primary);
++            footerBar.setPrimaryButton(b.build());
++        }
++        {
++            var b = new FooterButton.Builder(this);
++            b.setText(R.string.duress_pwd_cancel_button);
++            b.setButtonType(FooterButton.ButtonType.CANCEL);
++            b.setListener(v -> finish());
++            b.setTheme(com.google.android.setupdesign.R.style.SudGlifButton_Secondary);
++            footerBar.setSecondaryButton(b.build());
++        }
++
++        RadioGroup type = requireViewById(R.id.credential_type);
++        type.setOnCheckedChangeListener((group, checkedId) -> updateInputType());
++        updateInputType();
++
++        // the collision check against the second-factor PIN compares in memory, so it's needed
++        hasSecondFactor = getLockPatternUtils().getCredentialTypeForUser(getUserId(), Secondary)
++                != CREDENTIAL_TYPE_NONE;
++        int v = hasSecondFactor ? View.VISIBLE : View.GONE;
++        requireViewById(R.id.second_factor_title).setVisibility(v);
++        requireViewById(R.id.second_factor_input).setVisibility(v);
++
++        // typed credentials stay out of the saved instance state
++        for (int id : INPUTS) {
++            requireViewById(id).setSaveEnabled(false);
++        }
++    }
++
++    private static final int[] INPUTS = {
++            R.id.credential_input, R.id.credential_input_confirmation, R.id.second_factor_input,
++    };
++
++    @Override
++    protected void onDestroy() {
++        if (!isChangingConfigurations()) {
++            getIntent().removeExtra(EXTRA_USER_CREDENTIAL);
++            for (int id : INPUTS) {
++                EditText ed = findViewById(id);
++                if (ed != null) {
++                    ed.getText().clear();
++                }
++            }
++        }
++        super.onDestroy();
++    }
++
++    private boolean isPin() {
++        RadioGroup type = requireViewById(R.id.credential_type);
++        return type.getCheckedRadioButtonId() == R.id.type_pin;
++    }
++
++    private void updateInputType() {
++        boolean pin = isPin();
++        int inputType = pin
++                ? InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD
++                : InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD;
++        EditText main = requireViewById(R.id.credential_input);
++        EditText confirmation = requireViewById(R.id.credential_input_confirmation);
++        main.setInputType(inputType);
++        confirmation.setInputType(inputType);
++        main.setHint(pin ? R.string.reboot_cred_enter_pin : R.string.reboot_cred_enter_password);
++        confirmation.setHint(pin ? R.string.reboot_cred_confirm_pin
++                : R.string.reboot_cred_confirm_password);
++        main.setError(null);
++        confirmation.setError(null);
++    }
++
++    private LockscreenCredential createCredential(@androidx.annotation.IdRes int id) {
++        EditText ed = requireViewById(id);
++        String text = ed.getText().toString();
++        return isPin() ? LockscreenCredential.createPin(text)
++                : LockscreenCredential.createPassword(text);
++    }
++
++    private void save() {
++        if (!checkInput() || !checkConfirmation()) {
++            return;
++        }
++        if (hasSecondFactor) {
++            EditText ed = requireViewById(R.id.second_factor_input);
++            if (ed.getText().length() == 0) {
++                ed.setError(getText(R.string.reboot_cred_second_factor_missing));
++                return;
++            }
++        }
++
++        var userCredential = getIntent().getParcelableExtra(EXTRA_USER_CREDENTIAL, LockscreenCredential.class);
++        Objects.requireNonNull(userCredential, EXTRA_USER_CREDENTIAL);
++        LockscreenCredential credential = createCredential(R.id.credential_input);
++        LockscreenCredential secondFactor = LockscreenCredential.createNone();
++        if (hasSecondFactor) {
++            EditText ed = requireViewById(R.id.second_factor_input);
++            secondFactor = LockscreenCredential.createPin(ed.getText().toString());
++        }
++
++        try {
++            getLockPatternUtils().setRebootCredential(userCredential, secondFactor, credential);
++        } catch (Exception e) {
++            Log.e(TAG, "setRebootCredential failed", e);
++
++            var d = new AlertDialog.Builder(this);
++            d.setMessage(getString(R.string.reboot_cred_save_error, describe(e)));
++            d.setNeutralButton(R.string.duress_pwd_error_dialog_dismiss, null);
++            d.show();
++            return;
++        } finally {
++            credential.zeroize();
++            secondFactor.zeroize();
++        }
++        Toast.makeText(this,
++                isUpdate ? R.string.reboot_cred_toast_updated : R.string.reboot_cred_toast_added,
++                Toast.LENGTH_LONG).show();
++        finish();
++    }
++
++    /** The service reports collisions with fixed messages, see DuressPasswordHelper. */
++    private String describe(Exception e) {
++        for (Throwable t = e; t != null; t = t.getCause()) {
++            String msg = String.valueOf(t.getMessage());
++            if (msg.startsWith("collision: owner credential")) {
++                return getString(R.string.reboot_cred_collision_owner);
++            } else if (msg.startsWith("collision: owner second factor")) {
++                return getString(R.string.reboot_cred_collision_second_factor);
++            } else if (msg.startsWith("collision: duress credential")) {
++                return getString(R.string.reboot_cred_collision_duress);
++            } else if (msg.startsWith("owner credential changed")) {
++                return getString(R.string.reboot_cred_owner_changed);
++            }
++        }
++        return e.toString();
++    }
++
++    private boolean checkInput() {
++        EditText ed = requireViewById(R.id.credential_input);
++        LockscreenCredential c = createCredential(R.id.credential_input);
++
++        List<PasswordValidationError> errors = LockPatternUtils.validateDuressCredential(c);
++        String error = null;
++        boolean res = true;
++        if (!errors.isEmpty()) {
++            res = false;
++            var pvec = new PasswordValidationErrorConverter(this, c.isPassword(),
++                    ChooseLockPassword.ChooseLockPasswordFragment.ProfileType.None, errors);
++            error = String.join("\n", pvec.convertErrorCodeToMessages());
++        }
++        c.zeroize();
++        ed.setError(error);
++        return res;
++    }
++
++    private boolean checkConfirmation() {
++        EditText main = requireViewById(R.id.credential_input);
++        EditText confirmation = requireViewById(R.id.credential_input_confirmation);
++
++        boolean res = main.getText().toString().equals(confirmation.getText().toString());
++        confirmation.setError(res ? null : getText(isPin()
++                ? R.string.lockpassword_confirm_pins_dont_match
++                : R.string.lockpassword_confirm_passwords_dont_match));
++        return res;
++    }
++}
+-- 
+2.39.5
+
