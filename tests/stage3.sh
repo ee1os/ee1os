@@ -2,17 +2,21 @@
 # Stage 3 checks (docs/07-roadmap.md, Stage 3). Needs the Stage 1 setup (owner PIN, envB).
 # Run inside the build container:  run.sh exec /src/grapheneos-envs/tests/stage3.sh <item>
 #   openfiles  use envB, stop it, list CE files of envB still open after the key is removed (3c)
+# Every check prints PASS or FAIL; the script exits 1 if any check failed.
 set -euo pipefail
 SERIAL="${SERIAL:-127.0.0.1:5555}"
 OWNER_PIN=1111 B_PIN=2222
 HERE="$(cd "$(dirname "$0")" && pwd)"
 RES="$HERE/results/$(date +%F)-stage3-T3.md"
 mkdir -p "$HERE/results"
+FAILS=0
 
 a()   { adb -s "$SERIAL" "$@"; }
 sh_() { a shell "$@" | tr -d '\r'; }
 log() { echo "$*" | tee -a "$RES"; }
 run() { log "\$ $*"; { sh_ "$@" 2>&1 || true; } | sed 's/^/    /' | tee -a "$RES"; }
+pass() { log "    PASS: $*"; }
+fail() { log "    FAIL: $*"; FAILS=$((FAILS + 1)); }
 
 wait_boot() {
   a wait-for-device
@@ -47,21 +51,30 @@ case "${1:-}" in
     sh_ wm dismiss-keyguard
     for act in android.settings.SETTINGS android.intent.action.DIAL \
                android.media.action.IMAGE_CAPTURE android.settings.SYNC_SETTINGS; do
-      sh_ am start --user "$N" -a "$act" >/dev/null; sleep 4
+      sh_ am start --user "$N" -a "$act" >/dev/null 2>&1 || true; sleep 4
     done
-    log "    envB: $(sh_ am get-started-user-state "$N"), CE files open: $(ce_open "$N" | wc -l)"
+    open_before="$(ce_open "$N" | wc -l)"
+    log "    envB: $(sh_ am get-started-user-state "$N"), CE files open: $open_before"
+    (( open_before > 0 )) && pass "envB used ($open_before CE files open)" \
+      || fail "nothing open, the test didn't exercise envB"
     sh_ am switch-user 0; sleep 6
     sh_ cmd lock_settings verify --old "$OWNER_PIN" >/dev/null
     sh_ logcat -c
     t0=$SECONDS
     run am stop-user -w "$N"
     for i in $(seq 60); do locked "$N" && break; sleep 1; done
-    log "    CE locked: $(locked "$N" && echo yes || echo NO) after $((SECONDS - t0)) s"
+    locked "$N" && pass "CE locked after $((SECONDS - t0)) s" || fail "CE not locked after 60 s"
+    left="$(ce_open "$N")"
     log "    CE files still open after the stop:"
-    ce_open "$N" | sed 's/^/      /' | tee -a "$RES"
-    run "logcat -d -b main | grep -E 'vold.*(still has unlocked files|were not locked)' | grep -v adbd"
+    echo "$left" | sed '/^$/d; s/^/      /' | tee -a "$RES"
+    [[ -z "$left" ]] && pass "no CE files open" || fail "$(echo "$left" | wc -l) CE files open"
+    warn="$(sh_ "logcat -d -b main | grep -E 'vold.*(still has unlocked files|were not locked)' \
+      | grep -v adbd" || true)"
+    [[ -z "$warn" ]] && pass "no vold warning" || { fail "vold warning"; log "$warn"; }
     ;;
   *)
     sed -n 2,4p "$0"; exit 2 ;;
 esac
+log "result: $([[ $FAILS == 0 ]] && echo PASS || echo "FAIL ($FAILS)")"
 log "results: $RES"
+[[ $FAILS == 0 ]]
