@@ -9,25 +9,29 @@ test levels, per-stage gates — is in `08-development-and-testing.md`.
 |---|---|---|
 | 0 | Groundwork: docs, source, dev environment | done except adb from m3max; baseline in `tests/results/2026-10-10-stage0-T1-T2.md` |
 | 1 | Baseline experiments on the unmodified emulator | done 2026-10-10 (`tests/results/2026-10-10-stage1-T3.md`); keyguard entry left for T4 |
-| 2 | `REBOOT_BFU` alternate credential | 2a done 2026-10-10, passes on the emulator (`tests/results/2026-10-10-stage2-T3.md`); next 2b Settings, 2c unit tests |
-| 3 | Environment B via the lockscreen user switcher | eviction confirmed; 3c found and fixed (`tests/results/2026-10-10-stage3-T3.md`); next 3b wording, End session check |
+| 2 | `REBOOT_BFU` alternate credential | 2a system side done 2026-10-11: review fixes in, `stage2.sh` all PASS, unit tests with the real helper 15/15 (`tests/results/2026-10-11-stage2-T3.md`); open: keyguard entry (T4), escrow armed case (Stage 6); next 2b Settings |
+| 3 | Environment B via the lockscreen user switcher | eviction confirmed; 3c fixed, rerun with assertions PASS (`tests/results/2026-10-11-stage3-T3.md`); next 3b wording, End session check |
 | 4 | Automatic PIN dispatch | design notes only |
-| 5 | B before A after boot | backup crash fixed; B unlocks first, but has no shared storage (`tests/results/2026-10-10-stage5-T3.md`) |
+| 5 | B before A after boot | backup crash fixed; storage service started by the first unlocked user: B unlocks first with working shared storage and MediaStore, owner stays locked (`tests/results/2026-10-11-stage5-T3.md`); in/out still open |
 | 6 | Real device | not started |
 
 All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*).
 
-**Next, in order (2026-10-10):**
+**Next, in order (2026-10-11):**
 
-1. 2c groundwork: action hook in the helper, unit tests with a real helper. Batch any other
-   `core/` change with it, since a framework API change costs a ~47 min build on n5 (doc 08).
-2. 2b: Reboot PIN screens in the Settings fork (doc 04 *Settings flow*).
-3. One T4 session from m3max (adb over the ssh tunnel, scrcpy): duress and reboot PIN typed
-   at the keyguard, power-menu End session (Stage 3a), the 2b screens. Closes Stage 0's last
+1. 2b: Reboot PIN screens in the Settings fork (doc 04 *Settings flow*). They have to say
+   that a reboot PIN only fires where a PIN is typed, that each use counts as a failed attempt
+   of the user whose prompt was used, and when the reboot PIN was deleted by an owner change.
+2. Stage 5 coverage before the in/out decision: apps in N using storage (camera, documents),
+   N stopped and restarted while the owner is locked, the `UserManager` warning at the mount,
+   the launcher / AppWidget / Shortcut errors from 2026-10-10. Then in/out in doc 00.
+3. One T4 session from m3max (adb over the ssh tunnel, scrcpy): doc 08 T4 checklist (keyguard
+   entry, auto-confirm length, second-factor prompt, boot reason against a power-menu restart),
+   power-menu End session (Stage 3a), the 2b screens, Stage 5 on screen. Closes Stage 0's last
    item too.
-4. Stage 5 reading: can N's storage come up while user 0 is locked? Then in/out in doc 00.
-5. Stage 4 design → code, once 3 is closed.
-6. Stage 6 needs the test Pixel and its own keys (manual, doc 08).
+4. Stage 4 design → code, once 3 is closed.
+5. Stage 6 needs the test Pixel and its own keys (manual, doc 08): Weaver throttling, the
+   armed reboot escrow case, eSIM wipe.
 
 ## Stages
 
@@ -88,7 +92,7 @@ answers an open question; results go to `tests/results/`.
 Deliverable: commits on `envs-17` in both forks, exported to `patches/02-reboot-bfu/`, plus
 test results. Design: doc 04.
 
-- 2a. system_server, done 2026-10-10 (fork `envs-17`): one reboot credential in its own storage
+- 2a. system_server, first version 2026-10-10 (fork `envs-17`): one reboot credential in its own storage
   slot instead of a table (doc 04 *Decisions*), checked after duress in
   `DuressPasswordHelper`; `RebootBfu` (`lowLevelReboot`); collision checks in memory against
   the owner credential, the second-factor PIN and duress, both directions;
@@ -96,15 +100,32 @@ test results. Design: doc 04.
   `cmd lock_settings set-reboot-credential` for scripted enrolment. Tests: `tests/stage2.sh`.
   **Results 2026-10-10:** every collision refused in both directions; reboot PIN at the
   owner's and at envB's prompt → down within 2 s, back in BFU after ~25 s, owner PIN unlocks with
-  data intact, boot reason a plain `reboot,`; wrong/right PINs never reboot; wrong-PIN response
-  time unchanged with 0, 1 or 2 alternates (D4). Patch: `patches/02-reboot-bfu/`.
+  data intact, boot reason a plain `reboot,` (since changed, below); wrong/right PINs never
+  reboot; wrong-PIN response time unchanged with 0, 1 or 2 alternates (D4; shell + adb
+  latency, so it rules out a large difference, not a small one). Not covered then: the
+  second-factor collision and password enrolment (password is now in `stage2.sh`, the second
+  factor in the unit tests only). Patch: `patches/02-reboot-bfu/`.
+- **Review fixes, 2026-10-11** (fork `7187029c`, tests `f554fde6`), from a code review of 2a:
+  - a stored record that can't be parsed disabled nothing before and crashed system_server on
+    any wrong entry (the worker thread let the exception out); now it disables only its own
+    action, logs a fixed message, and deleting never parses;
+  - an armed reboot escrow would have unlocked the users again after the reboot: cleared first;
+  - a reboot queued behind the real credential of the same user is dropped;
+  - owner removes the lock, or picks a primary / second-factor credential equal to the reboot
+    credential → reboot credential deleted (all change paths pass `onPostLockCredentialChanged`);
+  - boot reason `userrequested`, the power menu's, instead of none;
+  - credential arguments zeroized on every path (binder methods incl. the inherited duress
+    ones, shell command early returns);
+  - collision check + write under one lock;
+  - the wipe / reboot actions sit behind `DuressPasswordHelper.Actions`, so tests use the real
+    helper: `AlternateCredentialsTests`, 15 tests.
+  Decisions and accepted limits (precedence per attempt, accounting, lockout) in doc 04
+  *Decisions*. Results: `tests/results/2026-10-11-stage2-T3.md`.
 - 2b. Settings screen as drafted in doc 04 → *Settings flow*.
-- 2c. Unit tests (duress helper wired for real instead of mocked), host test `RebootBfuTest`
-  modelled on `DuressPasswordTest` (needs Weaver, so T5), manual matrix (doc 08). Keyguard
-  entry of the reboot PIN is a T4 check, as for duress. First: the helper calls
-  `DuressWipe.run` / `RebootBfu.run` statically, so a real helper in a unit test would wipe or
-  reboot the test device; move the two actions behind an overridable method and let
-  `LockSettingsServiceTestable` (`:185-190`) return a real helper with that method stubbed.
+- 2c. Host test `RebootBfuTest` modelled on `DuressPasswordTest` (needs Weaver, so T5), manual
+  matrix (doc 08). Keyguard entry of the reboot PIN is a T4 check, as for duress. The unit
+  tests with the real helper are done (above); `LockSettingsServiceTestable` still returns a
+  mock, so the stock tests don't exercise the hook.
 
 ### Stage 3 — environment B via the existing lockscreen user switcher
 
@@ -201,12 +222,28 @@ Stage 1 item 3 (2026-10-10): unlocking N while the owner is locked crashes syste
 **Experiment 2026-10-10 with the fix** (fork `d34c6e71`, `patches/05-boot-order/`): N unlocks
 first, owner stays `RUNNING_LOCKED`, no crash. Next blocker: N's shared storage stays
 `unmountable` ("Reporting emulated;10 unmounted due to system locked", "Not ready to bind to the
-ExternalStorageService for user 10"). The FUSE daemon for every user is the system user's
-MediaProvider, and StorageManagerService hides volumes while user 0 is locked
-(`StorageManagerService.java:3931-3934`, `:3995-4001`). That is a structural owner-first
-dependency, unlike the backup crash. Next step is reading: can MediaProvider's
-ExternalStorageService start for N while user 0 is locked, and what in N breaks without
-`/sdcard`. Decide in/out after that (doc 00).
+ExternalStorageService for user 10").
+
+**Cause, corrected 2026-10-11.** The first reading ("user 0's MediaProvider serves every user")
+was wrong. Each user binds its own ExternalStorageService: the connection is per volume user
+(`storage/StorageSessionController.java:83-93`), the bind is `bindServiceAsUser(…,
+UserHandle.of(mUserId))` (`storage/StorageUserConnection.java:546-550`), and the service isn't
+`singleUser` (`packages/providers/MediaProvider/AndroidManifest.xml:220`). Two owner-first
+gates instead:
+
+- the service component was looked up only in user 0's unlock (`onUnlockUser`,
+  `StorageSessionController.java:273-282`, resolved as `USER_SYSTEM`, `:379`); until then the
+  component is null and every connection fails with "Not ready to bind"
+  (`StorageUserConnection.java:488-490`);
+- `getVolumeList` reports every volume unmounted to callers other than MediaStore until user 0
+  has unlocked (`StorageManagerService.java:3931-3935`, `:4003`).
+
+**Patch 2026-10-11** (fork `066afecc`): the first user to unlock looks the component up, as
+itself; user 0 still does it again when it unlocks. `getVolumeList` also reports volumes to a
+user that has unlocked on its own. Result: `tests/stage5.sh storage` PASS: N's `emulated;10`
+mounts, files can be written and read, MediaStore of N answers, the owner stays locked
+throughout; after the owner unlocks, both users' storage works
+(`tests/results/2026-10-11-stage5-T3.md`). Before in/out: next-list item 2.
 
 ### Stage 6 — real device
 

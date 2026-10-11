@@ -96,6 +96,8 @@ Incremental build times on n5 (2026-10-10, `JOBS=12 HIGHMEM=2 MEM=44g`):
 |---|---|---|---|
 | new files in `services/core` + an `ILockSettings.aidl` method (framework.jar changes, everything above it recompiles) | ~4500 | 46:46 | 43.7 GB (into swap), during the SystemUI compile |
 | edits to existing `services/` files only | small | 2:48 | — |
+| `services/` edits + a new test file in `servicestests` (analysis rerun, no framework.jar change), `droid FrameworksServicesTests`, 2026-10-11 | ~520 after analysis | 6:15 | 31.5 GB during analysis; n5 down to 9 GB available with the emulator stopped |
+| test module only, existing files edited | small | <1 min | — |
 
 So keep framework (`core/`) API changes rare and batch them.
 
@@ -171,12 +173,12 @@ gate says when a stage is done.
 |---|---|---|---|
 | 0 | container, first build, emulator up | T0; T1 + T2 on unmodified build as **baseline** | baseline recorded in `tests/results/`, failures there are known and listed |
 | 1 | none (unmodified build) | T3 `tests/stage1.sh` items 1–5, T4 for keyguard steps | every item has an observed result; doc 07 Stage 1/3/5 updated with it |
-| 2a | `frameworks/base`: reboot credential slot, `RebootBfu`, shell command, collision checks | T0, T3 `tests/stage2.sh`, T1 with new unit tests (helper not mocked), regression gate | unit tests green, duress unchanged |
+| 2a | `frameworks/base`: reboot credential slot, `RebootBfu`, shell command, collision checks, lifecycle | T0, T3 `tests/stage2.sh` (every item), T1 incl. `AlternateCredentialsTests` (real helper, counting actions), regression gate | every check prints PASS; stock T1 unchanged; duress unchanged |
 | 2b | `packages/apps/Settings`: Reboot PIN screens | T0, T4 Settings checklist | enrol / update / delete / collision errors work |
 | 2c | `RebootBfuTest` host test | T2, T4 matrix | matrix fully green, wrong-PIN timing unchanged (D4) |
 | 3 | `AccountsDb` close fix (3c); maybe wording in Settings | T3 eviction scenarios, `tests/stage3.sh openfiles`, T4 End session | eviction confirmed for restriction and End session; no CE file open after a stop |
 | 4 | keyguard dispatch (fork-only) | T1, T3 crossing script, T4 | design notes 1–7 in doc 07 each covered by a test |
-| 5 | experiment; backup fix | T3 boot-order script (`tests/stage1.sh bootorder` on the patched build) | in/out decision recorded in doc 00 |
+| 5 | experiment; backup fix; storage service on the first unlocked user | T3 `tests/stage5.sh storage` | every check PASS, then in/out decision recorded in doc 00 |
 | 6 | flash test Pixel (manual) | T5 | hardware throttling and wipe observed |
 
 ### T4 checklist for `REBOOT_BFU` (Stage 2)
@@ -186,11 +188,16 @@ gate says when a stage is done.
 3. Reboot PIN at an in-app credential confirmation (Settings → re-enter PIN) → reboots.
 4. Reboot PIN at the fingerprint second-factor prompt → reboots (doc 04 Q4).
 5. Duress PIN still wipes from the keyguard (destructive, last).
-6. Enrolment rejects: reboot PIN = owner PIN, = duress PIN, = second-factor PIN; the owner's
-   failed-attempt counter is unchanged afterwards.
+6. Enrolment rejects: reboot PIN = owner PIN, = duress PIN, = second-factor PIN. The
+   collision checks add no failed attempt (the owner check itself may reset earlier ones).
 7. A wrong PIN looks the same (message and timing) with 0, 1 and 2 alternates enrolled.
 8. Storage upgrade: duress enrolled on an unmodified build, then the patched build boots and
    duress still wipes.
+9. With PIN auto-confirm on, a reboot PIN of another length than the owner PIN: note when it
+   can be submitted (the OK button is hidden until it is, `KeyguardPinViewController.java:113-121`).
+10. Lockout countdown: the service fires the reboot PIN even then (doc 04 *Decisions*, Q5),
+    but the keyguard blocks input during the countdown. Note which prompts still accept it.
+11. Boot reason after the reboot PIN equals the one after a power-menu restart.
 
 ### Stage 6 (manual, human-run)
 

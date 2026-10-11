@@ -216,19 +216,54 @@ Draft for a *Reboot PIN* screen:
 - **2026-10-10, one credential, PIN or password.** Matching is type-specific, so a reboot PIN
   fires only where a PIN is entered: with a password lock screen the typed text is a password
   credential and never matches. Settings has to say so.
-- **2026-10-10, Q3: `lowLevelReboot(null)`.** It sets `sys.powerctl`, so init still kills
-  processes, syncs and unmounts; it skips `ShutdownThread` (no broadcasts to apps, no dialog).
-  No reason string, so `sys.boot.reason` doesn't name the alternate.
+- **2026-10-10, Q3: `lowLevelReboot`, no orderly shutdown.** It sets `sys.powerctl`, so init
+  still kills processes, syncs and unmounts (`system/core/init/reboot.cpp:937`, `:955`, `:972`);
+  it skips `ShutdownThread` (no `ACTION_SHUTDOWN` to apps, no dialog). "Data intact" therefore
+  means committed data survives; app writes still in flight get no chance to finish.
+  *Changed 2026-10-11:* the reason is `userrequested` (`PowerManager.SHUTDOWN_USER_REQUESTED`),
+  the one the power menu passes (`WindowManagerService.java:4155-4159`), instead of none: a plain
+  `reboot,` matched neither a power-menu restart nor a crash, so it stood out.
+- **2026-10-11, reboot escrow is cleared first.** An escrow armed for a resume-on-reboot update
+  restores the users' synthetic passwords on the next boot (`RebootEscrowManager.java:935`,
+  `LockSettingsService.java:4476`), so the reboot would not end in BFU. `RebootBfu` calls
+  `RebootEscrowManager.clearRebootEscrow()` before rebooting; a failure there is logged and the
+  reboot still happens. The emulator has no escrow HAL: the armed case is a Stage 6 check.
+- **2026-10-11, owner credential changes.** The reboot credential is deleted when the owner
+  removes the screen lock, and when the owner's new primary or second-factor credential is
+  equal to it (`DuressPasswordHelper.onLockCredentialChanged`, called from
+  `onPostLockCredentialChanged`, which every change path goes through, the reset-token path
+  included). Deleting instead of refusing the change: a refusal would need a check before every
+  change path, and an equal credential can't fire anyway. Duress keeps its current behaviour
+  (not touched on owner changes). Settings should say when this happened.
+- **2026-10-11, a queued reboot is dropped after a successful verification of the same user.**
+  The check runs on a background thread after the binder call returns; if the right credential
+  of that user is verified while the reboot attempt waits, the reboot is dropped. Duress is
+  never dropped. Biometric unlock doesn't go through `doVerifyCredential` and can't drop it.
+- **2026-10-11, precedence is per attempt.** One worker thread checks attempts in order. A
+  reboot attempt queued before a duress attempt reboots before the wipe is checked; the wipe
+  is then lost. Accepted: two different alternates typed within a second or two.
+- **2026-10-11, unreadable records.** A stored record that can't be parsed disables only its
+  own action: the error is caught on the worker thread (only the exception type is logged, the
+  record never), enrolment reports `corrupt reboot credential record`, and deleting never
+  parses, so it always works.
 - **2026-10-10, Q2: fires at every user's prompt**, like duress. A reboot only takes access
-  away, and the hook has no user id.
-- **2026-10-10, Q5: counts as a failed attempt.** The primary verification has already failed
-  and been counted when the alternate is checked; not special-casing it keeps D4.
+  away. (The hook gets the user id since 2026-10-11, used only to drop stale reboots.)
+- **2026-10-10, Q5: keeps the normal accounting.** The primary verification has already failed
+  and been counted when the alternate is checked; not special-casing it keeps D4. So the
+  failure count survives the reboot and repeated use lengthens the lockout; a device-admin
+  wipe-after-N policy counts it too. Rate-limited, too-short and repeated guesses return
+  early without being counted (`LockSettingsService.java:2822-2828`), but the hook in the
+  `finally` (`:2778`) still sees them as not matched: the reboot PIN and duress fire during a
+  lockout timeout as well, and a repeated entry fires again.
 - **2026-10-10, enrolment (B9):** `setRebootCredential(owner, ownerSecondFactor, credential)`.
   The candidate is compared in memory with the owner credential and, if the owner has one, the
   second-factor PIN, before those are verified (verification zeroizes parceled credentials);
   then against duress with `DuressCredential.verify`. `setDuressCredentials` checks the reverse.
   Errors carry fixed `collision: …` messages. Deleting works without a screen lock, setting
-  doesn't.
+  doesn't. The owner checks go through `doVerifyCredential` like any prompt, so typing the
+  duress or reboot credential into them fires it; a wrong owner or second-factor entry counts
+  as a failed attempt. The collision check and the write run under one lock, the owner checks
+  outside it (they can take the `SyntheticPasswordManager` lock).
 
 ## Open questions
 
