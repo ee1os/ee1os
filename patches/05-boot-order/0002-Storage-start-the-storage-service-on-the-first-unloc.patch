@@ -1,0 +1,69 @@
+From 066afecc1835ad37f273672942b86245b181b2fe Mon Sep 17 00:00:00 2001
+From: Ivan Faeton Danishevskyi <faeton@gmail.com>
+Date: Sun, 11 Oct 2026 10:38:50 +0100
+Subject: [PATCH] Storage: start the storage service on the first unlocked user
+
+A secondary user can unlock while user 0 stays locked. Find the ExternalStorageService
+on whichever user unlocks first, and report that user's volumes once it has unlocked.
+---
+ .../com/android/server/StorageManagerService.java   |  5 +++--
+ .../server/storage/StorageSessionController.java    | 13 +++++++++----
+ 2 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/services/core/java/com/android/server/StorageManagerService.java b/services/core/java/com/android/server/StorageManagerService.java
+index d58c471892bd..a836e087f4fe 100644
+--- a/services/core/java/com/android/server/StorageManagerService.java
++++ b/services/core/java/com/android/server/StorageManagerService.java
+@@ -3930,8 +3930,9 @@ class StorageManagerService extends IStorageManager.Stub
+ 
+         // Report all volumes as unmounted until we've recorded that user 0 has unlocked. There
+         // are no guarantees that callers will see a consistent view of the volume before that
+-        // point
+-        final boolean systemUserUnlocked = isSystemUnlocked(UserHandle.USER_SYSTEM);
++        // point. A user that unlocked on its own while user 0 is still locked gets its volumes.
++        final boolean systemUserUnlocked = isSystemUnlocked(UserHandle.USER_SYSTEM)
++                || isSystemUnlocked(userId);
+ 
+         final boolean userIsDemo;
+         final boolean storagePermission;
+diff --git a/services/core/java/com/android/server/storage/StorageSessionController.java b/services/core/java/com/android/server/storage/StorageSessionController.java
+index 0a1271611c8a..fe0ff5d0fc9b 100644
+--- a/services/core/java/com/android/server/storage/StorageSessionController.java
++++ b/services/core/java/com/android/server/storage/StorageSessionController.java
+@@ -272,8 +272,12 @@ public final class StorageSessionController {
+      */
+     public void onUnlockUser(int userId) throws ExternalStorageServiceException {
+         Slog.i(TAG, "On user unlock " + userId);
+-        if (userId == 0) {
+-            initExternalStorageServiceComponent();
++        // The first user to unlock does it, not only user 0: a secondary user can unlock while
++        // user 0 stays locked, and each user binds its own ExternalStorageService.
++        synchronized (mLock) {
++            if (userId == 0 || mExternalStorageServiceComponent == null) {
++                initExternalStorageServiceComponent(userId);
++            }
+         }
+     }
+ 
+@@ -358,7 +362,8 @@ public final class StorageSessionController {
+         }
+     }
+ 
+-    private void initExternalStorageServiceComponent() throws ExternalStorageServiceException {
++    private void initExternalStorageServiceComponent(int userId)
++            throws ExternalStorageServiceException {
+         Slog.i(TAG, "Initialialising...");
+         ProviderInfo provider = mContext.getPackageManager().resolveContentProvider(
+                 MediaStore.AUTHORITY, PackageManager.MATCH_DIRECT_BOOT_AWARE
+@@ -371,7 +376,7 @@ public final class StorageSessionController {
+         mExternalStorageServicePackageName = provider.applicationInfo.packageName;
+         mExternalStorageServiceAppId = UserHandle.getAppId(provider.getUid());
+ 
+-        ServiceInfo serviceInfo = resolveExternalStorageServiceAsUser(UserHandle.USER_SYSTEM);
++        ServiceInfo serviceInfo = resolveExternalStorageServiceAsUser(userId);
+         if (serviceInfo == null) {
+             throw new ExternalStorageServiceException(
+                     "No valid ExternalStorageService component found");
+-- 
+2.39.5
+
