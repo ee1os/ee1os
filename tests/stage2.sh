@@ -9,7 +9,8 @@
 #   escrow     same as reboot, with an LSKF captured for a resume-on-reboot update
 #   lifecycle  owner PIN changed to the reboot PIN / owner lock removed -> reboot PIN deleted
 #   cleanup    delete reboot PIN and duress credentials
-# Every check prints PASS or FAIL; the script exits 1 if any check failed.
+# Checks print PASS, FAIL or SKIP (not checkable here); the script exits 1 if any check failed.
+# Setup steps printed with "$ cmd" are not checks: their output is recorded, not asserted.
 set -euo pipefail
 SERIAL="${SERIAL:-127.0.0.1:5555}"
 OWNER_PIN=1111 B_PIN=2222 DURESS_PIN=9999 DURESS_PW=duress-pw REBOOT_PIN=5555
@@ -25,6 +26,7 @@ log() { echo "$*" | tee -a "$RES"; }
 run() { log "\$ $*"; { sh_ "$@" 2>&1 || true; } | sed 's/^/    /' | tee -a "$RES"; }
 pass() { log "    PASS: $*"; }
 fail() { log "    FAIL: $*"; FAILS=$((FAILS + 1)); }
+skip() { log "    SKIP: $*"; }
 # check "<what>" <pattern> <cmd...>: run cmd, its output must match the extended regex
 check() {
   local what="$1" pat="$2" out; shift 2
@@ -188,7 +190,9 @@ case "${1:-}" in
     check "reboot PIN enrolled" 'Reboot credential set' $(reboot_cmd) --reboot-pin "$REBOOT_PIN"
     run cmd recovery request-lskf com.android.shell
     unlock_owner
-    run cmd recovery is-lskf-captured com.android.shell
+    captured="$(sh_ cmd recovery is-lskf-captured com.android.shell 2>&1 || true)"
+    log "    $captured"
+    [[ "$captured" == *true* ]] || skip "no LSKF captured (escrow HAL fails here): only the reboot is checked, not the escrow"
     write_sentinel
     sh_ logcat -c
     run cmd lock_settings verify --old "$REBOOT_PIN"
