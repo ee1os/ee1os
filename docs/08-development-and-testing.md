@@ -201,7 +201,12 @@ gate says when a stage is done.
 
 ### Stage 6 (manual, human-run)
 
-Build for the device target with release signing (GrapheneOS build guide, *Generating
+First pass (decided 2026-10-11, owner): a `husky-cur-userdebug` build with test keys, flashed
+with the bootloader left unlocked (`verifiedbootstate` = `orange`), so root and `adb` are
+available for the Weaver measurements (doc 04, *Weaver-backed alternates*); nothing from
+official GrapheneOS goes on the device first. The vendor module comes from adevtool
+(`vendor/adevtool/bin/run generate-all -d husky`), with its helper tools from the main `out/`.
+Second pass: build for the device target with release signing (GrapheneOS build guide, *Generating
 release signing keys*), flash with the bootloader unlocked, set our AVB key, lock the
 bootloader again. Then repeat the T4 checklist and observe Weaver throttling with repeated
 wrong PINs. Never automated from this repo.

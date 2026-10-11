@@ -338,6 +338,150 @@ userdebug build): `getConfig()` slots and sizes; the timeout table; five wrong r
 `getTimeout`, one wrong read (does write clear the count); counter and timeout across a
 reboot; time of one read against two.
 
+## A/B/duress layout (design draft, 2026-10-11, reviewed twice)
+
+Doc 00 goal 6. Not implemented. "Alternates" means the duress and reboot credentials. Paths:
+`F` = `frameworks/base`, `S` = `packages/apps/Settings/src/com/android/settings`,
+`U` = `F/packages/SystemUI/src`, `W` = `packages/apps/SetupWizard2`; Java files without a
+directory are in `F/services/core/java/com/android/server/locksettings/`.
+
+**Roles.** A = user 0, the everyday profile. B = a full secondary user, the protected space,
+recorded as the *protected user id* in device-protected storage. Duress stays device-wide.
+A must be user 0: user 0 can't be stopped (`UserController.java:1323-1324`), so the profile
+that stays in memory is the everyday one. Nothing here is deniable (doc 00 *Non-goals*).
+
+**Authority is the protected user id, not the admin flag.** User 0 stays an admin: revoking
+it is refused (`F/services/core/java/com/android/server/pm/UserManagerService.java:2645`), so
+"any admin's credential" would let A set the alternates. The alternates don't need B to be
+an admin; managing users from B does (Settings gates it on the admin flag), so B is an admin
+too, and the protected user id, not the flag, decides who may touch the alternates.
+
+- The alternate APIs (`LockSettingsService.java:4495`, `:4510`, `:4520`, `:4536`) check the
+  caller's own credential against the protected user id, taken from the caller identity before
+  it is cleared, never from a supplied user id. Today they check user 0
+  (`DuressPasswordHelper.java:198`, `:275`) and follow user 0's credential changes (`:152`,
+  `:167`); both move to B.
+- The reboot credential's Weaver design (section above) follows B: its key is wrapped under
+  B's synthetic password, collision checks need B's, and the slot is rewritten after B's
+  successful unlock (W5, W8, W9 with B for "owner").
+- User restrictions on A are set by the system at provisioning, not by B:
+  `no_remove_user` on user 0 (checked for the caller, `UserManagerService.java:7119`; the bypass
+  paths at `:7191` audited), and B's `no_run_in_background` can't be cleared from A. Setting
+  restrictions needs `MANAGE_USERS` (`:4070`), so they are written by a privileged component.
+  Uninstall for all users is hidden and refused in A (`S/applications/appinfo/AppInfoDashboardFragment.java:595`,
+  `F/services/core/java/com/android/server/pm/DeletePackageHelper.java:783`).
+- Nothing in the layout provisions a token that could reset A's credential, so B can't reset
+  A's PIN (token resets exist in general, `LockSettingsService.java:3932`). A forgotten A PIN
+  is a reset, as today.
+
+**Credential lengths (owner idea, revised after review).** A: PIN of exactly 6 digits. B and
+the alternates: PINs of 8 or more digits (the validation ceiling is 128,
+`F/core/java/android/app/admin/DevicePolicyManager.java:3950`, `PasswordMetrics.java:562`).
+Seven digits, or anything outside these, is rejected as a wrong PIN without any check, so a
+6-digit A PIN with one extra digit reaches nobody. A must be a PIN while the layout is on
+(no password, pattern or none); so must B. The rule is enforced in `LockSettingsService` for
+every credential write (`:2169`, `:2269`, `:3932`), not only in Settings
+(`S/password/ChooseLockGeneric.java`, `ChooseLockPassword.java`), and covers the
+second-factor PIN (`ChooseBiometricSecondFactorPin.java`): A's second-factor PIN takes A's
+length. Prompts only cap what is *set*, never what can be *typed*, or an 8-digit duress PIN
+couldn't be entered in A's prompts.
+
+- What it buys: A's PIN can change inside A with no check against B or the alternates, so no
+  enrolment oracle. At the lock screen, 6 digits go to A only and 8 or more only to duress, B
+  and reboot, so A's guesses never touch B's or the reboot slot and the other way round.
+- What it doesn't fix: B and the reboot credential share the long group. Order: duress
+  (no Weaver slot), then B, then reboot. A normal B unlock never reads the reboot slot; a
+  reboot entry costs B one failure, cleared at B's next unlock; B's wrong guesses also fail on
+  the reboot slot, cleared by the rewrite after B's next unlock (W8). Alternatives: a third
+  length range for the reboot credential, or no reboot credential on the lock screen.
+- Auto-confirm submits at the selected user's stored PIN length (`U/com/android/keyguard/KeyguardPinViewController.java:91`,
+  `:117`): it is off for both users and not offered while the layout is on, so the pad shows
+  an OK key and no fixed-length hint, as stock Android does with auto-confirm off. Stored
+  `pinLength` is refreshed when it is turned off (`SyntheticPasswordManager.java:1253`,
+  `:1766`).
+- In-app prompts in A (confirm credential, second factor) don't dispatch: a long PIN there is a
+  wrong A guess, and still reaches the duress check as today.
+
+**Lock screen (Stage 4).** One PIN pad, no user switcher.
+
+- Routing by length happens after submission and before any software limiter or Weaver read
+  (the limiter doesn't know about targets, `SoftwareRateLimiter.java:211`).
+- Lockout is per target: today a timeout disables the whole entry field and verification
+  stops (`U/com/android/keyguard/KeyguardAbsKeyInputViewController.java:174`, `:277`; newer
+  path `U/com/android/systemui/authentication/data/repository/AuthenticationRepository.kt:360`,
+  `:386`). The pad stays usable; a target in timeout refuses its own group only. Duress stays
+  usable during any target's lockout.
+- A wrong long PIN shows the same "Wrong PIN" and charges only the long targets; it is never
+  reported as an A failure (`KeyguardAbsKeyInputViewController.java:255` does that today).
+- Dispatch is one privileged operation in `LockSettingsService`, not an extra
+  `checkCredential` from SystemUI: a successful check already starts the user's unlock
+  (`LockSettingsService.java:2862`), and the keyguard dismisses only for the selected user
+  (`KeyguardAbsKeyInputViewController.java:209`, `:308`). The operation authenticates its
+  caller, finishes the duress check first, returns target, result and timeout, then SystemUI
+  switches, waits for the switch to finish and dismisses for that user only. Cancel, screen
+  off and a competing switch must not leave an unintended user unlocked.
+- Leaving B (lock or End session) returns to A's lock screen. Eviction is asynchronous and is
+  skipped if B restarts first (`UserController.java:1709`), so re-entering B waits until the
+  previous stop has locked B's key.
+
+**After a reboot (Stage 5, now required).** B's PIN opens B while A stays locked. On top of the
+emulator patches this needs `allow_user_switching_when_system_user_locked`, default 0
+(`UserManagerService.java:3365`), and hardware tests of B's first boot, storage, media,
+backup, telephony, Bluetooth, Wi-Fi, notifications, then A's unlock and an update reboot. The
+protected user id lives in DE storage and is checked against user-id reuse.
+
+**Biometrics.** A only. B can't enrol and the keyguard doesn't offer them for B: hiding
+enrolment isn't enough (`U/com/android/keyguard/KeyguardUpdateMonitor.java:3238`, `:3335`).
+
+**Kept out of A's screens** (each also refused server-side where it acts):
+
+| Surface | Where |
+|---|---|
+| Users screen, its search entry and direct access | `S/users/MultiUserPreferenceController.java:35`, `UserSettings.java:2000`, `UserDetailsSettings.java` |
+| Duress and reboot screens | `S/safetycenter/ui/DuressPasswordPrefController.java:20`, `RebootCredentialPrefController.java:20`, the `S/security/*MainActivity`/`*SetupActivity` entries; not via the shared `S/ext/ExtSettingControllerHelper.java:28` |
+| User switcher on keyguard, QS, shade | `U/com/android/systemui/user/domain/interactor/UserSwitcherInteractor.kt:129`, `user/data/repository/UserSwitcherRepository.kt:144`, `qs/footer/ui/viewmodel/FooterActionsViewModel.kt:321`, `U/com/android/keyguard/KeyguardSecurityContainer.java` |
+| Power-menu users (End session stays for B) | `U/com/android/systemui/globalactions/GlobalActionsDialogLite.java:1568` |
+| B's name and icon in the switch transition | `F/services/core/java/com/android/server/am/UserSwitchingDialog.java:92` |
+| Storage breakdown | `S/deviceinfo/storage/NonCurrentUserController.java:74`, `StorageAsyncLoader.java:82`, `UserIconLoader.java:69` |
+| B's notifications forwarded to A | `F/services/core/java/com/android/server/notification/NotificationManagerService.java:11221`, `:11237` |
+| Running services of other users | `S/applications/RunningState.java:874`, `:1243` |
+
+Accounts already stay per profile group (`S/accounts/AccountPreferenceController.java:201`,
+`:297`); battery entries of other users are filtered (`S/fuelgauge/batteryusage/DataProcessor.java:666`,
+`:1567`), to be checked on every screen.
+
+**Still visible to A's holder** with all of the above: storage and battery totals, shared app
+versions and updates, device-wide radios, networks and VPN, the delay of a user switch, the
+timing and lockouts of long PINs, the OK key and the length rules, apps that count users.
+"Plain Android" means how A looks, not that nothing changed.
+
+**Duress.** GrapheneOS sets a duress PIN and a duress password together so every prompt type
+can wipe. Setup asks for both and keeps it that way.
+
+**Setup** (`W`). Add a step right after `SecurityActivity`
+(`W/java/app/grapheneos/setupwizard/action/SetupWizard.kt:30`). The current security step
+launches biometric enrolment (`W/java/app/grapheneos/setupwizard/action/SecurityActions.kt:19`),
+which can leave a credential the layout doesn't allow, so the layout is chosen first:
+
+1. "Protected space?" yes or no. No: stock setup, no layout, nothing hidden.
+2. A's 6-digit PIN (then fingerprints, for A).
+3. B's PIN, duress PIN and password, optional reboot PIN, checked against each other.
+4. A privileged provisioning service (SetupWizard2 has no user or credential permissions,
+   `W/AndroidManifest.xml:7`, `W/etc/permissions/app.grapheneos.setupwizard.xml:4`) creates B
+   as `USER_TYPE_FULL_SECONDARY` (`F/core/java/android/os/UserManager.java:4595`), sets
+   `no_run_in_background` and B's PIN (`F/core/java/com/android/internal/widget/LockPatternUtils.java:889`),
+   records the protected user id, enrols the alternates under B's authority and sets A's
+   restrictions. The layout counts as on only when all of it succeeded; an interrupted run is
+   resumed or rolled back.
+5. Setup ends in A. B's own setup runs at its first unlock and offers no lock or user step
+   (its security step already skips when a lock exists, `W/java/app/grapheneos/setupwizard/view/activity/SecurityActivity.kt:18`).
+
+**Measure on the Pixel 8 Pro** besides the Weaver list: pad behaviour during a lockout;
+maximum PIN length the keyguard accepts; time of a short against a long wrong PIN; whether
+`createUser` and `setLockCredential` work before provisioning ends; whether `no_remove_user` on
+user 0 can be cleared from A's Settings; B-first boot; storage and battery screens with two
+users; B's CE files after a stop.
+
 ## Decisions
 
 - **2026-10-10, storage: a second fixed slot, not a table (Q1 for the fork).** The reboot

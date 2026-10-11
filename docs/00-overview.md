@@ -28,6 +28,9 @@ work; storage keys, OTA/update, verified boot and session lifecycle are the othe
 4. Map the boot/update machinery (A/B slots, update_engine, AVB with `avb_custom_key`) and
    record why "slot A = OS 1, slot B = OS 2" is not a viable dual-boot (doc 06).
 5. Ship staged PoCs as patches against a pinned GrapheneOS revision (doc 07).
+6. A **three-credential layout set up at install**: A (user 0, the everyday profile), B (a
+   secondary user that holds the security settings) and the duress credential. A works as
+   plain Android and shows nothing of B or the alternates (doc 04, *A/B/duress layout*).
 
 ## Hard requirements
 
@@ -42,15 +45,16 @@ work; storage keys, OTA/update, verified boot and session lifecycle are the othe
 
 ## Non-goals
 
-- **Hiding the existence of an environment / forensic deniability.** Out of scope.
-  Rationale: (a) GrapheneOS developers have consistently argued that this cannot be delivered
-  honestly on Android ([#5247](https://github.com/GrapheneOS/os-issue-tracker/issues/5247): "It's
+- **Deniability.** B is kept out of A's everyday screens (goal 6), and that is all. Nothing
+  claims B can't be found: its directories and user record are on disk, storage use, `adb`,
+  Weaver counters and usage patterns show it, and anyone who knows this build asks for a
+  second PIN. GrapheneOS developers make the same point
+  ([#5247](https://github.com/GrapheneOS/os-issue-tracker/issues/5247): "It's
   not possible to make hidden profiles with plausible deniability";
   [#2175](https://github.com/GrapheneOS/os-issue-tracker/issues/2175),
-  [#8409](https://github.com/GrapheneOS/os-issue-tracker/issues/8409)) — on-disk metadata, storage accounting and usage patterns reveal it — and
-  that a false promise of deniability endangers users more than it helps; (b) a design review on 2026-10-06
-  (see *Design notes* in `07-roadmap.md`) independently found the same
-  for a secondary-user design. A proposal claiming this would not be accepted upstream.
+  [#8409](https://github.com/GrapheneOS/os-issue-tracker/issues/8409)), and a false promise of
+  deniability endangers users more than it helps; a design review on 2026-10-06 (*Design
+  notes* in `07-roadmap.md`) found the same. Screens and docs must not suggest otherwise.
 - **Forensic extraction tooling**, in either direction: no analysis of extraction tools, no
   new mechanisms aimed at resisting them, no claims about what they can or cannot recover.
   The project relies on whatever GrapheneOS already provides there and adds nothing.
@@ -79,6 +83,9 @@ What the design aims to provide:
 - 2026-10-06 — Both environments are GrapheneOS (one source tree, one signing root), not
   GrapheneOS + stock. Reason: one firmware baseline, one update channel, one rollback index.
 - 2026-10-06 — Deniability declared a non-goal (see above).
+- 2026-10-11 — Non-goal reworded (owner decision): B is kept out of A's screens, without any
+  claim that it can't be detected. Reason: that was the intent from the start; the old wording
+  read as if B would be shown everywhere.
 - 2026-10-06 — Environment A is the owner profile (user 0) and its CE key may stay in memory
   until reboot; only environment B (a secondary user) has to be evictable. Reason (owner
   decision): A is the regular primary profile, and user 0 cannot be stopped
@@ -97,3 +104,10 @@ What the design aims to provide:
   an offline-checkable alternate can be recovered from an extracted `locksettings.db` and then
   avoided. First step is measuring the slot budget on the test device (doc 07). Until then,
   Stage 2 is not claimed to meet this requirement.
+- 2026-10-11 — Three-credential layout set up at install (goal 6, owner decision): A is user 0
+  and the everyday profile; B is a secondary user that holds the duress, reboot and user
+  settings; the duress credential stays device-wide. A shows none of them. Biometrics belong
+  to A only (a fingerprint at the lock screen opens A; B is credential-only). A's CE key may
+  stay in memory while B is used, as decided on 2026-10-06; `REBOOT_BFU` covers it. Stages 4
+  and 5 become required. Credential lengths (A against B and the alternates) are open, see doc
+  04.
