@@ -374,45 +374,49 @@ too, and the protected user id, not the flag, decides who may touch the alternat
   A's PIN (token resets exist in general, `LockSettingsService.java:3932`). A forgotten A PIN
   is a reset, as today.
 
-**Credential lengths (owner idea, revised after review).** A: PIN of exactly 6 digits. B and
-the alternates: PINs of 8 or more digits (the validation ceiling is 128,
-`F/core/java/android/app/admin/DevicePolicyManager.java:3950`, `PasswordMetrics.java:562`).
-Seven digits, or anything outside these, is rejected as a wrong PIN without any check, so a
-6-digit A PIN with one extra digit reaches nobody. A must be a PIN while the layout is on
-(no password, pattern or none); so must B. The rule is enforced in `LockSettingsService` for
-every credential write (`:2169`, `:2269`, `:3932`), not only in Settings
-(`S/password/ChooseLockGeneric.java`, `ChooseLockPassword.java`), and covers the
-second-factor PIN (`ChooseBiometricSecondFactorPin.java`): A's second-factor PIN takes A's
-length. Prompts only cap what is *set*, never what can be *typed*, or an 8-digit duress PIN
-couldn't be entered in A's prompts.
+**Credential lengths (owner decision 2026-10-11).** All four are PINs of 6 digits or more
+(A, B, duress, reboot); no length ranges. A disjoint-length split was considered (A 6 digits,
+the others 8 or more): it removed the enrolment oracle and most Weaver coupling but made every
+non-A PIN long, and the owner preferred 6-digit PINs throughout. A and B must be PINs while
+the layout is on; the rule is enforced in `LockSettingsService` for every credential write
+(`:2169`, `:2269`, `:3932`), not only in Settings (`S/password/ChooseLockGeneric.java`,
+`ChooseLockPassword.java`), including the second-factor PIN
+(`ChooseBiometricSecondFactorPin.java`). The validation ceiling is 128
+(`F/core/java/android/app/admin/DevicePolicyManager.java:3950`).
 
-- What it buys: A's PIN can change inside A with no check against B or the alternates, so no
-  enrolment oracle. At the lock screen, 6 digits go to A only and 8 or more only to duress, B
-  and reboot, so A's guesses never touch B's or the reboot slot and the other way round.
-- What it doesn't fix: B and the reboot credential share the long group. Order: duress
-  (no Weaver slot), then B, then reboot. A normal B unlock never reads the reboot slot; a
-  reboot entry costs B one failure, cleared at B's next unlock; B's wrong guesses also fail on
-  the reboot slot, cleared by the rewrite after B's next unlock (W8). Alternatives: a third
-  length range for the reboot credential, or no reboot credential on the lock screen.
-- Auto-confirm submits at the selected user's stored PIN length (`U/com/android/keyguard/KeyguardPinViewController.java:91`,
-  `:117`): it is off for both users and not offered while the layout is on, so the pad shows
-  an OK key and no fixed-length hint, as stock Android does with auto-confirm off. Stored
-  `pinLength` is refreshed when it is turned off (`SyntheticPasswordManager.java:1253`,
-  `:1766`).
-- In-app prompts in A (confirm credential, second factor) don't dispatch: a long PIN there is a
-  wrong A guess, and still reaches the duress check as today.
+- Accepted: changing A's PIN inside A is checked against B and the alternates, and a refusal
+  tells A's holder that the PIN is taken. Checking against B or the reboot credential is a
+  Weaver read on their slot (costs a failure, throttled); checking against duress is a scrypt
+  compare and not throttled. Refusals in A's change-PIN screen therefore count as wrong
+  guesses for a delay, as at the lock screen. The refusal text is the generic "choose a
+  different PIN".
+- Auto-confirm submits at the selected user's stored PIN length
+  (`U/com/android/keyguard/KeyguardPinViewController.java:91`, `:117`). It is offered only while
+  every PIN of the layout has A's length; otherwise it is off for both users, and the pad shows
+  an OK key, as stock Android does with auto-confirm off. Stored `pinLength` is refreshed when
+  it is turned off (`SyntheticPasswordManager.java:1253`, `:1766`).
+- In-app prompts in A (confirm credential, second factor) don't dispatch: another PIN there is
+  a wrong A guess, and still reaches the duress check as today.
 
 **Lock screen (Stage 4).** One PIN pad, no user switcher.
 
-- Routing by length happens after submission and before any software limiter or Weaver read
-  (the limiter doesn't know about targets, `SoftwareRateLimiter.java:211`).
+- Order: A, then duress, then B, then reboot. A wrong A guess therefore also costs B's and
+  the reboot slot one failure each, and every B entry costs A's slot one; each slot's count is
+  cleared by its own next correct unlock (W8 for the reboot slot). An attacker's guesses throttle
+  all three slots together, so each target gets the same number of guesses as a single PIN
+  would. A target whose slot is in timeout is skipped, not allowed to block the others. Trying
+  the last-used user first (Stage 4c) would cut A's failures from B entries. Measured on the
+  Pixel: the timeout table and whether these coupled counts stay usable in daily use.
+- Per-target admission happens after submission and before that target's software limiter or
+  Weaver read (the limiter doesn't know about targets, `SoftwareRateLimiter.java:211`).
 - Lockout is per target: today a timeout disables the whole entry field and verification
   stops (`U/com/android/keyguard/KeyguardAbsKeyInputViewController.java:174`, `:277`; newer
   path `U/com/android/systemui/authentication/data/repository/AuthenticationRepository.kt:360`,
   `:386`). The pad stays usable; a target in timeout refuses its own group only. Duress stays
   usable during any target's lockout.
-- A wrong long PIN shows the same "Wrong PIN" and charges only the long targets; it is never
-  reported as an A failure (`KeyguardAbsKeyInputViewController.java:255` does that today).
+- A PIN that matches nobody shows the usual "Wrong PIN". A successful B or reboot entry is
+  not reported to A's failure counters in SystemUI (`KeyguardAbsKeyInputViewController.java:255`
+  reports every failure for the selected user today).
 - Dispatch is one privileged operation in `LockSettingsService`, not an extra
   `checkCredential` from SystemUI: a successful check already starts the user's unlock
   (`LockSettingsService.java:2862`), and the keyguard dismisses only for the selected user
@@ -452,7 +456,8 @@ Accounts already stay per profile group (`S/accounts/AccountPreferenceController
 
 **Still visible to A's holder** with all of the above: storage and battery totals, shared app
 versions and updates, device-wide radios, networks and VPN, the delay of a user switch, the
-timing and lockouts of long PINs, the OK key and the length rules, apps that count users.
+timing of a wrong PIN (several Weaver reads) and lockouts after B entries, the OK key when
+auto-confirm is off, refusals in the change-PIN screen, apps that count users.
 "Plain Android" means how A looks, not that nothing changed.
 
 **Duress.** GrapheneOS sets a duress PIN and a duress password together so every prompt type

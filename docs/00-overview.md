@@ -109,5 +109,5 @@ What the design aims to provide:
   settings; the duress credential stays device-wide. A shows none of them. Biometrics belong
   to A only (a fingerprint at the lock screen opens A; B is credential-only). A's CE key may
   stay in memory while B is used, as decided on 2026-10-06; `REBOOT_BFU` covers it. Stages 4
-  and 5 become required. Credential lengths (A against B and the alternates) are open, see doc
-  04.
+  and 5 become required. Credential lengths: all PINs of 6 digits or more, no length ranges; the
+  enrolment check in A's change-PIN screen is accepted, with refusals throttled (doc 04).
