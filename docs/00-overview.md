@@ -87,12 +87,13 @@ What the design aims to provide:
 - 2026-10-06 — Forensic extraction dropped from the threat model and declared a non-goal
   (owner decision). Reason: none of the planned PoCs address it, and keeping it in the threat
   model invited work the project does not intend to do.
-- **Open (2026-10-11): the reboot credential and "No weaker credential storage".** The reboot
-  credential is stored like the duress credentials: a salted scrypt value in
+- **2026-10-11: alternates move behind hardware throttling ("No weaker credential storage").**
+  The reboot credential is stored like the duress credentials: a salted scrypt value in
   `locksettings.db` (`DuressCredential.java:23-28`), checkable offline, with no Weaver or
-  secure-element throttling. That contradicts the hard requirement above as written. Two ways
-  out, for the owner to pick: (a) narrow the requirement to credentials that *grant* access
-  (doc 04 D2: learning an access-reducing alternate only lets someone reboot or wipe the
-  device, and GrapheneOS's own duress credentials are stored the same way), or (b) move
-  alternates behind hardware throttling, which needs a protector per alternate and is not
-  designed. Until decided, Stage 2 is not claimed to meet this requirement.
+  secure-element throttling. That contradicts the hard requirement above as written. The owner
+  chose to keep the requirement and to put alternates behind Weaver (one slot per alternate)
+  rather than narrow the requirement to credentials that grant access; narrowing stays the
+  fallback only if the slot budget or the throttling interaction rules Weaver out. Reason:
+  an offline-checkable alternate can be recovered from an extracted `locksettings.db` and then
+  avoided. First step is measuring the slot budget on the test device (doc 07). Until then,
+  Stage 2 is not claimed to meet this requirement.

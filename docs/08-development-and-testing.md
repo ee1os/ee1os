@@ -11,7 +11,7 @@ GrapheneOS builds only on x86_64 Linux (<https://grapheneos.org/build>).
 |---|---|
 | `n5` | Build host and emulator host. TrueNAS SCALE, so nothing is installed on the host: the build runs in a Docker container. 24 threads, 91 GB RAM shared with Immich, ollama etc. → `-j8`, 28 GB container cap, one highmem job. |
 | m3max | Editor (remote over SSH), `adb`, `scrcpy` for the emulator screen. |
-| test Pixel | Stage 6 only. Dedicated device, own signing keys, never a daily phone. |
+| test Pixel | Pixel 8 Pro (husky, Titan M2), set aside for this project; stock Android 16 as of 2026-10-11. Stage 6 only. Own signing keys, never a daily phone. |
 | `de1` | Fallback build host (8 threads, 62 GB RAM, Debian 13 → same container). |
 
 ## Layout on n5

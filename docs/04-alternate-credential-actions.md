@@ -228,6 +228,116 @@ Draft for a *Reboot PIN* screen:
      credential with `input text` (`:92`), and checks Weaver reads via `WeaverOpCapturer`
      output (`:59`). A `RebootBfuTest` should copy this test.
 
+## Weaver-backed alternates (design draft, 2026-10-11, reviewed twice)
+
+Follows the doc 00 decision of 2026-10-11: the reboot credential gets hardware throttling
+instead of an offline-checkable scrypt record. Paths are under `frameworks/base/` unless
+they start with `hardware/`; Java files without a directory are in
+`services/core/java/com/android/server/locksettings/`. Not implemented.
+
+**What Weaver gives** (`hardware/interfaces/weaver/aidl/android/hardware/weaver/IWeaver.aidl`):
+an array of slots, each a key and a value; `read(slot, key)` returns the value only for the
+right key. Throttling is per slot (`:65`): a read past a timeout first counts a failure, a
+correct key resets that slot's count (`:90`), a wrong one returns the next timeout (`:95`),
+and a read during a timeout tests nothing (`:79`). `write` replaces key and value and leaves
+no timeout (`:116-120`); whether it also clears the failure count is not stated. The slot
+count comes from `getConfig().slots`: at least 64 recommended (`:33`), 16 in the reference
+service (`hardware/interfaces/weaver/aidl/default/Weaver.cpp:31`, volatile, never throttles).
+
+**Slot budget.** The real count is unknown: the Pixel 8 Pro test device runs stock 16, which
+doesn't log it (checked 2026-10-11), and 17 logs it at debug level only
+(`SyntheticPasswordManager.java:733`). Plan for 16 until the Stage 6 build reads it. Slots in
+use: one per primary LSKF protector of every user, with or without a lock
+(`SyntheticPasswordManager.java:1137-1146`; `config_disableWeaverOnUnsecuredUsers` is false,
+`core/res/res/values/config.xml:1535`); a second one for the moment a credential change
+creates the new protector before destroying the old; one per activated escrow token
+(`SyntheticPasswordManager.java:1491`). FRP points at the owner's existing slot and is only
+held until provisioning (`:1097-1102`). Secondary protectors stay out of Weaver because of slot
+pressure (`:582-584`, `false` at `LockSettingsService.java:632`). Running out throws
+`"Run out of weaver slots."` (`SyntheticPasswordManager.java:1109`), which breaks a credential
+change or user creation.
+
+- W1. One reboot credential, owner only: one slot.
+- W2. Enrolment is refused unless, after it, free slots ≥ (existing users and profiles + 1
+  for a change in progress + activated tokens + a fixed headroom of 2). Reserving for every
+  user that *could* still be created (base cap 32, `config.xml:3288`) never fits in 16 slots,
+  so the rule counts what exists. Creating a user later can still fail; then the reboot
+  credential has to be deleted first. If the measured count leaves no room on the test
+  device, doc 00 option (a) applies.
+
+**Slot ownership (the critical part).** `PasswordSlotManager` rebuilds its map from
+`getUsedWeaverSlots()` on every Weaver start (`SyntheticPasswordManager.java:734`,
+`PasswordSlotManager.java:76-90`), and that only lists protector files
+(`SyntheticPasswordManager.java:1077`). A slot only passed to `markSlotInUse`
+(`PasswordSlotManager.java:105`) is forgotten after the next `system_server` start and handed
+to the next protector or escrow token; the next alternate write would then destroy that
+user's key. `destroyWeaverSlot` erases a slot that no listed protector holds
+(`SyntheticPasswordManager.java:1047-1064`), so it would also erase the alternate's slot.
+
+- W3. A reservation file next to the reboot record holds the slot id and a generation, with
+  a state (pending, active, deleting). `getUsedWeaverSlots` includes it, and a bad record must
+  not throw there (it runs during Weaver start). Allocation, reservation, Weaver write and
+  free all run under `mSpManager`, like every current caller of `getNextAvailableWeaverSlot`.
+  Order: reserve (pending, fsync), write, mark active. On start, a pending reservation is
+  erased and dropped; a deleting one is erased again. Free only after the erase succeeded.
+  Every later write first rechecks slot and generation.
+- W4. Every delete path frees the slot through W3, not just the database row: delete from
+  Settings or the shell, owner lock removal, and "new owner credential equals the reboot
+  credential" in `onLockCredentialChanged` (today all call `RebootCredential.delete`).
+  Factory reset wipes the reservation with `/data`; the chip slot is reused later, as with an
+  orphaned protector today.
+
+**Record and check.**
+
+- W5. Weaver key: same shape as `stretchedLskfToWeaverKey` (`SyntheticPasswordManager.java:2259`,
+  personalized hash cut to `keySize`) with its own personalization string. Value: random,
+  not stored. Record: a new version with slot, generation, salt, scrypt parameters and the
+  Weaver key wrapped (authenticated) under a key derived from the owner's synthetic password.
+  No hash. A version-0 record (today's scrypt hash) is migrated at the next owner unlock and
+  the hash deleted in the same write; until then the offline verifier is still on disk, and
+  copies in old backups stay guessable.
+- W6. When the slot is read: only for user 0, primary domain, after the owner's own Weaver
+  read returned a real wrong-key result. Not for software rate limiting, duplicate guesses,
+  too-short input or a Weaver `THROTTLE` (the rate limiter answers before the owner read,
+  `LockSettingsService.java:2818`, and the hook sees every result, `:2779`), not for other users, not for the second factor,
+  and not after a duress match (duress stays first). Then the reboot slot's failures follow
+  the owner's: no guess reaches it that the owner slot didn't count.
+- W7. Accepted limitation: during the owner's lockout the lock screen tries nothing, so the
+  reboot credential doesn't work then either; the scrypt version did. "Reboot on any wrong
+  guess while throttled" is rejected: it would give every wrong guess the action.
+- W8. After a successful owner unlock with the primary credential (not a token, not reboot
+  escrow), the slot is rewritten with the same key and a new value, then read once with that
+  key (a correct read resets the count, `IWeaver.aidl:90`, in case `write` doesn't). The SP
+  only exists inside the verify call and is zeroized before it returns
+  (`LockSettingsService.java:2840`, `:2880-2882`), so the hook sits in the owner-primary
+  success branch: unwrap the Weaver key there, zeroize the SP, queue the write. Rewrite and
+  every alternate read run on one queue (the helper's background thread); a read checks the
+  generation and the success counter before touching the chip, so a guess queued before the
+  unlock is dropped instead of undoing the rewrite. No record update on this path, so a crash
+  after the write leaves a working slot. A failed rewrite leaves the credential throttled,
+  never fails the owner unlock. Lock order: never `alternatesLock` then `mSpManager`.
+- W9. Collision checks (enrolment, duress enrolment, owner credential change) compare the
+  candidate's derived Weaver key in memory with the unwrapped one, which needs the owner's
+  SP: enrolment uses an internal verify that hands back the SP, `checkCredential` can't. The
+  owner change keeps the SP (`LockSettingsService.java:3651`), so the wrap survives it.
+- W10. Leaks. Debug builds with verbose logging print Weaver keys and values
+  (`WeaverOpCapturer.java:16`, `:66-69`); the alternate path must not go through it. Failed
+  reads log the slot (`SyntheticPasswordManager.java:845-855`); the alternate uses a quiet
+  read. The extra read stays off the binder thread, as the scrypt check is today; timing of
+  later requests and chip contention still show that an alternate exists. Not hidden in this
+  stage; the same problem holds Stage 4.
+- W11. Scope: the reboot credential only. GrapheneOS's duress credentials stay as upstream
+  stores them.
+
+**Testing.** `services/tests/servicestests/src/com/android/server/locksettings/MockWeaverService.java`
+has 8 slots (`:18`) and per-slot counters (`:73-76`), but never returns a timeout, resets the
+count on every write (`:55`) and only injects one-shot responses (`:119`). It gets per-slot
+timeouts, count-before-compare and a switch for whether write clears the count; then W3-W9 are
+unit tests, including a restart between reserve and write. On the Pixel 8 Pro (Stage 6, own
+userdebug build): `getConfig()` slots and sizes; the timeout table; five wrong reads, write,
+`getTimeout`, one wrong read (does write clear the count); counter and timeout across a
+reboot; time of one read against two.
+
 ## Decisions
 
 - **2026-10-10, storage: a second fixed slot, not a table (Q1 for the fork).** The reboot
