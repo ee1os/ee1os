@@ -11,37 +11,42 @@ test levels, per-stage gates — is in `08-development-and-testing.md`.
 | 1 | Baseline experiments on the unmodified emulator | done 2026-10-10 (`tests/results/2026-10-10-stage1-T3.md`); keyguard entry left for T4 |
 | 2 | `REBOOT_BFU` alternate credential | 2a implemented and tested on the emulator after three reviews (`stage2.sh` PASS, escrow SKIP; T1 819/0 incl. 22 new tests; `tests/results/2026-10-11-stage2-T3.md`); 2b screens built, `stage2b.sh` PASS (`2026-10-11-stage2b-T3.md`); open: owner decision on storage (doc 00), keyguard entry and screen states (T4), armed escrow and Weaver (Stage 6) |
 | 3 | Environment B via the lockscreen user switcher | eviction confirmed; 3c fixed, rerun with assertions PASS (`tests/results/2026-10-11-stage3-T3.md`); next 3b wording, End session check |
-| 4 | Automatic PIN dispatch | design notes only |
+| 4 | Automatic PIN dispatch | built as the A/B/duress layout (doc 04): one pad checks A, then B; emulator 2026-10-12 (`tests/results/2026-10-12-layout-T3.md`) |
 | 5 | B before A after boot | backup crash fixed; storage service started by the first unlocked user: B unlocks first with working shared storage and MediaStore, owner stays locked (`tests/results/2026-10-11-stage5-T3.md`); in/out still open |
-| 6 | Real device | not started |
+| 6 | Real device | Pixel 8 Pro on our userdebug build, test keys, bootloader unlocked; Weaver measured; layout passed twice (`2026-10-12-layout-T5.md`, `-T6.md`); release signing not started |
 
 All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*).
 
-**Next, in order (2026-10-11, after the third review).** Work that needs neither a person at
-the screen nor the Pixel comes first, so the T4 session doesn't block it.
+**Next, in order (2026-10-12, after the second phone run).**
 
-1. Owner decision on doc 00 *Decisions* "Open (2026-10-11)": storage of access-reducing
-   alternates against the hard requirement. Stage 2 isn't claimed complete before it.
-2. Stage 3 wording (3b) and the isolation evaluation (doc 00 goal 3) in this doc's Stage 3,
-   from the Stage 1 and 3 results, with the pending T4 / hardware evidence marked as such.
-3. Stage 5 automated coverage: an ordinary app in N using `StorageManager`, app storage,
-   MediaStore insert/read, documents; negative checks against owner files; N stopped and
-   restarted while the owner is locked; MediaProvider death; owner unlock during N's I/O; the
-   `UserManager` warning (`UserManager.java:4197`, a binder identity not cleared in
-   `getConnectionUserIdForVolume`). Then in/out in doc 00. The storage patch only changes anything when a
-   user unlocks while user 0 is locked; from the UI that needs
-   `allow_user_switching_when_system_user_locked` (adb and system APIs can do it without).
-4. Device checklist for Stage 6 written now, shell-driven (doc 08), so the first hour on the
-   Pixel goes to what only it can show: Weaver throttling, armed escrow, a real reboot to
-   BFU, the duress wipe.
-5. One prepared T4 session from m3max (adb over the ssh tunnel, scrcpy): doc 08 T4 checklist
-   (keyguard entry, auto-confirm length, second-factor prompt, boot reason against a
-   power-menu restart), the 2b screens and their states (no lock, corrupt record, second
-   factor), power-menu End session (Stage 3a), Stage 5 on screen; destructive duress last.
-6. Stage 4 behind its design gate: Weaver persists a failure before comparing (*Design
-   notes*, `IWeaver.aidl:83-98`), so automatic dispatch can't hide a crossing from the
-   hardware counter. It serves the opening sketch's UX, not the isolation evaluation.
-7. Stage 6 on the Pixel when it is available.
+1. Layout gaps: one PIN length for every PIN on the device once a protected space exists
+   (decision pending, doc 04); hide Android's Private space next to the protected space; calls
+   in B (`no_outgoing_calls` is Android's default for secondary users); show where duress is
+   managed (B's Settings).
+2. Release basics (*Release and distribution* R1–R2): the update app points at our server,
+   one script builds and signs a release. Needs the owner's keys for real signing.
+3. Upstream tracking (R5) and the update compatibility test (R6) before any tester gets a
+   build.
+4. Weaver-backed alternates (doc 04), per the doc 00 decision of 2026-10-11.
+5. Remaining phone checks: reboot PIN, auto-confirm with the layout, duress wipe last.
+
+The earlier list (2026-10-11) is done or folded in above: Stage 3 wording and Stage 5
+coverage stay open in their sections.
+
+## Release and distribution (planned 2026-10-12)
+
+Not started; done when the layout is stable enough for outside testers. Nothing is published
+before the owner says so.
+
+| # | Task | Notes |
+|---|---|---|
+| R1 | Our own update server | `packages/apps/Updater/res/values/config.xml:3` still points at GrapheneOS's server; their packages fail our signature check, so nothing installs, but the app should ask ours |
+| R2 | Release script on n5 | build `user` and `userdebug`, sign (`script/generate-release.sh`), install zip, update package, update metadata, upload; keys created and held by the owner (doc 08 Stage 6) |
+| R3 | Tester install | install zip plus a short script, later an adapted web installer page: unlock, flash, set `avb_custom_key`, lock |
+| R4 | os.ivan.gg page | what it is, install steps, release notes; static hosting with the images; drafted here, published by the owner |
+| R5 | Tracking GrapheneOS releases | sync the new tag, rebase the `envs-17` branches, build, run the emulator suite, phone smoke test, release; conflicts expected in lock settings and keyguard |
+| R6 | Update compatibility test | install release N, set up the layout, update to N+1, check users, PINs, duress and reboot records still work |
+| R7 | Naming | "a fork of GrapheneOS" as description only; no GrapheneOS name or logo as branding |
 
 ## Stages
 
