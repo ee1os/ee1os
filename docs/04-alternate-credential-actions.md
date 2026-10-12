@@ -244,9 +244,10 @@ no timeout (`:116-120`); whether it also clears the failure count is not stated.
 count comes from `getConfig().slots`: at least 64 recommended (`:33`), 16 in the reference
 service (`hardware/interfaces/weaver/aidl/default/Weaver.cpp:31`, volatile, never throttles).
 
-**Slot budget.** The real count is unknown: the Pixel 8 Pro test device runs stock 16, which
-doesn't log it (checked 2026-10-11), and 17 logs it at debug level only
-(`SyntheticPasswordManager.java:733`). Plan for 16 until the Stage 6 build reads it. Slots in
+**Slot budget.** The Pixel 8 Pro (Titan M2) has 64 slots, 16-byte keys and values (measured
+2026-10-12, see below); 17 logs the count at debug level only
+(`SyntheticPasswordManager.java:733`). Other devices may have fewer; the reference service
+has 16. Slots in
 use: one per primary LSKF protector of every user, with or without a lock
 (`SyntheticPasswordManager.java:1137-1146`; `config_disableWeaverOnUnsecuredUsers` is false,
 `core/res/res/values/config.xml:1535`); a second one for the moment a credential change
@@ -337,6 +338,24 @@ unit tests, including a restart between reserve and write. On the Pixel 8 Pro (S
 userdebug build): `getConfig()` slots and sizes; the timeout table; five wrong reads, write,
 `getTimeout`, one wrong read (does write clear the count); counter and timeout across a
 reboot; time of one read against two.
+
+**Measured on the Pixel 8 Pro, 2026-10-12** (our 17 userdebug build, bootloader unlocked;
+raw `IWeaver` calls as root on spare slots 61-63, owner on slot 0):
+
+| Question | Result |
+|---|---|
+| `getConfig()` | 64 slots, key 16 B, value 16 B |
+| Timeout table | failures 1-4: none; 5th: 60 s; 6th: 300 s |
+| Read during a timeout | `THROTTLE`, not counted |
+| Same wrong key again | not counted (7 identical wrong keys, no timeout) |
+| `write` with failures pending | clears the count (one wrong read after it: no timeout) |
+| Correct read | clears the count |
+| Reboot during a 60 s timeout | timeout kept, keeps counting down (32 s left 36 s later) |
+
+So W2 has room on this device, and the W8 rewrite clears an alternate's count here. The
+duplicate-key rule means the chip, like `SoftwareRateLimiter`, does not count repeats; a
+probe must still skip rate-limited and duplicate guesses (W6). Not measured yet: read
+latency (one read against two) and behaviour with the bootloader locked.
 
 ## A/B/duress layout (design draft, 2026-10-11, reviewed twice)
 
