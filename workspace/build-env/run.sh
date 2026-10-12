@@ -29,10 +29,14 @@ common=(--rm --memory "$MEM" --memory-swap "$MEMSWAP" --network host
 # envsetup keeps the previous build number unless these are set (phone builds set both)
 [ -n "${BUILD_NUMBER:-}" ] && common+=(-e BUILD_NUMBER="$BUILD_NUMBER")
 [ -n "${BUILD_DATETIME:-}" ] && common+=(-e BUILD_DATETIME="$BUILD_DATETIME")
+# separate output trees per target skip soong's re-analysis when switching (e.g. out_husky)
+[ -n "${OUT_DIR:-}" ] && common+=(-e OUT_DIR="$OUT_DIR")
 setup='source build/envsetup.sh >/dev/null && lunch "$LUNCH" >/dev/null'
 
 run() { sudo docker run "${common[@]}" "$@"; }
 
+# one block, read whole before it runs, so editing this file mid-build is safe
+{
 case "${1:-}" in
   image)
     sudo docker build -t "$IMAGE" "$HERE" ;;
@@ -40,7 +44,7 @@ case "${1:-}" in
     run -it "$IMAGE" bash -c "$setup; exec bash" ;;
   build)
     shift
-    run --name grapheneos-build "$IMAGE" bash -c "$setup; m -j\$JOBS $*" 2>&1 \
+    run --name grapheneos-build "$IMAGE" bash -c "$setup; m -j\$JOBS $*; rc=\$?; echo M_EXIT=\$rc; exit \$rc" 2>&1 \
       | tee -a "$SRC/build.log" ;;
   emulator)
     # host network: the emulator binds adb to 127.0.0.1:5555 on n5 itself;
@@ -60,3 +64,5 @@ case "${1:-}" in
   *)
     sed -n 2,8p "$0"; exit 2 ;;
 esac
+exit
+}
