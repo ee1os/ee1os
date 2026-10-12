@@ -544,6 +544,19 @@ admin; SystemUI unit tests for the keyguard classes are not updated. Observed: e
 entry on user 0's pad counts for A and B, so six wrong PINs lock both (as designed under
 *Lock screen*), and the lockout survives a reboot.
 
+**On the Pixel 8 Pro, 2026-10-12** (build `2026101212`, `tests/results/2026-10-12-layout-T5.md`):
+setup by hand, B by its PIN, screen off in B with A unlocked and with A before first unlock,
+B first after a reboot all passed. B stops within a second of screen off and its key is
+evicted. Found: B's red preset was gone after B's own setup ran, so B looked like A; the
+owner's PIN was asked again right after the lock step; the duress password had no
+explanation and couldn't be skipped; the Security summary in A still listed the duress entry
+that A no longer shows. Every wrong entry runs Weaver reads on A's and B's slots and counts
+for both users; B's count only resets when B is opened, so A's typos add up on B (one free
+read per typo up to four, then the hardware lockouts). A keypad flicker when B opens is not
+explained yet: the bouncer is a secure surface and the setup run predates the captured logs.
+Fixed in build `2026101218` (`F` `32a53a59c590`, Settings `bf7c48583b8`, `6032943a6eb`,
+SetupWizard2 `9738860`); decisions below.
+
 ## Decisions
 
 - **2026-10-10, storage: a second fixed slot, not a table (Q1 for the fork).** The reboot
@@ -633,6 +646,30 @@ entry on user 0's pad counts for A and B, so six wrong PINs lock both (as design
 - **2026-10-12, setup UI in Settings:** the setup step is a Settings activity launched by
   SetupWizard2, and the privileged work is one `LockSettingsService` call. Reason: Settings
   is already forked and holds the needed permissions; SetupWizard2 only needs one step.
+
+- **2026-10-12, marker for B:** B is named "Protected", user 0 stays "Owner"; B shows a
+  shield in the status bar (switchable in B's Settings) and gets its own red wallpaper, set by
+  B's setup on its first run, so its system colors follow. Reason: the preset accent written
+  at creation didn't survive B's setup on the Pixel, while a wallpaper drives the colors through
+  the normal path; the shield marks B on every screen.
+- **2026-10-12, PIN length:** new PINs need 6 digits or more (`MIN_NEW_PIN_SIZE`); the unlock
+  path still accepts shorter stored PINs. With a protected space the service refuses short
+  PINs from any caller. With auto-confirm on for A, setup asks for B's, the duress and the
+  reboot PIN in A's length. Reason: auto-confirm submits at A's length, so a longer PIN
+  couldn't be typed. Turning auto-confirm on later with mismatched lengths is not checked yet.
+- **2026-10-12, owner's PIN in first setup:** Settings keeps a copy of the PIN just set at the
+  lock step, in memory, for at most 10 minutes and only before user 0's setup completes; the
+  protected space step takes it once instead of asking again. The service still verifies it.
+  Reason: asking right after it was entered twice reads as an error, and a service-side check
+  of each new PIN against A would cost Weaver reads on A's slot.
+- **2026-10-12, duress is optional:** the setup can skip duress, or only its password, in which
+  case a random password nobody knows is stored, since duress keeps a PIN and a password as one
+  record. Reason: with PINs only, the password is never asked for; a wipe credential should be a
+  choice.
+- **2026-10-12, no fingerprint for B:** a touch on the lock screen is matched against the
+  current user (A) only, and a fingerprint can't unlock a stopped user's storage; B stops on
+  every exit. Reason: making it work would need the closed fingerprint HAL to match across
+  users and B's key kept while B is closed, which defeats the point of stopping B.
 
 ## Open questions
 

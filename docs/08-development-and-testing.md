@@ -65,6 +65,12 @@ owned by `faeton`) and `run.sh`:
 Defaults: `LUNCH=sdk_phone64_x86_64-cur-userdebug`, `JOBS=8`, `MEM=28g`, `HIGHMEM=1`; all
 overridable by environment.
 
+Phone builds also set `BUILD_NUMBER` and `BUILD_DATETIME`: `build/envsetup.sh` otherwise keeps
+the number from `out/soong/build_number.txt`, so a new image would show the old one. `OUT_DIR`
+gives a target its own output tree (e.g. `OUT_DIR=out_husky`): switching one tree between the
+emulator and the phone redoes Soong's analysis and recompiles for the other architecture.
+`run.sh build` logs `m`'s own exit code as `M_EXIT=` in `build.log`.
+
 Memory: Soong sizes its highmem pool (metalava, R8, …) from the host's RAM via `sysinfo`
 (`build/soong/ui/build/config_linux.go:19-27`, `config.go:1588-1616`). Inside the container
 it sees all 91 GB and ignores the cap, so `run.sh` passes `NINJA_HIGHMEM_NUM_JOBS`. n5 has
@@ -208,7 +214,14 @@ official GrapheneOS goes on the device first. The vendor module comes from adevt
 (`vendor/adevtool/bin/run generate-all -d husky`), with its helper tools from the main `out/`.
 Second pass: build for the device target with release signing (GrapheneOS build guide, *Generating
 release signing keys*), flash with the bootloader unlocked, set our AVB key, lock the
-bootloader again. Then repeat the T4 checklist and observe Weaver throttling with repeated
+bootloader again. In the tree: `script/generate-keys husky` (keys under `keys/husky/`, AVB key
+`avb.pem`, public part `avb_pkmd.bin`; owner-run, backed up offline), then `m
+target-files-package otatools-package` and `script/finalize.sh`, then
+`script/generate-release.sh husky <BUILD_NUMBER>` for the signed factory image and update
+package under `releases/`. On the phone (owner-run): `fastboot erase avb_custom_key`,
+`fastboot flash avb_custom_key avb_pkmd.bin`, flash the signed images, `fastboot flashing
+lock` (wipes). A userdebug build signed with the same keys keeps root for tests; once locked,
+every image must carry these keys. Then repeat the T4 checklist and observe Weaver throttling with repeated
 wrong PINs. Never automated from this repo.
 
 Checklist for the first session, shell first so the hour goes to what only hardware shows
