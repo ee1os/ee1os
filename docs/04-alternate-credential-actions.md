@@ -554,7 +554,7 @@ that A no longer shows. Every wrong entry runs Weaver reads on A's and B's slots
 for both users; B's count only resets when B is opened, so A's typos add up on B (one free
 read per typo up to four, then the hardware lockouts). A keypad flicker when B opens is not
 explained yet: the bouncer is a secure surface and the setup run predates the captured logs.
-Fixed in build `2026101218` (`F` `32a53a59c590`, Settings `bf7c48583b8`, `6032943a6eb`,
+Fixed in build `2026101218` (`F` `32a53a59c590`, Settings `bf7c48583b8`, `6032943a6eb`, `8244972324b`,
 SetupWizard2 `9738860`); decisions below.
 
 ## Decisions
