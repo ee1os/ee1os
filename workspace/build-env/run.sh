@@ -42,6 +42,10 @@ case "${1:-}" in
   emulator)
     # host network: the emulator binds adb to 127.0.0.1:5555 on n5 itself;
     # from m3max: ssh -L 5555:127.0.0.1:5555 n5, then adb connect 127.0.0.1:5555
+    # an emulator killed with its container leaves locks that refuse the next start
+    if ! sudo docker ps --format '{{.Names}}' | grep -qx grapheneos-emu; then
+      rm -f "$SRC"/grapheneos-17/out/target/product/emu64x/*.lock
+    fi
     run -d --name grapheneos-emu "$IMAGE" bash -c "$setup; exec emulator -no-window \
       -no-audio -no-boot-anim -gpu swiftshader_indirect -writable-system \
       -ports 5554,5555 \$EMU_ARGS" ;;

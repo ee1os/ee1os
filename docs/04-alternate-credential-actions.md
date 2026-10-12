@@ -357,9 +357,9 @@ duplicate-key rule means the chip, like `SoftwareRateLimiter`, does not count re
 probe must still skip rate-limited and duplicate guesses (W6). Not measured yet: read
 latency (one read against two) and behaviour with the bootloader locked.
 
-## A/B/duress layout (design draft, 2026-10-11, reviewed twice)
+## A/B/duress layout (design draft, 2026-10-11, reviewed twice; first build 2026-10-12)
 
-Doc 00 goal 6. Not implemented. "Alternates" means the duress and reboot credentials. Paths:
+Doc 00 goal 6. First build below under *Built 2026-10-12*. "Alternates" means the duress and reboot credentials. Paths:
 `F` = `frameworks/base`, `S` = `packages/apps/Settings/src/com/android/settings`,
 `U` = `F/packages/SystemUI/src`, `W` = `packages/apps/SetupWizard2`; Java files without a
 directory are in `F/services/core/java/com/android/server/locksettings/`.
@@ -506,6 +506,44 @@ maximum PIN length the keyguard accepts; time of a short against a long wrong PI
 user 0 can be cleared from A's Settings; B-first boot; storage and battery screens with two
 users; B's CE files after a stop.
 
+**Built 2026-10-12** (`F` envs-17 `4fabd4a924e4`, `ea63797e97d9`, `a72acdcbf1b2`; Settings
+`13375d0bd60`, `3e537a7f8a7`; SetupWizard2 local branch `envs-17` `a44f589`). Tested on the
+emulator (`tests/results/2026-10-12-layout-T3.md`), reviewed once with two reviewers; the
+fixes from that review are in.
+
+- Authority: `setAlternatesAuthority` (trusted callers only) moves duress and reboot to a
+  full user with a lock; the binder calls act for the caller's own user; the authority id is
+  hidden from other users (they get `USER_NULL`); the stored keys can't be read or written
+  through the generic calls.
+- Dispatch: `LockSettingsService.dispatchCredential` (user 0 callers with the keyguard
+  permission) checks user 0, then the protected user, then runs the duress and reboot hook
+  once for user 0. It returns the shorter of the two lockouts. SystemUI calls it from user
+  0's primary pad (`KeyguardAbsKeyInputViewController`); on a protected-user match it marks
+  that user in `KeyguardUpdateMonitor` and switches, and the protected user's bouncer then
+  completes through `showNextSecurityScreenOrFinish` (SIM, secure lock device and admin
+  steps still apply). A cancelled check that already matched still switches. On user 0's pad
+  a lockout shows its message but doesn't disable input, so duress stays enterable.
+- Leaving B: screen off while a non-zero user is in front switches back to user 0
+  (`KeyguardViewMediator.onStartedGoingToSleep`); B can't run in the background, so it stops.
+- Setup: `provisionProtectedSpace` (user 0's system UID before provisioning, or the shell)
+  checks lengths and owner collisions, verifies A's PIN, creates B as a full secondary user,
+  sets `no_run_in_background` and B's PIN, makes B the authority, enrols duress and the
+  optional reboot PIN under B, locks B's storage, then sets `no_remove_user` on user 0,
+  `user_switcher_enabled=0` and `allow_user_switching_when_system_user_locked=1`. Any failure
+  removes B and the alternates and restores the settings. UI: Settings
+  `ProtectedSpaceSetupActivity` (action `com.android.settings.SETUP_PROTECTED_SPACE`),
+  launched by SetupWizard2 right after the screen lock step when A has a lock.
+- Hidden in A: every user switcher (via `user_switcher_enabled=0`; switching itself only
+  checks `no_user_switch`, `UserManagerService.java:3357`), the Users entry and pages, other
+  users in the storage breakdown. Biometric settings are off in B.
+
+Not done yet: the reboot PIN is still the scrypt record (Weaver section above); the 6-digit
+rule is checked at setup only, not on later changes; auto-confirm length; notifications,
+running services and the user-switch dialog's name and icon (table above); B is not an
+admin; SystemUI unit tests for the keyguard classes are not updated. Observed: every wrong
+entry on user 0's pad counts for A and B, so six wrong PINs lock both (as designed under
+*Lock screen*), and the lockout survives a reboot.
+
 ## Decisions
 
 - **2026-10-10, storage: a second fixed slot, not a table (Q1 for the fork).** The reboot
@@ -583,6 +621,18 @@ users; B's CE files after a stop.
   duress or reboot credential into them fires it; a wrong owner or second-factor entry counts
   as a failed attempt. The collision check and the write run under one lock, the owner checks
   outside it (they can take the `SyntheticPasswordManager` lock).
+
+- **2026-10-12, hiding switchers by setting, not per surface:** setup sets
+  `user_switcher_enabled=0`, which removes the keyguard, quick settings and power-menu
+  switchers at once; the switch from the dispatch doesn't check it. Settings hides its Users
+  entry in A so A can't turn it back on. Reason: one setting covers every SystemUI surface,
+  and per-surface patches can be added where it falls short.
+- **2026-10-12, locking B returns to A:** screen off in B switches to user 0, so the lock
+  screen is always A's and B stops each time. Reason: with no switcher, B's own lock screen
+  would be a dead end for A's holder.
+- **2026-10-12, setup UI in Settings:** the setup step is a Settings activity launched by
+  SetupWizard2, and the privileged work is one `LockSettingsService` call. Reason: Settings
+  is already forked and holds the needed permissions; SetupWizard2 only needs one step.
 
 ## Open questions
 
