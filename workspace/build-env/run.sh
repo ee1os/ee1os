@@ -26,6 +26,9 @@ common=(--rm --memory "$MEM" --memory-swap "$MEMSWAP" --network host
         -v "$SRC:/src" -v "$ENVS:$ENVS"
         --device /dev/kvm --group-add "$KVM_GID"
         -e JOBS="$JOBS" -e NINJA_HIGHMEM_NUM_JOBS="$HIGHMEM" -e LUNCH="$LUNCH" -e BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE="$SUPER" -e EMU_ARGS="$EMU_ARGS")
+# envsetup keeps the previous build number unless these are set (phone builds set both)
+[ -n "${BUILD_NUMBER:-}" ] && common+=(-e BUILD_NUMBER="$BUILD_NUMBER")
+[ -n "${BUILD_DATETIME:-}" ] && common+=(-e BUILD_DATETIME="$BUILD_DATETIME")
 setup='source build/envsetup.sh >/dev/null && lunch "$LUNCH" >/dev/null'
 
 run() { sudo docker run "${common[@]}" "$@"; }
