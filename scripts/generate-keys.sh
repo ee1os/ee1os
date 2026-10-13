@@ -18,7 +18,8 @@ if [ "${1:-}" != --inside ]; then
     [ -e "$keys" ] && { echo "$keys already exists, nothing done"; exit 1; }
     [ -e "$BACKUP/$DEVICE" ] && { echo "$BACKUP/$DEVICE already exists, nothing done"; exit 1; }
     # the tools need the build container; this script is mounted there at the same path
-    "$ENVS/workspace/build-env/run.sh" exec-it "bash $ENVS/scripts/generate-keys.sh --inside"
+    "$ENVS/workspace/build-env/run.sh" exec-it "bash $ENVS/scripts/generate-keys.sh --inside" \
+        || { echo "key generation failed; remove $keys before trying again"; exit 1; }
     [ -s "$keys/avb_pkmd.bin" ] || { echo "no keys were made"; exit 1; }
     mkdir -p "$BACKUP" && chmod 700 "$BACKUP"
     cp -a "$keys" "$BACKUP/"
