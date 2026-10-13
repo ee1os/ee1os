@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build, sign and publish a release of os.ivan.gg for husky. Run by the owner in a terminal:
-# signing asks for the key passphrase. Keys live in grapheneos-17/keys/husky (encrypted;
+# Build, sign and publish a release of os.ivan.gg for husky. Signing reads the key passphrase
+# from /mnt/flash/scratch/grapheneos/.secrets/key-passphrase, or asks for it in a terminal. Keys live in grapheneos-17/keys/husky (encrypted;
 # created once with script/generate-keys, doc 08 Stage 6).
 #   release.sh [variant]     user (default; testers) or userdebug (the test phone's dev channel)
 # Steps:
@@ -20,6 +20,7 @@ DEVICE=husky
 VARIANT=${1:-user}
 REPO=os-ivan-gg/releases
 CHANNEL=$([ "$VARIANT" = user ] && echo stable || echo testing)
+PWFILE=$WS/.secrets/key-passphrase
 
 [ -d "$TREE/keys/$DEVICE" ] || { echo "no keys in $TREE/keys/$DEVICE (script/generate-keys first)"; exit 1; }
 if sudo docker ps --format '{{.Names}}' | grep -qx grapheneos-build; then
@@ -35,8 +36,15 @@ cd "$WS"
 ./emu-build.sh "release $bn $VARIANT" target-files-package otatools-package
 sed -n "/=== release $bn $VARIANT/,\$p" build.log | grep -q 'BUILD_EXIT=0' || { echo "build failed"; exit 1; }
 
-# 2. finalize and sign (interactive: key passphrase)
-"$RUN" exec-it bash -c "cd /src/grapheneos-17 && script/finalize.sh && script/generate-release.sh $DEVICE $bn"
+# 2. finalize and sign. The key passphrase comes from $PWFILE when it exists (owner-only file
+#    on flash/scratch, kept out of the backups that hold the encrypted keys), else it is asked.
+sign="cd /src/grapheneos-17 && script/finalize.sh && script/generate-release.sh $DEVICE $bn"
+if [ -s "$PWFILE" ]; then
+    # the passphrase is read inside the container, never put on a command line
+    "$RUN" exec "password=\$(cat /src/${PWFILE#$WS/}); export password; $sign"
+else
+    "$RUN" exec-it "$sign"
+fi
 out=$TREE/releases/$bn/release-$DEVICE-$bn
 ls -la "$out"/$DEVICE-ota_update-$bn.zip "$out"/$DEVICE-install-$bn.zip
 [ "${PUBLISH:-1}" = 1 ] || exit 0
