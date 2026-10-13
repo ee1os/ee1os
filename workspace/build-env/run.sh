@@ -6,6 +6,7 @@
 #   run.sh emulator           start the emulator headless; adb at 127.0.0.1:5555 on n5
 #   run.sh emulator-stop      stop it
 #   run.sh exec <cmd...>      run a command with lunch done (adb, atest, tests/*.sh)
+#   run.sh exec-it <cmd...>   the same with a terminal (prompts, e.g. the signing passphrase)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC=/mnt/flash/scratch/grapheneos
@@ -61,8 +62,11 @@ case "${1:-}" in
   exec)
     shift
     run "$IMAGE" bash -c "$setup; $*" ;;
+  exec-it)
+    shift
+    run -it "$IMAGE" bash -c "$setup; $*" ;;
   *)
-    sed -n 2,8p "$0"; exit 2 ;;
+    sed -n 2,9p "$0"; exit 2 ;;
 esac
 exit
 }

@@ -42,11 +42,11 @@ before the owner says so.
 
 | # | Task | Notes |
 |---|---|---|
-| R1 | Our own update server | `packages/apps/Updater/res/values/config.xml:3` still points at GrapheneOS's server; their packages fail our signature check, so nothing installs, but the app should ask ours |
-| R2 | Release script on n5 | build `user` and `userdebug`, sign (`script/generate-release.sh`), install zip, update package, update metadata, upload; keys created and held by the owner (doc 08 Stage 6) |
+| R1 | Our own update server | `packages/apps/Updater/res/values/config.xml:3` still points at GrapheneOS's server; their packages fail our signature check, so nothing installs, but the app should ask ours. Planned base URL: `https://github.com/os-ivan-gg/releases/releases/download/updates/` (rolling "updates" release; the GrapheneOS-only TLS pin set doesn't apply to it) |
+| R2 | Release script on n5 | first version 2026-10-13: `scripts/release.sh [user\|userdebug]` builds target files, signs (`script/generate-release.sh`, passphrase prompt), uploads the update zip and channel metadata to the rolling "updates" release and the install zip to a release of its own, notifies klava hq. Untested until the keys exist; old update zips aren't pruned yet |
 | R3 | Tester install | install zip plus a short script, later an adapted web installer page: unlock, flash, set `avb_custom_key`, lock |
 | R4 | os.ivan.gg page | what it is, install steps, release notes; static hosting with the images; drafted here, published by the owner |
-| R5 | Tracking GrapheneOS releases | sync the new tag, rebase the `envs-17` branches, build, run the emulator suite, phone smoke test, release; conflicts expected in lock settings and keyguard |
+| R5 | Tracking GrapheneOS releases | first version 2026-10-13: `scripts/track-upstream.sh`, nightly. Detects a new husky stable tag, syncs, rebases each fork's `envs-17` (stops and notifies on a conflict), builds, runs `tests/gate.sh` if present, then force-pushes the branches with a `<tag>.os` tag, rebases the manifest and packs the flash archive. Phone check and release stay manual. Owner decision: GrapheneOS stable releases sync automatically. Open: `tests/gate.sh` (unit tests + emulator scenarios), the scheduler (TrueNAS cron job, proposed) |
 | R6 | Update compatibility test | install release N, set up the layout, update to N+1, check users, PINs, duress and reboot records still work |
 | R7 | Naming | "a fork of GrapheneOS" as description only; no GrapheneOS name or logo as branding |
 

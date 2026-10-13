@@ -47,12 +47,16 @@ and to this repo.
 - One commit series per stage. When a stage is done, tag it in each fork (`stage2`) and export
   it here: `git format-patch fork/17..HEAD -o <this repo>/patches/02-reboot-bfu/`.
 - Commit style: short subject in the imperative, upstream style, no noise.
-- **Rebase routine** when GrapheneOS moves `17` (new monthly release):
-  1. `repo sync -j8` (in tmux, log to `sync.log`);
-  2. in each fork project: `git fetch fork && git rebase fork/17` (or the new upstream ref),
-     then `git push -f fork HEAD:envs-17`;
+- **Rebase routine** when GrapheneOS publishes a release (about weekly; tags like
+  `2026100600` in every repo): `scripts/track-upstream.sh` does it nightly (doc 07 R5). By hand:
+  1. `repo init -b refs/tags/<tag> && repo sync -j8` (in tmux, log to `sync.log`);
+  2. in each fork project: `git rebase --onto refs/tags/<tag> <old base> envs-17`, then
+     `git push -f fork envs-17`; the script keeps the old base per repo in `state/base/`;
   3. rebuild, rerun the regression gate (below), update pinned SHAs in doc 01, re-verify
      line references (backlog B1).
+- **Scripts:** `scripts/track-upstream.sh` (follow GrapheneOS, `DRY_RUN=1` to only detect),
+  `scripts/release.sh` (sign and publish, run by the owner), `scripts/pack-flash.sh` (images
+  for `fastboot flashall`). All report to klava hq through `/mnt/tank/scripts/notify-telegram.sh`.
 
 ## Build container
 
