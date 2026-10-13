@@ -683,24 +683,21 @@ SetupWizard2 `9738860`); decisions below.
   entered while it's on, and it can be switched on at any time; one rule is simpler to explain
   than one tied to auto-confirm. Side effect: the number of digits typed no longer tells which
   PIN was entered. Cost: changing to a longer PIN means setting the phone up again.
-- **2026-10-13, A and B can't share a PIN (replaces "A changing its PIN to B's is not
-  refused", same day):** A is checked first, so a shared PIN opens A and B can't be reached
-  (seen in T7 on build 2026101306). With a protected space, a new PIN for A is checked against
-  B's and against the duress and reboot credentials, and a new PIN for B against A's
-  (`checkLayoutCollision` in `F/services/core/java/com/android/server/locksettings/LockSettingsService.java`).
-  B can't take the duress or reboot PIN either, and a duress or reboot PIN enrolled from B
-  must differ from A's PIN (`checkAlternateAgainstOwner`), since alternates only run after
-  both users failed to match;
-  a match is refused and Settings says the PIN is already used. The check against the other
-  user goes through its software and hardware rate limiters like a lock-screen attempt and
-  unlocks no storage. While the other user is rate-limited the check can't run, and the change
-  is refused ("try again later") instead of let through; token resets are checked too.
-  Reason: the earlier argument (a refusal tests guesses of B's PIN) adds nothing, since a
-  right guess on the lock screen already opens B. Cost: each PIN change uses one attempt on
-  the other user's counter, reset by its next unlock. Accepted gaps: a match also refreshes
-  the other user's Keystore authorization (it stays stopped and locked), and the check and
-  the write aren't atomic, which would need A and B changing PINs at the same moment while B
-  never runs in the background.
+- **2026-10-13, shared PINs are refused only for B (replaces two earlier entries of the same
+  day):** A is checked first, so a PIN A shares with B opens A, and an alternate (duress,
+  reboot) that A or B shares never runs. With a protected space, B's own PIN changes are
+  checked against A's PIN and the alternates (`checkLayoutCollision` in
+  `F/services/core/java/com/android/server/locksettings/LockSettingsService.java`); a duress or
+  reboot PIN enrolled from B must differ from A's PIN (`checkAlternateAgainstOwner`) and from
+  B's own. The check against A's PIN goes through A's rate limiters like a lock-screen attempt;
+  while A must wait, the change is refused ("try again later").
+  A's own changes are **not** checked. Reason (seen in T8 on 2026101309): a refusal on A's
+  change-PIN screen tells whoever holds A's PIN whether a guess is B's PIN or an alternate.
+  For the alternates that comparison is local and unlimited, and unlike the lock screen,
+  guessing there never risks hitting the duress PIN. B holds all those secrets already, so
+  its checks reveal nothing. Cost: if A picks B's PIN, B can't be opened until one of them
+  changes; if A picks the duress or reboot PIN, that action stops working. B's owner should
+  pick PINs A wouldn't choose.
 - **2026-10-13, B's PIN costs A one attempt per boot:** dispatch tries A first, so the first
   B unlock after a boot (or after A's last unlock) counts one failed attempt for A in Weaver
   and in Android's failed-attempt count; repeats are caught as duplicate wrong guesses before
