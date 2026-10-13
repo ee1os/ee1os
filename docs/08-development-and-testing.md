@@ -31,14 +31,19 @@ and to this repo.
 
 ## Source control
 
-- Forked repos, all on branch `envs-17` (created from GrapheneOS `17`):
-  `faeton/platform_frameworks_base`, `faeton/platform_packages_apps_Settings`. Add
-  `platform_system_vold` only if a stage needs it. The local manifest points those projects at
-  the forks; everything else syncs from GrapheneOS.
+- Everything is in the GitHub organization [os-ivan-gg](https://github.com/os-ivan-gg) (since
+  2026-10-13; the forks were moved from `faeton/`, whose URLs redirect). Forked repos, all on
+  branch `envs-17` (created from GrapheneOS `17`): `platform_frameworks_base`,
+  `platform_packages_apps_Settings`, `platform_packages_apps_SetupWizard2`,
+  `platform_system_sepolicy`, and `platform_packages_apps_Updater` (no changes yet). Add
+  `platform_system_vold` only if a stage needs it. The local manifest
+  (`scripts/envs-local-manifest.xml`) points those projects at the forks; everything else syncs
+  from GrapheneOS. Other repos: `os-ivan-gg` (this one), `manifest`, `releases`, `site`, and
+  `.github` (the organization's front page).
 - Work in the tree: `repo start dev frameworks/base packages/apps/Settings`, commit there,
   push with `git push fork HEAD:envs-17`. n5 has no GitHub SSH key; push over HTTPS
   (`gh auth setup-git` once, then
-  `git push https://github.com/faeton/platform_frameworks_base HEAD:envs-17`).
+  `git push https://github.com/os-ivan-gg/platform_frameworks_base HEAD:envs-17`).
 - One commit series per stage. When a stage is done, tag it in each fork (`stage2`) and export
   it here: `git format-patch fork/17..HEAD -o <this repo>/patches/02-reboot-bfu/`.
 - Commit style: short subject in the imperative, upstream style, no noise.

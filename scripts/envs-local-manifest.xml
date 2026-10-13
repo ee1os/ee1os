@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Local manifest for the full build tree: redirects the repos we change to the
-     faeton forks, branch envs-17. Symlink into <tree>/.repo/local_manifests/envs.xml.
+     os-ivan-gg forks, branch envs-17. Symlink into <tree>/.repo/local_manifests/envs.xml.
      Everything else keeps syncing from the upstream GrapheneOS manifest (branch 17). -->
 <manifest>
-  <remote name="fork" fetch="https://github.com/faeton/"
-          pushurl="ssh://git@github.com/faeton/"/>
+  <remote name="fork" fetch="https://github.com/os-ivan-gg/"/>
   <extend-project name="platform_frameworks_base" remote="fork" revision="refs/heads/envs-17"/>
   <extend-project name="platform_packages_apps_Settings" remote="fork" revision="refs/heads/envs-17"/>
+  <extend-project name="platform_packages_apps_SetupWizard2" remote="fork" revision="refs/heads/envs-17"/>
+  <extend-project name="platform_system_sepolicy" remote="fork" revision="refs/heads/envs-17"/>
 </manifest>

@@ -19,15 +19,17 @@ All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*
 
 **Next, in order (2026-10-12, after the second phone run).**
 
-1. Layout gaps: one PIN length for every PIN on the device once a protected space exists
-   (decision pending, doc 04); hide Android's Private space next to the protected space; calls
-   in B (`no_outgoing_calls` is Android's default for secondary users); show where duress is
-   managed (B's Settings).
+1. Layout gaps (built 2026-10-13, doc 04 decisions): one PIN length, A and B stay PINs, no
+   Private space, calls from B, boot logo after setup, "Browser" in user 0. Still open: show
+   where duress is managed (B's Settings).
 2. Release basics (*Release and distribution* R1–R2): the update app points at our server,
-   one script builds and signs a release. Needs the owner's keys for real signing.
+   one script builds and signs a release. Needs the owner's keys for real signing. Hosting
+   (2026-10-13): GitHub organization `os-ivan-gg`, public; updates from one rolling
+   "updates" release in a releases repo, factory images in numbered releases; R2 only if
+   files outgrow GitHub's 2 GB per file.
 3. Upstream tracking (R5) and the update compatibility test (R6) before any tester gets a
    build.
-4. Weaver-backed alternates (doc 04), per the doc 00 decision of 2026-10-11.
+4. ~~Weaver-backed alternates~~ shelved, doc 00 decision 2026-10-13.
 5. Remaining phone checks: reboot PIN, auto-confirm with the layout, duress wipe last.
 
 The earlier list (2026-10-11) is done or folded in above: Stage 3 wording and Stage 5
@@ -289,9 +291,13 @@ in doc 08.
 
 ## Fork and upstream
 
-- **Decision 2026-10-09:** everything stays in the forks (`faeton/platform_frameworks_base`,
-  `faeton/platform_packages_apps_Settings`, branch `envs-17`). Nothing is proposed upstream
-  for now.
+- **Decision 2026-10-09:** everything stays in the forks (branch `envs-17`). Nothing is
+  proposed upstream for now.
+- **Decision 2026-10-13:** the project moves to the GitHub organization `os-ivan-gg`, all
+  public: the forks (frameworks/base, Settings, SetupWizard2, sepolicy, Updater), this repo
+  (renamed from `grapheneos-envs`), `manifest`, `releases`, `site`. Reason: several repos that
+  belong together, clean URLs for releases, room for testers. The site goes live only on the
+  owner's go.
 - If that changes: GrapheneOS takes code as GitHub PRs on the per-component repos and feature
   requests on `os-issue-tracker`; discussion belongs in their chat rooms or forum, not the
   tracker ([#29](https://github.com/GrapheneOS/os-issue-tracker/issues/29)). Style is upstream
