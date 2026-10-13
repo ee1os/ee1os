@@ -657,6 +657,7 @@ SetupWizard2 `9738860`); decisions below.
   PINs from any caller. With auto-confirm on for A, setup asks for B's, the duress and the
   reboot PIN in A's length. Reason: auto-confirm submits at A's length, so a longer PIN
   couldn't be typed. Turning auto-confirm on later with mismatched lengths is not checked yet.
+  Superseded by the 2026-10-13 decision below.
 - **2026-10-12, owner's PIN in first setup:** Settings keeps a copy of the PIN just set at the
   lock step, in memory, for at most 10 minutes and only before user 0's setup completes; the
   protected space step takes it once instead of asking again. The service still verifies it.
@@ -670,6 +671,43 @@ SetupWizard2 `9738860`); decisions below.
   current user (A) only, and a fingerprint can't unlock a stopped user's storage; B stops on
   every exit. Reason: making it work would need the closed fingerprint HAL to match across
   users and B's key kept while B is closed, which defeats the point of stopping B.
+- **2026-10-13, one PIN length:** once a protected space exists, every PIN on the device (A,
+  B, A's second factor, duress, reboot) has the length of A's PIN at setup. Setup asks for it
+  whether or not auto-confirm is on; the service stores the length (`protected_space_pin_length`
+  in `locksettings.db`) and refuses any other in `checkLayoutPinLength`, called for credential
+  changes, token resets and alternate enrolment; Settings shows the length on the PIN screens
+  (`S/security/LayoutPinLength.java`). The length is stored before B becomes the authority, is
+  a reserved key (`DuressPasswordHelper.RESERVED_KEYS`), and setup fails if user 0's credential
+  changes while it runs. Spaces set up before this keep only the 6-digit minimum.
+  Reason: auto-confirm submits at the stored length, so a PIN of another length can't be
+  entered while it's on, and it can be switched on at any time; one rule is simpler to explain
+  than one tied to auto-confirm. Side effect: the number of digits typed no longer tells which
+  PIN was entered. Cost: changing to a longer PIN means setting the phone up again.
+- **2026-10-13, A changing its PIN to B's is not refused:** A is checked first, so B can't be
+  opened from the lock screen until one of them changes. Refusing it would make A's PIN screen
+  test guesses of B's PIN. Setup only says each PIN must differ.
+- **2026-10-13, A and B stay PINs:** the 2026-10-11 rule is now enforced. With a protected
+  space, a primary credential of user 0 or B that isn't a PIN (no lock, pattern, password) is
+  refused for normal changes and token resets (`checkLayoutCredential`), and Settings offers
+  only PIN for them (`S/password/ChooseLockGenericController.java`). A cleared second factor is
+  still allowed. Reason: B is only reachable from user 0's PIN pad.
+- **2026-10-13, no Android private space beside B:** setup sets `no_add_private_profile` on
+  both users and refuses to start while user 0 has a private space. Reason: two similar features side by side confuse, and a private space takes
+  Weaver slots and a second lock.
+- **2026-10-13, calls from B:** setup clears `no_outgoing_calls` for B (Android's default for
+  secondary users). SMS stays off: incoming SMS goes to user 0 only.
+- **2026-10-13, boot logo:** the boot animation shows "os.ivan.gg" until user 0's first setup
+  is done, then the plain AOSP "android" logo; system_server sets
+  `persist.bootanim.setup_done` (`bootanim_system_prop`, so only system_server and the
+  animation can write it). On husky the animation starts before `/data` is mounted, so it waits
+  up to 5 s for `ro.persistent_properties.ready` (one sepolicy line, `system/sepolicy` branch
+  `envs-17`). The bootloader's unlocked/custom-key warning before it can't be changed.
+- **2026-10-13, "Browser" in user 0:** Vanadium's launcher entry
+  (`app.vanadium.browser/com.google.android.apps.chrome.Main`) is shown as "Browser" in user 0
+  through Android's per-user component label override, applied by system_server at boot
+  (`PackageManagerService.overrideSystemComponentLabel`). Settings → Apps, Vanadium's own
+  screens and B keep "Vanadium". Reason: the prebuilt defines `<overlayable>` and has obfuscated
+  resource names, so an overlay can't rename it.
 
 ## Open questions
 

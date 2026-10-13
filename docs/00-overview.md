@@ -38,8 +38,10 @@ work; storage keys, OTA/update, verified boot and session lifecycle are the othe
   an unlocked bootloader is rejected.
 - **No regression of the existing duress feature** — it must still fire from every credential
   prompt it fires from today.
-- **No weaker credential storage.** Any new credential must be protected at least as well as the
-  primary one (Weaver/secure-element throttling), not just an offline-checkable hash.
+- **No weaker credential storage.** Any new credential that grants access must be protected at
+  least as well as the primary one (Weaver/secure-element throttling), not just an
+  offline-checkable hash. Credentials that only wipe or reboot may be stored like upstream's
+  duress credentials (decision 2026-10-13).
 - Upstream-shaped: small, auditable diffs in the GrapheneOS style; no global behaviour change
   for users who don't opt in.
 
@@ -104,6 +106,12 @@ What the design aims to provide:
   an offline-checkable alternate can be recovered from an extracted `locksettings.db` and then
   avoided. First step is measuring the slot budget on the test device (doc 07). Until then,
   Stage 2 is not claimed to meet this requirement.
+- **2026-10-13: the requirement is narrowed to credentials that grant access** (replaces the
+  2026-10-11 decision above). The duress and reboot credentials stay salted scrypt values in
+  `locksettings.db`, as upstream stores duress. Reason: they open nothing, and recovering them
+  needs code execution on the device to read the file; what it buys is guessing A's or B's PIN
+  on the device while avoiding the wipe, and that guessing is still throttled by Weaver. The
+  Weaver-backed alternates design (doc 04) is shelved, not deleted.
 - 2026-10-11 — Three-credential layout set up at install (goal 6, owner decision): A is user 0
   and the everyday profile; B is a secondary user that holds the duress, reboot and user
   settings; the duress credential stays device-wide. A shows none of them. Biometrics belong
