@@ -687,7 +687,10 @@ SetupWizard2 `9738860`); decisions below.
   refused", same day):** A is checked first, so a shared PIN opens A and B can't be reached
   (seen in T7 on build 2026101306). With a protected space, a new PIN for A is checked against
   B's and against the duress and reboot credentials, and a new PIN for B against A's
-  (`checkLayoutCollision` in `F/services/core/java/com/android/server/locksettings/LockSettingsService.java`);
+  (`checkLayoutCollision` in `F/services/core/java/com/android/server/locksettings/LockSettingsService.java`).
+  B can't take the duress or reboot PIN either, and a duress or reboot PIN enrolled from B
+  must differ from A's PIN (`checkAlternateAgainstOwner`), since alternates only run after
+  both users failed to match;
   a match is refused and Settings says the PIN is already used. The check against the other
   user goes through its software and hardware rate limiters like a lock-screen attempt and
   unlocks no storage. While the other user is rate-limited the check can't run, and the change
