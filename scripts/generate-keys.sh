@@ -41,8 +41,11 @@ umask 077
 mkdir -p keys/$DEVICE
 cd keys/$DEVICE
 for key in "${signing_keys[@]}"; do
-    # make_key reads the passphrase from stdin and prints it back; keep that off the screen
-    printf '%s\n' "$password" | ../../development/tools/make_key "$key" "/CN=$CN/" > /dev/null
+    # make_key reads the passphrase from stdin and prints it back; keep that off the screen.
+    # It exits 1 even when it worked (its EXIT trap), so check the files instead
+    printf '%s\n' "$password" | ../../development/tools/make_key "$key" "/CN=$CN/" \
+        > /dev/null || true
+    [ -s "$key.pk8" ] && [ -s "$key.x509.pem" ] || { echo "making $key failed"; exit 1; }
     echo "made $key"
 done
 export password
