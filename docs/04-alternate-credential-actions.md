@@ -698,6 +698,12 @@ SetupWizard2 `9738860`); decisions below.
   its checks reveal nothing. Cost: if A picks B's PIN, B can't be opened until one of them
   changes; if A picks the duress or reboot PIN, that action stops working. B's owner should
   pick PINs A wouldn't choose.
+  Each comparison with A's PIN is a real attempt on A: a non-matching candidate counts one
+  failure for A, so about five of B's PIN changes or duress/reboot enrolments without A
+  unlocking in between start A's lock-screen delays (1 minute first); A's next unlock resets
+  them. A Weaver read that fails outright (not a wrong-key answer) counts as no match, since
+  Gatekeeper reports an ordinary mismatch the same way. Both accepted: rare, and only while B
+  changes its settings.
 - **2026-10-13, B's PIN costs A one attempt per boot:** dispatch tries A first, so the first
   B unlock after a boot (or after A's last unlock) counts one failed attempt for A in Weaver
   and in Android's failed-attempt count; repeats are caught as duplicate wrong guesses before
