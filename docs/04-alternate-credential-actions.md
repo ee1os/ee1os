@@ -690,9 +690,14 @@ SetupWizard2 `9738860`); decisions below.
   (`checkLayoutCollision` in `F/services/core/java/com/android/server/locksettings/LockSettingsService.java`);
   a match is refused and Settings says the PIN is already used. The check against the other
   user goes through its software and hardware rate limiters like a lock-screen attempt and
-  unlocks nothing. Reason: the earlier argument (a refusal tests guesses of B's PIN) adds
-  nothing, since a right guess on the lock screen already opens B. Cost: each PIN change uses
-  one attempt on the other user's counter, reset by its next unlock.
+  unlocks no storage. While the other user is rate-limited the check can't run, and the change
+  is refused ("try again later") instead of let through; token resets are checked too.
+  Reason: the earlier argument (a refusal tests guesses of B's PIN) adds nothing, since a
+  right guess on the lock screen already opens B. Cost: each PIN change uses one attempt on
+  the other user's counter, reset by its next unlock. Accepted gaps: a match also refreshes
+  the other user's Keystore authorization (it stays stopped and locked), and the check and
+  the write aren't atomic, which would need A and B changing PINs at the same moment while B
+  never runs in the background.
 - **2026-10-13, B's PIN costs A one attempt per boot:** dispatch tries A first, so the first
   B unlock after a boot (or after A's last unlock) counts one failed attempt for A in Weaver
   and in Android's failed-attempt count; repeats are caught as duplicate wrong guesses before
