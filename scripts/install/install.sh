@@ -6,7 +6,7 @@
 #   --check        check the computer, fastboot and the phone, then stop; changes nothing
 #   --no-lock      flash but leave the bootloader unlocked
 #   --zip PATH     use a downloaded <codename>-install-<build>.zip instead of downloading
-#   --send PATH    send an install.log to Ivan (asks first)
+#   --send PATH    send an install.log to Ivan
 #
 # Steps: 1 computer, 2 fastboot, 3 phone, 4 download, 5 unlock, 6 flash, 7 lock.
 # Everything goes to ~/os-ivan-gg-install/<time>/install.log. On failure the script shows
@@ -125,7 +125,7 @@ send_log() {
             -H "X-Install-Script: sh/$VERSION" --data-binary "@$out" "$SITE/api/report"); then
         say ""
         say "${B}Sent. Report ID: $id${N}"
-        say "Tell Ivan this ID when you message him."
+        say "Give Ivan this ID when you get in touch."
     else
         say "Sending failed (no internet, or the site is down)."
         say "Send this file to Ivan yourself: $out"

@@ -7,7 +7,7 @@ Install os.ivan.gg on a phone from Windows.
   -Check        check the computer, fastboot and the phone, then stop; changes nothing
   -NoLock       flash but leave the bootloader unlocked
   -Zip PATH     use a downloaded <codename>-install-<build>.zip instead of downloading
-  -Send PATH    send an install.log to Ivan (asks first)
+  -Send PATH    send an install.log to Ivan
 
 Steps: 1 computer, 2 fastboot, 3 phone, 4 download, 5 unlock, 6 flash, 7 lock.
 Everything goes to %USERPROFILE%\os-ivan-gg-install\<time>\install.log. On failure the script
@@ -182,7 +182,7 @@ function Send-Log([string]$Path) {
         $id = ([string]$r.Content).Trim()
         Say ''
         Say "Sent. Report ID: $id" 'Green'
-        Say 'Tell Ivan this ID when you message him.'
+        Say 'Give Ivan this ID when you get in touch.'
     } catch {
         Say 'Sending failed (no internet, or the site is down).'
         Say "Send this file to Ivan yourself: $out"
