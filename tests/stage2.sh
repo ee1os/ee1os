@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stage 2 checks for the reboot credential (docs/07-roadmap.md, Stage 2; doc 04 *Test plan*).
 # Needs the Stage 2 build and the Stage 1 setup (owner PIN, envB with its own PIN).
-# Run inside the build container:  run.sh exec /src/grapheneos-envs/tests/stage2.sh <item>
+# Run inside the build container:  run.sh exec /src/os-ivan-gg/tests/stage2.sh <item>
 #   enrol      set the reboot PIN, collision checks against owner and duress, password variant
 #   noop       wrong PIN and right PIN must not reboot; timing with 0 / 1 / 2 alternates
 #   reboot     reboot PIN at the owner's prompt -> reboot, owner locked, data intact

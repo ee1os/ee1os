@@ -9,7 +9,7 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC=/mnt/flash/scratch/grapheneos
-ENVS=/mnt/flash/home/faeton/work/grapheneos-envs   # grapheneos-envs symlinks here
+ENVS=/mnt/flash/home/faeton/work/os-ivan-gg   # os-ivan-gg symlinks here
 IMAGE=grapheneos-build:24.04
 JOBS="${JOBS:-8}"
 MEM="${MEM:-28g}"

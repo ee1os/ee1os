@@ -19,9 +19,9 @@ GrapheneOS builds only on x86_64 Linux (<https://grapheneos.org/build>).
 ```
 /mnt/flash/scratch/grapheneos/          (= ~/work/grapheneos; not snapshotted, not backed up)
   grapheneos-17/                        repo tree, branch 17 + local manifest
-    .repo/local_manifests/envs.xml  ->  grapheneos-envs/scripts/envs-local-manifest.xml
+    .repo/local_manifests/envs.xml  ->  os-ivan-gg/scripts/envs-local-manifest.xml
     out/                                build output (~100 GiB)
-  grapheneos-envs/                  ->  ~/work/grapheneos-envs  (this repo; backed up)
+  os-ivan-gg/                       ->  ~/work/os-ivan-gg  (this repo; backed up)
   bin/repo                              repo launcher
   build.log, sync.log
 ```
@@ -138,7 +138,7 @@ still work; the sandbox only guards against undeclared inputs.
 | T0 | It builds, no new warnings in touched files | container | `run.sh build` |
 | T1 | Unit tests, locksettings | emulator (instrumentation) | `run.sh exec 'atest FrameworksServicesTests:com.android.server.locksettings'` |
 | T2 | Host tests: GrapheneOS `DuressPasswordTest`, later `RebootBfuTest` | a target with a Weaver HAL (test Pixel; goldfish has none) | `run.sh exec 'atest DuressPasswordTest'` |
-| T3 | Scripted scenarios over adb (`tests/*.sh`) | emulator | `run.sh exec /src/grapheneos-envs/tests/stage1.sh <item>` |
+| T3 | Scripted scenarios over adb (`tests/*.sh`) | emulator | `run.sh exec /src/os-ivan-gg/tests/stage1.sh <item>` |
 | T4 | Manual matrix at the real keyguard and in Settings | emulator via `scrcpy` | checklist below |
 | T5 | Hardware behaviour | test Pixel | Stage 6 checklist |
 
