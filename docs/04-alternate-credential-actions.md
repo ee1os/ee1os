@@ -683,9 +683,25 @@ SetupWizard2 `9738860`); decisions below.
   entered while it's on, and it can be switched on at any time; one rule is simpler to explain
   than one tied to auto-confirm. Side effect: the number of digits typed no longer tells which
   PIN was entered. Cost: changing to a longer PIN means setting the phone up again.
-- **2026-10-13, A changing its PIN to B's is not refused:** A is checked first, so B can't be
-  opened from the lock screen until one of them changes. Refusing it would make A's PIN screen
-  test guesses of B's PIN. Setup only says each PIN must differ.
+- **2026-10-13, A and B can't share a PIN (replaces "A changing its PIN to B's is not
+  refused", same day):** A is checked first, so a shared PIN opens A and B can't be reached
+  (seen in T7 on build 2026101306). With a protected space, a new PIN for A is checked against
+  B's and against the duress and reboot credentials, and a new PIN for B against A's
+  (`checkLayoutCollision` in `F/services/core/java/com/android/server/locksettings/LockSettingsService.java`);
+  a match is refused and Settings says the PIN is already used. The check against the other
+  user goes through its software and hardware rate limiters like a lock-screen attempt and
+  unlocks nothing. Reason: the earlier argument (a refusal tests guesses of B's PIN) adds
+  nothing, since a right guess on the lock screen already opens B. Cost: each PIN change uses
+  one attempt on the other user's counter, reset by its next unlock.
+- **2026-10-13, B's PIN costs A one attempt per boot:** dispatch tries A first, so the first
+  B unlock after a boot (or after A's last unlock) counts one failed attempt for A in Weaver
+  and in Android's failed-attempt count; repeats are caught as duplicate wrong guesses before
+  the hardware (`F/services/core/java/com/android/server/locksettings/SoftwareRateLimiter.java:250`).
+  Accepted: A's next unlock resets both. Only several boots in a row that open B without ever
+  opening A would build up to the hardware's delays for A.
+- **2026-10-13, auto-confirm stays off by default:** as in stock Android, it's turned on in
+  A's Settings → Screen lock; with one PIN length it then submits B's PIN too. B's own setting
+  has no effect on the lock screen.
 - **2026-10-13, A and B stay PINs:** the 2026-10-11 rule is now enforced. With a protected
   space, a primary credential of user 0 or B that isn't a PIN (no lock, pattern, password) is
   refused for normal changes and token resets (`checkLayoutCredential`), and Settings offers
@@ -705,9 +721,14 @@ SetupWizard2 `9738860`); decisions below.
 - **2026-10-13, "Browser" in user 0:** Vanadium's launcher entry
   (`app.vanadium.browser/com.google.android.apps.chrome.Main`) is shown as "Browser" in user 0
   through Android's per-user component label override, applied by system_server at boot
-  (`PackageManagerService.overrideSystemComponentLabel`). Settings → Apps, Vanadium's own
-  screens and B keep "Vanadium". Reason: the prebuilt defines `<overlayable>` and has obfuscated
-  resource names, so an overlay can't rename it.
+  (`PackageManagerService.overrideSystemComponentLabel`), and its app label is set to the same
+  for user 0 where `ApplicationInfo` is built (`PackageInfoUtils.updateApplicationInfo`), so
+  Settings → Apps and Recents say "Browser" too. Vanadium's own screens and B keep "Vanadium".
+  Reason: the prebuilt defines `<overlayable>` and has obfuscated resource names, so an
+  overlay can't rename it.
+- **2026-10-13, reboot credential is a PIN with a protected space:** the lock screen is a PIN
+  pad, so a reboot password could never be typed there. The service refuses one and Settings
+  no longer offers the type.
 
 ## Open questions
 
