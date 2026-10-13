@@ -35,7 +35,7 @@ and to this repo.
   2026-10-13; the forks were moved from `faeton/`, whose URLs redirect). Forked repos, all on
   branch `envs-17` (created from GrapheneOS `17`): `platform_frameworks_base`,
   `platform_packages_apps_Settings`, `platform_packages_apps_SetupWizard2`,
-  `platform_system_sepolicy`, and `platform_packages_apps_Updater` (no changes yet). Add
+  `platform_system_sepolicy`, and `platform_packages_apps_Updater` (update URL). Add
   `platform_system_vold` only if a stage needs it. The local manifest
   (`scripts/envs-local-manifest.xml`) points those projects at the forks; everything else syncs
   from GrapheneOS. Other repos: `os-ivan-gg` (this one), `manifest`, `releases`, `site`, and

@@ -22,6 +22,7 @@ UPSTREAM=https://github.com/GrapheneOS
 FORKS=(frameworks/base:platform_frameworks_base
        packages/apps/Settings:platform_packages_apps_Settings
        packages/apps/SetupWizard2:platform_packages_apps_SetupWizard2
+       packages/apps/Updater:platform_packages_apps_Updater
        system/sepolicy:platform_system_sepolicy)
 DRY=${DRY_RUN:-0}
 

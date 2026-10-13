@@ -42,7 +42,7 @@ before the owner says so.
 
 | # | Task | Notes |
 |---|---|---|
-| R1 | Our own update server | `packages/apps/Updater/res/values/config.xml:3` still points at GrapheneOS's server; their packages fail our signature check, so nothing installs, but the app should ask ours. Planned base URL: `https://github.com/os-ivan-gg/releases/releases/download/updates/` (rolling "updates" release; the GrapheneOS-only TLS pin set doesn't apply to it) |
+| R1 | Our own update server | Done 2026-10-13: `packages/apps/Updater/res/values/config.xml:3` (fork branch `envs-17`) points at `https://github.com/os-ivan-gg/releases/releases/download/updates/` (rolling "updates" release; the GrapheneOS-only TLS pin set doesn't apply to it). To check on the first release: update_engine streams the payload from that URL and has to follow GitHub's redirect to its download host |
 | R2 | Release script on n5 | first version 2026-10-13: `scripts/release.sh [user\|userdebug]` builds target files, signs (`script/generate-release.sh`, passphrase prompt), uploads the update zip and channel metadata to the rolling "updates" release and the install zip to a release of its own, notifies klava hq. Untested until the keys exist; old update zips aren't pruned yet |
 | R3 | Tester install | install zip plus a short script, later an adapted web installer page: unlock, flash, set `avb_custom_key`, lock |
 | R4 | os.ivan.gg page | what it is, install steps, release notes; static hosting with the images; drafted here, published by the owner |

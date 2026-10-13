@@ -7,5 +7,6 @@
   <extend-project name="platform_frameworks_base" remote="fork" revision="refs/heads/envs-17"/>
   <extend-project name="platform_packages_apps_Settings" remote="fork" revision="refs/heads/envs-17"/>
   <extend-project name="platform_packages_apps_SetupWizard2" remote="fork" revision="refs/heads/envs-17"/>
+  <extend-project name="platform_packages_apps_Updater" remote="fork" revision="refs/heads/envs-17"/>
   <extend-project name="platform_system_sepolicy" remote="fork" revision="refs/heads/envs-17"/>
 </manifest>
