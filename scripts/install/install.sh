@@ -96,8 +96,8 @@ sha256() {
 
 grouped() { printf '%s\n' "$1" | sed 's/\(........\)/\1 /g; s/ $//'; }
 
-# Write a copy of the log for sending: the phone's serial becomes a short hash, the home
-# folder becomes ~.
+# Write a copy of the log for sending: colour codes go, the phone's serial becomes a short
+# hash, the home folder becomes ~.
 redact() {
     local tag=
     if [ -n "$SERIAL" ]; then tag="serial-$(printf '%s' "$SERIAL" | sha256 /dev/stdin | cut -c1-8)"; fi
@@ -108,7 +108,7 @@ redact() {
             while ((i = index(line, from)) > 0) { out = out substr(line, 1, i - 1) to; line = substr(line, i + length(from)) }
             return out line
         }
-        { print swap(swap($0, s, t), h, "~") }' "$1"
+        { gsub(/\033\[[0-9;]*m/, ""); print swap(swap($0, s, t), h, "~") }' "$1"
 }
 
 send_log() {
