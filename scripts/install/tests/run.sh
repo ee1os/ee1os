@@ -2,6 +2,7 @@
 # Tests for install.sh: a fake fastboot plays each phone state against a local stand-in for
 # the releases and the report endpoint. No phone or internet needed.
 #   scripts/install/tests/run.sh          (SCRIPT_BASH=/path/to/bash picks the bash under test)
+#   KIND=ps scripts/install/tests/run.sh  runs the same cases against install.ps1 (pwsh)
 # The temp folder must allow running programs (on a noexec /tmp, set TMPDIR).
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -63,10 +64,20 @@ case_() {
     done
     [ $# -gt 0 ] && shift
     rm -f "$WEB/report.txt"
+    if [ "${KIND:-sh}" = ps ]; then
+        # Same cases for install.ps1: map the options to its parameter names.
+        local a=() x
+        for x in "$@"; do
+            case $x in --check) a+=(-Check) ;; --no-lock) a+=(-NoLock) ;; --zip) a+=(-Zip) ;; *) a+=("$x") ;; esac
+        done
+        set -- pwsh -NoProfile -NonInteractive -File "$HERE/../install.ps1" ${a[@]+"${a[@]}"}
+    else
+        set -- "${SCRIPT_BASH:-bash}" "$SCRIPT" "$@"
+    fi
     OUT=$(HOME=$home FAKE_DIR=$fake PATH="$T/bin:$PATH" \
         OSIVANGG_SITE=http://127.0.0.1:$PORT OSIVANGG_RELEASES=http://127.0.0.1:$PORT/releases \
         OSIVANGG_HOME=$home/os-ivan-gg-install OSIVANGG_NEED_GB=0 OSIVANGG_WAIT=0 \
-        OSIVANGG_TTY=$T/answers "${SCRIPT_BASH:-bash}" "$SCRIPT" "$@" 2>&1)
+        OSIVANGG_TTY=$T/answers "$@" 2>&1)
     local rc=$?
     CALLS=$(cat "$fake/calls" 2>/dev/null)
     STATE=$(cat "$fake/unlocked" 2>/dev/null)
@@ -99,8 +110,10 @@ expect "No phone in fastboot mode" OUT; expect "Install stopped in step 3" OUT; 
 case_ "two phones" 1 "" devices=2
 expect "More than one phone" OUT; done_
 
+if [ "${KIND:-sh}" = sh ]; then
 case_ "no udev permissions" 1 "" perm=1
 expect "udev rules" OUT; done_
+fi
 
 case_ "codename without a build" 1 "" product=sunfish
 expect "no os.ivan.gg build for sunfish" OUT; done_
@@ -114,7 +127,7 @@ case_ "second run reuses the download" 0 "UNLOCK\nLOCK\n" unlocked=no
 expect "Already downloaded" OUT; expect "Unpacking" OUT '!'; done_
 
 case_ "unlocked phone, --no-lock" 0 "FLASH\n" unlocked=yes -- --no-lock
-expect "flash super" CALLS; expect "flashing lock" CALLS '!'; expect "Skipped (--no-lock)" OUT; done_
+expect "flash super" CALLS; expect "flashing lock" CALLS '!'; expect "Skipped (-" OUT; done_
 
 case_ "anything but UNLOCK stops before touching the phone" 0 "unlock\n" unlocked=no
 expect "flashing unlock" CALLS '!'; expect "flash " CALLS '!'; expect "Nothing was changed" OUT; done_
