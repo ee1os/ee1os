@@ -237,7 +237,7 @@ One key set for all models (decided 2026-10-14, owner): the keys made for husky 
 every other model, so there is one passphrase, one backup and one verified boot fingerprint
 (`65894abf…f161`) on the site. GrapheneOS uses a set per model, which limits a leak to one
 model; with one holder and one build machine that buys little here. A new model gets
-`keys/<codename>` as a copy of `keys/husky` (owner-run), its vendor files from adevtool
+`keys/<codename>` as a copy of `keys/husky`, its vendor files from adevtool
 (`generate-all -d <codename>`), then `DEVICE=<codename> scripts/release.sh`. Each model
 still needs its own build: the images carry that model's kernel, drivers and firmware.
 Moving a model to its own keys later means a wipe and reinstall on its phones.
