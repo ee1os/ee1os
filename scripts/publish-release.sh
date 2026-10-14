@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Publish a release that release.sh built and signed with PUBLISH=0.
-#   [DEVICE=shiba] publish-release.sh <build number> [user|userdebug]
+#   [DEVICE=shiba] [NOTE=text] publish-release.sh <build number> [user|userdebug]
+# NOTE, when set, opens the release notes (e.g. that a model hasn't been tried on a phone yet).
 # Same upload as release.sh step 3 and 4: the OTA zip and channel file replace the rolling
 # "updates" release; a user build also gets its own release with the install zip and checksums.
 set -euo pipefail
@@ -40,8 +41,10 @@ gh release view updates -R "$REPO" > /dev/null 2>&1 \
 gh release upload updates -R "$REPO" --clobber \
     "$out/$DEVICE-ota_update-$bn.zip" "$out/$DEVICE-$CHANNEL"
 if [ "$VARIANT" = user ]; then
-    gh release create "$bn" -R "$REPO" --title "os.ivan.gg $bn" \
-        --notes "Factory image for $DEVICE. Based on GrapheneOS $base.
+    gh release create "$bn" -R "$REPO" --title "os.ivan.gg $bn ($DEVICE)" \
+        --notes "${NOTE:+$NOTE
+
+}Factory image for $DEVICE. Based on GrapheneOS $base.
 
 Verified boot key fingerprint (SHA-256 of avb_pkmd.bin):
 \`65894abf95040084e7f27ff8cb8e0d291b04abc266103fb88cef5e0c8c8bf161\`
