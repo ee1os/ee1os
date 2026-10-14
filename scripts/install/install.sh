@@ -448,7 +448,13 @@ say "This takes a few minutes. Don't touch the cable or the phone until it's don
 FLASHING=1
 LAST_CMD="sh flash-all.sh (in $DIR)"
 say "\$ $LAST_CMD"
-(cd "$DIR" && sh flash-all.sh)
+# Fastboot warns about the sparse super images on every flash; that line goes to the log only.
+(cd "$DIR" && sh flash-all.sh) 2>&1 | while IFS= read -r line; do
+    case $line in
+        *"skip copying super image avb footer"*) printf '%s\n' "$line" >> "$LOG" ;;
+        *) printf '%s\n' "$line" ;;
+    esac
+done
 LAST_RC=$?
 [ "$LAST_RC" = 0 ] || fail "The flash script failed."
 # The flash script installs the key itself; older zips didn't.

@@ -26,6 +26,7 @@ fastboot erase avb_custom_key
 fastboot flash avb_custom_key avb_pkmd.bin
 fastboot flash boot boot.img
 fastboot flash super super_1.img
+echo "Warning: skip copying super image avb footer due to sparse image." >&2
 EOF
     python3 - "$1" "$src" "$name" <<'EOF'
 import os, sys, zipfile
@@ -120,6 +121,7 @@ expect "no os.ivan.gg build for sunfish" OUT; done_
 
 case_ "locked phone: unlock, flash, lock" 0 "UNLOCK\nLOCK\n" unlocked=no
 expect "flashing unlock" CALLS; expect "flash avb_custom_key" CALLS; expect "flashing lock" CALLS
+expect "skip copying super image" OUT '!'; grep -q "skip copying super image" "$T"/home/os-ivan-gg-install/*/install.log || { CUR_OK=0; echo "   sparse warning not in the log"; }
 expect "Matches os.ivan.gg's key" OUT; expect "65894abf 95040084 e7f27ff8 cb8e0d29" OUT; expect "Done." OUT
 [ "$STATE" = no ] || { CUR_OK=0; echo "   phone not locked at the end"; }; done_
 

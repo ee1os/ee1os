@@ -71,6 +71,13 @@ function Say([string]$Text = '', [string]$Color = '') {
     if ($script:Log) { [IO.File]::AppendAllText($script:Log, $Text + "`n", $Utf8) }
 }
 
+# Fastboot warns about the sparse super images on every flash; that line goes to the log only.
+function Write-FlashLine([string]$Text) {
+    if ($Text -like '*skip copying super image avb footer*') {
+        if ($script:Log) { [IO.File]::AppendAllText($script:Log, $Text + "`n", $Utf8) }
+    } else { Say $Text }
+}
+
 function Write-Step([int]$N, [string]$Name) {
     $script:Step = $N; $script:StepName = $Name; $script:LastCmd = ''
     Say ''
@@ -475,7 +482,7 @@ function Install {
             Say "> $($script:LastCmd)"
             $out = New-Object System.Collections.ArrayList
             $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-            & cmd.exe /c 'flash-all.bat < NUL 2>&1' | ForEach-Object { $s = [string]$_; Say $s; [void]$out.Add($s) }
+            & cmd.exe /c 'flash-all.bat < NUL 2>&1' | ForEach-Object { $s = [string]$_; Write-FlashLine $s; [void]$out.Add($s) }
             $script:LastRc = $LASTEXITCODE
             $ErrorActionPreference = $old
         } else {
@@ -483,7 +490,7 @@ function Install {
             Say "> $($script:LastCmd)"
             $out = New-Object System.Collections.ArrayList
             $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-            & sh flash-all.sh 2>&1 | ForEach-Object { $s = [string]$_; Say $s; [void]$out.Add($s) }
+            & sh flash-all.sh 2>&1 | ForEach-Object { $s = [string]$_; Write-FlashLine $s; [void]$out.Add($s) }
             $script:LastRc = $LASTEXITCODE
             $ErrorActionPreference = $old
         }
