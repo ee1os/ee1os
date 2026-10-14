@@ -17,6 +17,9 @@ out=$TREE/releases/$bn/release-$DEVICE-$bn
 for f in "$DEVICE-ota_update-$bn.zip" "$DEVICE-install-$bn.zip" "$DEVICE-$CHANNEL"; do
     [ -s "$out/$f" ] || { echo "missing $out/$f"; exit 1; }
 done
+# a phone without the Updater can't take the next release over the air (T9 U1)
+unzip -l "$out/$DEVICE-target_files.zip" | grep -q 'priv-app/Updater/Updater.apk' \
+    || { echo "no Updater in $DEVICE-target_files.zip (OFFICIAL_BUILD unset?), not published"; exit 1; }
 (cd "$out" && sha256sum $DEVICE-ota_update-$bn.zip $DEVICE-install-$bn.zip > SHA256SUMS-$bn)
 sums=$(cat "$out/SHA256SUMS-$bn")
 echo "$sums"
@@ -24,6 +27,12 @@ echo "$sums"
 # newest tag in the tree
 base=$(cat "$WS/state/upstream-tag" 2>/dev/null) \
     || base="17 (branch, after $(git -C "$TREE/build/make" describe --tags --abbrev=0 2>/dev/null))"
+# what the build was made from: the manifest and each fork's commit
+src="manifest $(git -C "$TREE/.repo/manifests" rev-parse --short=12 HEAD)"
+for p in frameworks/base packages/apps/Settings packages/apps/SetupWizard2 packages/apps/Updater \
+         system/sepolicy; do
+    src+=$'\n'"$p $(git -C "$TREE/$p" rev-parse --short=12 HEAD)"
+done
 
 gh release view updates -R "$REPO" > /dev/null 2>&1 \
     || gh release create updates -R "$REPO" --title "Over-the-air updates" \
@@ -36,6 +45,11 @@ if [ "$VARIANT" = user ]; then
 
 Verified boot key fingerprint (SHA-256 of avb_pkmd.bin):
 \`65894abf95040084e7f27ff8cb8e0d291b04abc266103fb88cef5e0c8c8bf161\`
+
+Source:
+\`\`\`
+$src
+\`\`\`
 
 SHA-256:
 \`\`\`

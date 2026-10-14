@@ -28,7 +28,8 @@ if sudo docker ps --format '{{.Names}}' | grep -qx grapheneos-build; then
 fi
 
 bn=$(date -u +%Y%m%d%H)
-export LUNCH=$DEVICE-cur-$VARIANT OUT_DIR=out_release BUILD_NUMBER=$bn BUILD_DATETIME=$(date +%s)
+# OFFICIAL_BUILD adds the Updater (build/make/target/product/media_system.mk:39-41)
+export OFFICIAL_BUILD=true LUNCH=$DEVICE-cur-$VARIANT OUT_DIR=out_release BUILD_NUMBER=$bn BUILD_DATETIME=$(date +%s)
 echo "== release $bn ($VARIANT, channel $CHANNEL)"
 
 # 1. build (ollama paused by emu-build.sh)
@@ -49,27 +50,5 @@ out=$TREE/releases/$bn/release-$DEVICE-$bn
 ls -la "$out"/$DEVICE-ota_update-$bn.zip "$out"/$DEVICE-install-$bn.zip
 [ "${PUBLISH:-1}" = 1 ] || exit 0
 
-# checksums, listed in the release notes and uploaded next to the files
-(cd "$out" && sha256sum $DEVICE-ota_update-$bn.zip $DEVICE-install-$bn.zip > SHA256SUMS-$bn)
-sums=$(cat "$out/SHA256SUMS-$bn")
-
-# 3. upload
-gh release view updates -R "$REPO" > /dev/null 2>&1 \
-    || gh release create updates -R "$REPO" --title "Over-the-air updates" \
-        --notes "Files the phone's Updater reads. Replaced on every release."
-gh release upload updates -R "$REPO" --clobber \
-    "$out/$DEVICE-ota_update-$bn.zip" "$out/$DEVICE-$CHANNEL"
-if [ "$VARIANT" = user ]; then
-    gh release create "$bn" -R "$REPO" --title "os.ivan.gg $bn" \
-        --notes "Factory image for $DEVICE. Based on GrapheneOS $(cat "$WS/state/upstream-tag" 2>/dev/null || echo '?').
-
-SHA-256:
-\`\`\`
-$sums
-\`\`\`" \
-        "$out/$DEVICE-install-$bn.zip" "$out/SHA256SUMS-$bn" \
-        $(ls "$out/$DEVICE-install-$bn.zip.sig" 2>/dev/null)
-fi
-
-# 4. notify
-/mnt/tank/scripts/notify-telegram.sh "os.ivan.gg: release $bn ($VARIANT) published on the $CHANNEL channel." || true
+# 3. and 4. upload and notify
+DEVICE=$DEVICE "$ENVS/scripts/publish-release.sh" "$bn" "$VARIANT"

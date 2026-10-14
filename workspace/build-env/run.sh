@@ -32,6 +32,7 @@ common=(--rm --memory "$MEM" --memory-swap "$MEMSWAP" --network host
 [ -n "${BUILD_DATETIME:-}" ] && common+=(-e BUILD_DATETIME="$BUILD_DATETIME")
 # separate output trees per target skip soong's re-analysis when switching (e.g. out_husky)
 [ -n "${OUT_DIR:-}" ] && common+=(-e OUT_DIR="$OUT_DIR")
+[ -n "${OFFICIAL_BUILD:-}" ] && common+=(-e OFFICIAL_BUILD="$OFFICIAL_BUILD")
 setup='source build/envsetup.sh >/dev/null && lunch "$LUNCH" >/dev/null'
 
 run() { sudo docker run "${common[@]}" "$@"; }
