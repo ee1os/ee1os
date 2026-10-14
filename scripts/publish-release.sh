@@ -22,7 +22,21 @@ done
 # itself checks for the file: a pipe into grep -q fails under pipefail when unzip gets SIGPIPE
 unzip -qql "$out/$DEVICE-target_files.zip" SYSTEM/priv-app/Updater/Updater.apk > /dev/null \
     || { echo "no Updater in $DEVICE-target_files.zip (OFFICIAL_BUILD unset?), not published"; exit 1; }
-(cd "$out" && sha256sum $DEVICE-ota_update-$bn.zip $DEVICE-install-$bn.zip > SHA256SUMS-$bn)
+# GitHub refuses files over 2 GiB. An install zip over that goes up in parts (.zip.part1, ...),
+# listed in order in SHA256SUMS before the whole zip; the install scripts join them. The OTA
+# zip can't be split: the Updater reads it in one piece.
+[ "$(stat -c %s "$out/$DEVICE-ota_update-$bn.zip")" -lt 2147483648 ] \
+    || { echo "$DEVICE-ota_update-$bn.zip is over 2 GiB, GitHub won't take it; not published"; exit 1; }
+inst=$DEVICE-install-$bn.zip
+rm -f "$out/$inst".part[0-9]
+uploads=("$inst")
+if [ "$(stat -c %s "$out/$inst")" -gt 2000000000 ]; then
+    (cd "$out" && split -b 1900M --numeric-suffixes=1 -a 1 "$inst" "$inst.part")
+    uploads=()
+    for f in "$out/$inst".part[0-9]; do uploads+=("$(basename "$f")"); done
+fi
+(cd "$out" && sha256sum $DEVICE-ota_update-$bn.zip \
+    $([ "${uploads[0]}" = "$inst" ] || echo "${uploads[@]}") "$inst" > SHA256SUMS-$bn)
 sums=$(cat "$out/SHA256SUMS-$bn")
 echo "$sums"
 # the tag the tracking script last synced to; before its first run, branch 17 after the
@@ -55,7 +69,7 @@ if [ "$VARIANT" = user ] && gh release view "$bn" -R "$REPO" > /dev/null 2>&1; t
     gh release download "$bn" -R "$REPO" -p "SHA256SUMS-$bn" -D "$tmp"
     { grep -v " $DEVICE-" "$tmp/SHA256SUMS-$bn" || true; echo "$sums"; } > "$out/SHA256SUMS-$bn"
     body=$(gh release view "$bn" -R "$REPO" --json body -q .body)
-    gh release upload "$bn" -R "$REPO" --clobber "$out/$DEVICE-install-$bn.zip" "$out/SHA256SUMS-$bn"
+    gh release upload "$bn" -R "$REPO" --clobber "${uploads[@]/#/$out/}" "$out/SHA256SUMS-$bn"
     gh release edit "$bn" -R "$REPO" --notes "$body
 
 $section"
@@ -73,7 +87,7 @@ $src
 \`\`\`
 
 $section" \
-        "$out/$DEVICE-install-$bn.zip" "$out/SHA256SUMS-$bn"
+        "${uploads[@]/#/$out/}" "$out/SHA256SUMS-$bn"
 fi
 
 /mnt/tank/scripts/notify-telegram.sh "os.ivan.gg $bn $DEVICE ($VARIANT) published: https://github.com/$REPO/releases/tag/$bn" \
