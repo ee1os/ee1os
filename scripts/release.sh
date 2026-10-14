@@ -30,12 +30,15 @@ fi
 bn=$(date -u +%Y%m%d%H)
 # OFFICIAL_BUILD adds the Updater (build/make/target/product/media_system.mk:39-41)
 export OFFICIAL_BUILD=true LUNCH=$DEVICE-cur-$VARIANT OUT_DIR=out_release BUILD_NUMBER=$bn BUILD_DATETIME=$(date +%s)
-echo "== release $bn ($VARIANT, channel $CHANNEL)"
+label="release $bn $DEVICE $VARIANT"
+echo "== release $bn $DEVICE ($VARIANT, channel $CHANNEL)"
 
 # 1. build (ollama paused by emu-build.sh)
 cd "$WS"
-./emu-build.sh "release $bn $VARIANT" target-files-package otatools-package
-sed -n "/=== release $bn $VARIANT/,\$p" build.log | grep -q 'BUILD_EXIT=0' || { echo "build failed"; exit 1; }
+./emu-build.sh "$label" target-files-package otatools-package
+# the first BUILD_EXIT after this run's header (no grep -q in a pipe: pipefail and SIGPIPE)
+rc=$(awk -v m="=== $label " 'index($0, m) == 1 { f = 1; r = "" } f && r == "" && /^BUILD_EXIT=/ { r = $0 } END { print r }' build.log)
+[ "$rc" = BUILD_EXIT=0 ] || { echo "build failed ($rc)"; exit 1; }
 
 # 2. finalize and sign. The key passphrase comes from $PWFILE when it exists (owner-only file
 #    on flash/scratch, kept out of the backups that hold the encrypted keys), else it is asked.
