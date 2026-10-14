@@ -233,6 +233,15 @@ lock` (wipes). A userdebug build signed with the same keys keeps root for tests;
 every image must carry these keys. Then repeat the T4 checklist and observe Weaver throttling with repeated
 wrong PINs. Never automated from this repo.
 
+One key set for all models (decided 2026-10-14, owner): the keys made for husky also sign
+every other model, so there is one passphrase, one backup and one verified boot fingerprint
+(`65894abf…f161`) on the site. GrapheneOS uses a set per model, which limits a leak to one
+model; with one holder and one build machine that buys little here. A new model gets
+`keys/<codename>` as a copy of `keys/husky` (owner-run), its vendor files from adevtool
+(`generate-all -d <codename>`), then `DEVICE=<codename> scripts/release.sh`. Each model
+still needs its own build: the images carry that model's kernel, drivers and firmware.
+Moving a model to its own keys later means a wipe and reinstall on its phones.
+
 Checklist for the first session, shell first so the hour goes to what only hardware shows
 (userdebug-style `adb` access is assumed for the shell steps; on a user build use the
 screens). Record each result in `tests/results/` like the emulator runs.

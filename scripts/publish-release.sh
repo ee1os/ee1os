@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Publish a release that release.sh built and signed with PUBLISH=0.
-#   publish-release.sh <build number> [user|userdebug]
+#   [DEVICE=shiba] publish-release.sh <build number> [user|userdebug]
 # Same upload as release.sh step 3 and 4: the OTA zip and channel file replace the rolling
 # "updates" release; a user build also gets its own release with the install zip and checksums.
 set -euo pipefail
 
 WS=/mnt/flash/scratch/grapheneos
 TREE=$WS/grapheneos-17
-DEVICE=husky
+DEVICE=${DEVICE:-husky}
 REPO=os-ivan-gg/releases
 bn=${1:?build number}
 VARIANT=${2:-user}

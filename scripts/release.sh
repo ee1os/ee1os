@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Build, sign and publish a release of os.ivan.gg for husky. Signing reads the key passphrase
-# from /mnt/flash/scratch/grapheneos/.secrets/key-passphrase, or asks for it in a terminal. Keys live in grapheneos-17/keys/husky (encrypted;
-# created once with script/generate-keys, doc 08 Stage 6).
-#   release.sh [variant]     user (default; testers) or userdebug (the test phone's dev channel)
+# Build, sign and publish a release of os.ivan.gg for one model (DEVICE=<codename>, default husky).
+# Signing reads the key passphrase from /mnt/flash/scratch/grapheneos/.secrets/key-passphrase, or asks for it in a terminal.
+# All models share the husky keys (doc 08 Stage 6); keys/<codename> is a copy of keys/husky.
+#   [DEVICE=shiba] release.sh [variant]     user (default; testers) or userdebug (the test phone's dev channel)
 # Steps:
 #   1. build target files and OTA tools with a fresh build number
-#   2. finalize + generate-release (signing; prompts)  -> releases/<bn>/release-husky-<bn>/
+#   2. finalize + generate-release (signing; prompts)  -> releases/<bn>/release-<codename>-<bn>/
 #   3. upload: the OTA zip and channel metadata replace the rolling "updates" release; the
 #      install zip gets a release of its own (github.com/os-ivan-gg/releases)
 #   4. notify klava hq
@@ -16,13 +16,13 @@ WS=/mnt/flash/scratch/grapheneos
 TREE=$WS/grapheneos-17
 ENVS=/mnt/flash/home/faeton/work/os-ivan-gg
 RUN=$ENVS/workspace/build-env/run.sh
-DEVICE=husky
+DEVICE=${DEVICE:-husky}
 VARIANT=${1:-user}
 REPO=os-ivan-gg/releases
 CHANNEL=$([ "$VARIANT" = user ] && echo stable || echo testing)
 PWFILE=$WS/.secrets/key-passphrase
 
-[ -d "$TREE/keys/$DEVICE" ] || { echo "no keys in $TREE/keys/$DEVICE (script/generate-keys first)"; exit 1; }
+[ -d "$TREE/keys/$DEVICE" ] || { echo "no keys in $TREE/keys/$DEVICE; copy them: cp -a $TREE/keys/husky $TREE/keys/$DEVICE"; exit 1; }
 if sudo docker ps --format '{{.Names}}' | grep -qx grapheneos-build; then
     echo "a build is running"; exit 1
 fi
