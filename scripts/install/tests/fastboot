@@ -16,10 +16,10 @@ case "${1:-}" in
     --version)
         echo "fastboot version 37.0.1-14290000"
         echo "Installed as $0" ;;
-    devices)
+    devices)  # fastboot 37 prints "<serial><tab><space>fastboot"
         if [ -f "$d/perm" ]; then printf 'no permissions (missing udev rules?)\tfastboot\n'; exit 0; fi
         n=$(val devices 1); i=0
-        while [ "$i" -lt "$n" ]; do printf '3A1B2C3D4E%02d\tfastboot\n' "$i"; i=$((i + 1)); done ;;
+        while [ "$i" -lt "$n" ]; do printf '3A1B2C3D4E%02d\t fastboot\n' "$i"; i=$((i + 1)); done ;;
     getvar)
         case $2 in
             product) v=$(val product husky) ;;
