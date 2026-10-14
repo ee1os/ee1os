@@ -285,8 +285,9 @@ hint_shown=0
 waited=0
 while :; do
     list=$(fastboot devices 2>&1 | grep -v '^$')
-    # A phone is a "<serial><tab>fastboot" line; anything else is a message from fastboot.
-    n=$(printf '%s\n' "$list" | awk -F'\t' '$2 == "fastboot"' | grep -vc 'no permissions')
+    # A phone is a "<serial><tab>fastboot" line (fastboot 37 adds a space after the tab);
+    # anything else is a message from fastboot.
+    n=$(printf '%s\n' "$list" | awk -F'\t *' '$2 == "fastboot"' | grep -vc 'no permissions')
     if printf '%s\n' "$list" | grep -q 'no permissions'; then
         say "$list"
         fail "The phone is there but this user may not talk to it. Install the udev rules (Debian/Ubuntu: sudo apt install android-sdk-platform-tools-common; Arch: android-udev), unplug and reconnect the phone, and run the script again."
@@ -308,7 +309,7 @@ if [ "$n" -gt 1 ]; then
     say "$list"
     fail "More than one phone is connected. Leave only the one you want to install on."
 fi
-SERIAL=$(printf '%s\n' "$list" | awk -F'\t' '$2 == "fastboot" {print $1; exit}')
+SERIAL=$(printf '%s\n' "$list" | awk -F'\t *' '$2 == "fastboot" {print $1; exit}')
 say "Found phone $SERIAL"
 
 if [ "$(getvar is-userspace)" = yes ]; then
@@ -332,7 +333,7 @@ if [ -n "$ZIP" ]; then
     BUILD=${zname##*-install-}; BUILD=${BUILD%.zip}
     [ "$ZCODE" = "$CODENAME" ] || fail "$zname is for $ZCODE, but the phone is a $CODENAME."
 else
-    chan=$(curl -fsS --max-time 30 "$RELEASES/updates/$CODENAME-stable" 2>/dev/null)
+    chan=$(curl -fsSL --max-time 30 "$RELEASES/updates/$CODENAME-stable" 2>/dev/null)
     BUILD=$(printf '%s\n' "$chan" | awk 'NR==1 {print $1}')
     if [ -z "$BUILD" ]; then
         fail "There is no os.ivan.gg build for $CODENAME yet. The list is at $SITE/devices."
@@ -358,7 +359,7 @@ NAME=$CODENAME-install-$BUILD
 if [ -z "$ZIP" ]; then
     ZIP=$CACHE/$NAME.zip
     sums=$CACHE/SHA256SUMS-$BUILD
-    must curl -fsS --retry 3 -o "$sums" "$RELEASES/$BUILD/SHA256SUMS-$BUILD"
+    must curl -fsSL --retry 3 -o "$sums" "$RELEASES/$BUILD/SHA256SUMS-$BUILD"
     want=$(awk -v f="$NAME.zip" '$2 == f {print $1}' "$sums")
     [ -n "$want" ] || fail "SHA256SUMS-$BUILD doesn't list $NAME.zip."
     if [ -f "$ZIP" ] && [ "$(sha256 "$ZIP")" = "$want" ]; then

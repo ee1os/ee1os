@@ -310,8 +310,9 @@ function Install {
     $hint = $false; $driverHint = $false; $waited = 0
     while ($true) {
         $list = @(Get-Output $script:Fastboot @('devices') | Where-Object { $_ })
-        # A phone is a "<serial><tab>fastboot" line; anything else is a message from fastboot.
-        $phones = @($list | Where-Object { ($_ -split "`t")[1] -eq 'fastboot' })
+        # A phone is a "<serial><tab>fastboot" line (fastboot 37 adds a space after the tab);
+        # anything else is a message from fastboot.
+        $phones = @($list | Where-Object { ($_ -split "`t *")[1] -eq 'fastboot' })
         if ($phones.Count -ge 1) { break }
         if (-not $hint) {
             Say 'Waiting for a phone in fastboot mode.'
@@ -336,7 +337,7 @@ function Install {
         $list | ForEach-Object { Say $_ }
         Fail 'More than one phone is connected. Leave only the one you want to install on.'
     }
-    $script:Serial = ($phones[0] -split "`t")[0]
+    $script:Serial = ($phones[0] -split "`t *")[0]
     Say "Found phone $($script:Serial)"
 
     if ((Get-Var 'is-userspace') -eq 'yes') {
