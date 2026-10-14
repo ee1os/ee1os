@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Publish a release that release.sh built and signed with PUBLISH=0.
 #   [DEVICE=shiba] [NOTE=text] publish-release.sh <build number> [user|userdebug]
-# NOTE, when set, opens the release notes (e.g. that a model hasn't been tried on a phone yet).
+# NOTE, when set, goes under the model's heading in the release notes (e.g. that a model hasn't been tried on a phone yet).
 # Same upload as release.sh step 3 and 4: the OTA zip and channel file replace the rolling
 # "updates" release; a user build also gets its own release with the install zip and checksums.
 set -euo pipefail
@@ -18,8 +18,9 @@ out=$TREE/releases/$bn/release-$DEVICE-$bn
 for f in "$DEVICE-ota_update-$bn.zip" "$DEVICE-install-$bn.zip" "$DEVICE-$CHANNEL"; do
     [ -s "$out/$f" ] || { echo "missing $out/$f"; exit 1; }
 done
-# a phone without the Updater can't take the next release over the air (T9 U1)
-unzip -l "$out/$DEVICE-target_files.zip" | grep -q 'priv-app/Updater/Updater.apk' \
+# a phone without the Updater can't take the next release over the air (T9 U1). unzip
+# itself checks for the file: a pipe into grep -q fails under pipefail when unzip gets SIGPIPE
+unzip -qql "$out/$DEVICE-target_files.zip" SYSTEM/priv-app/Updater/Updater.apk > /dev/null \
     || { echo "no Updater in $DEVICE-target_files.zip (OFFICIAL_BUILD unset?), not published"; exit 1; }
 (cd "$out" && sha256sum $DEVICE-ota_update-$bn.zip $DEVICE-install-$bn.zip > SHA256SUMS-$bn)
 sums=$(cat "$out/SHA256SUMS-$bn")
@@ -40,13 +41,30 @@ gh release view updates -R "$REPO" > /dev/null 2>&1 \
         --notes "Files the phone's Updater reads. Replaced on every release."
 gh release upload updates -R "$REPO" --clobber \
     "$out/$DEVICE-ota_update-$bn.zip" "$out/$DEVICE-$CHANNEL"
-if [ "$VARIANT" = user ]; then
-    gh release create "$bn" -R "$REPO" --title "os.ivan.gg $bn ($DEVICE)" \
-        --notes "${NOTE:+$NOTE
+# One release per build number holds every model built with it: the install script fetches
+# <codename>-install-<bn>.zip and one SHA256SUMS-<bn> from the release tagged <bn>.
+section="## $DEVICE
+${NOTE:+
+$NOTE
+}
+\`\`\`
+$sums
+\`\`\`"
+if [ "$VARIANT" = user ] && gh release view "$bn" -R "$REPO" > /dev/null 2>&1; then
+    tmp=$(mktemp -d)
+    gh release download "$bn" -R "$REPO" -p "SHA256SUMS-$bn" -D "$tmp"
+    { grep -v " $DEVICE-" "$tmp/SHA256SUMS-$bn" || true; echo "$sums"; } > "$out/SHA256SUMS-$bn"
+    body=$(gh release view "$bn" -R "$REPO" --json body -q .body)
+    gh release upload "$bn" -R "$REPO" --clobber "$out/$DEVICE-install-$bn.zip" "$out/SHA256SUMS-$bn"
+    gh release edit "$bn" -R "$REPO" --notes "$body
 
-}Factory image for $DEVICE. Based on GrapheneOS $base.
+$section"
+    rm -rf "$tmp"
+elif [ "$VARIANT" = user ]; then
+    gh release create "$bn" -R "$REPO" --title "os.ivan.gg $bn" \
+        --notes "Factory images. Based on GrapheneOS $base.
 
-Verified boot key fingerprint (SHA-256 of avb_pkmd.bin):
+Verified boot key fingerprint (SHA-256 of avb_pkmd.bin), the same for every model:
 \`65894abf95040084e7f27ff8cb8e0d291b04abc266103fb88cef5e0c8c8bf161\`
 
 Source:
@@ -54,13 +72,10 @@ Source:
 $src
 \`\`\`
 
-SHA-256:
-\`\`\`
-$sums
-\`\`\`" \
+$section" \
         "$out/$DEVICE-install-$bn.zip" "$out/SHA256SUMS-$bn"
 fi
 
-/mnt/tank/scripts/notify-telegram.sh "os.ivan.gg $bn ($VARIANT) published: https://github.com/$REPO/releases/tag/$bn" \
+/mnt/tank/scripts/notify-telegram.sh "os.ivan.gg $bn $DEVICE ($VARIANT) published: https://github.com/$REPO/releases/tag/$bn" \
     > /dev/null 2>&1 || true
 echo "published $bn"
