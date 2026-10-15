@@ -219,6 +219,10 @@ LUNCH=$DEVICE-cur-userdebug OUT_DIR=out BUILD_NUMBER=$bn BUILD_DATETIME=$(date +
 # the first BUILD_EXIT after this run's header (as in release.sh)
 rc=$(awk -v m="=== $label " 'index($0, m) == 1 { f = 1; r = "" } f && r == "" && /^BUILD_EXIT=/ { r = $0 } END { print r }' build.log)
 [ "$rc" = BUILD_EXIT=0 ] || fail "build $bn on GrapheneOS $tag failed ($rc); see build.log. Not pushed."
+# no boot animation zip may ship: it would replace our setup logo and the stock one (doc 00)
+zips=$(find "$TREE/out/target/product/$DEVICE"/{system,product,system_ext,vendor,oem}/media \
+    -maxdepth 1 -name 'bootanimation*.zip' 2>/dev/null | sed "s|$TREE/out/target/product/$DEVICE/||")
+[ -z "$zips" ] || fail "build $bn on GrapheneOS $tag ships a boot animation ($zips); not pushed."
 if [ -x "$ENVS/tests/gate.sh" ]; then
     "$ENVS/tests/gate.sh" >> "$LOG" 2>&1 \
         || fail "build $bn on GrapheneOS $tag built but the test gate failed; not pushed."

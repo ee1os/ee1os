@@ -79,7 +79,8 @@ and to this repo.
   equals the fork on GitHub, rebases from `state/base/<repo>` (the upstream commit under
   `envs-17`, seeded 2026-10-15 with the `2026100600` commits), puts the branches back on any
   failure before the push, and pushes with `--force-with-lease` against what it rebased
-  from. A release counts as done (`state/upstream-tag`) only when the forks and the manifest
+  from. A build that ships any `bootanimation*.zip` is refused (no GrapheneOS boot animation,
+  doc 00). A release counts as done (`state/upstream-tag`) only when the forks and the manifest
   are pushed. The manifest's `envs-17` follows the fork branches; its `<tag>.os` tag sits on
   a commit that pins the forks to their `<tag>.os` tags, so a release can be synced again
   exactly.
