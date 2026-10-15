@@ -755,6 +755,16 @@ SetupWizard2 `9738860`); decisions below.
 - **2026-10-13, reboot credential is a PIN with a protected space:** the lock screen is a PIN
   pad, so a reboot password could never be typed there. The service refuses one and Settings
   no longer offers the type.
+- **2026-10-15, the reboot PIN costs A and B one attempt:** it is checked last, after A and B
+  missed (lock screen order above), so each use counts one failed attempt for both, and after
+  the restart the first B unlock counts one more for A. Accepted: same as a wrong guess,
+  cleared by each space's next unlock. Seen on the Pixel in T10.
+- **2026-10-15, B keeps "Vanadium":** the 2026-10-13 label rule stays; the owner confirmed it
+  after T9 W3.
+- **2026-10-15, the private space entry is refreshed at setup:** Settings publishes it only at
+  boot, so after the protected space was set up it stayed in A's Security & privacy until the
+  next boot (T9 F2). Setup now sends Settings a refresh for that one source
+  (`LockSettingsService.refreshPrivateSpaceEntry`).
 
 ## Open questions
 
