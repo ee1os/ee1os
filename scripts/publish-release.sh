@@ -53,8 +53,18 @@ done
 gh release view updates -R "$REPO" > /dev/null 2>&1 \
     || gh release create updates -R "$REPO" --title "Over-the-air updates" \
         --notes "Files the phone's Updater reads. Replaced on every release."
+# Every channel file the Updater can ask for: its stable, beta and alpha choices (all the same
+# build here), or testing for userdebug. 2026101406 offered a security preview opt-in, and
+# phones that took it ask for <channel>-security-preview, so those are published too (T9 U2).
+if [ "$VARIANT" = user ]; then chans=(stable beta alpha); else chans=(testing); fi
+chanfiles=()
+for c in "${chans[@]}"; do
+    [ -s "$out/$DEVICE-$c" ] || { echo "missing $out/$DEVICE-$c"; exit 1; }
+    sed "s/ $c\$/ $c-security-preview/" "$out/$DEVICE-$c" > "$out/$DEVICE-$c-security-preview"
+    chanfiles+=("$out/$DEVICE-$c" "$out/$DEVICE-$c-security-preview")
+done
 gh release upload updates -R "$REPO" --clobber \
-    "$out/$DEVICE-ota_update-$bn.zip" "$out/$DEVICE-$CHANNEL"
+    "$out/$DEVICE-ota_update-$bn.zip" "${chanfiles[@]}"
 # One release per build number holds every model built with it: the install script fetches
 # <codename>-install-<bn>.zip and one SHA256SUMS-<bn> from the release tagged <bn>.
 section="## $DEVICE
