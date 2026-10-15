@@ -729,6 +729,11 @@ SetupWizard2 `9738860`); decisions below.
   animation can write it). On husky the animation starts before `/data` is mounted, so it waits
   up to 5 s for `ro.persistent_properties.ready` (one sepolicy line, `system/sepolicy` branch
   `envs-17`). The bootloader's unlocked/custom-key warning before it can't be changed.
+  This needs no `bootanimation.zip` on the device: `BootAnimation::android()` only runs
+  when `findBootAnimationFile` finds none (`cmds/bootanimation/BootAnimation.cpp:768`). Since
+  2026-10-15 our `platform_build` fork keeps GrapheneOS's `bootanimation_zip` out of the
+  product (doc 00 decision 2026-10-15). A richer setup animation would be our own zip shown
+  only before setup; not planned yet.
 - **2026-10-13, "Browser" in user 0:** Vanadium's launcher entry
   (`app.vanadium.browser/com.google.android.apps.chrome.Main`) is shown as "Browser" in user 0
   through Android's per-user component label override, applied by system_server at boot

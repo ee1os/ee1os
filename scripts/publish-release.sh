@@ -45,7 +45,7 @@ base=$(cat "$WS/state/upstream-tag" 2>/dev/null) \
     || base="17 (branch, after $(git -C "$TREE/build/make" describe --tags --abbrev=0 2>/dev/null))"
 # what the build was made from: the manifest and each fork's commit
 src="manifest $(git -C "$TREE/.repo/manifests" rev-parse --short=12 HEAD)"
-for p in frameworks/base packages/apps/Settings packages/apps/SetupWizard2 packages/apps/Updater \
+for p in build/make frameworks/base packages/apps/Settings packages/apps/SetupWizard2 packages/apps/Updater \
          system/sepolicy; do
     src+=$'\n'"$p $(git -C "$TREE/$p" rev-parse --short=12 HEAD)"
 done

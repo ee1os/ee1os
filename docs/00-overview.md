@@ -119,3 +119,14 @@ What the design aims to provide:
   stay in memory while B is used, as decided on 2026-10-06; `REBOOT_BFU` covers it. Stages 4
   and 5 become required. Credential lengths: all PINs of 6 digits or more, no length ranges; the
   enrolment check in A's change-PIN screen is accepted, with refusals throttled (doc 04).
+- **2026-10-15: no GrapheneOS boot animation or branding, in any form** (owner decision). The
+  main OS boots with the stock animated AOSP "android" logo; until the first setup is done it
+  shows our own (doc 04, boot logo). GrapheneOS's branch `17` added its own animation
+  (`bootanimation_zip` from the new `branding` repo, listed in build/make
+  `target/product/base_product.mk`); our `platform_build` fork filters it back out, so it isn't
+  installed once a release brings it in. Reason: the project is described as a fork of
+  GrapheneOS, not branded as it (doc 07 R7).
+- **2026-10-15: we follow GrapheneOS stable release tags only, by rebase.** Upstream's branch
+  `17` is their development line between releases; it is never merged into `envs-17`, because
+  `scripts/track-upstream.sh` rebases each fork from its release-tag base onto the next tag and
+  a merge would make it replay upstream commits. Their changes reach us with the next tag.

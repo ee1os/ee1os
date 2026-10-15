@@ -4,6 +4,7 @@
      Everything else keeps syncing from the upstream GrapheneOS manifest (branch 17). -->
 <manifest>
   <remote name="fork" fetch="https://github.com/os-ivan-gg/"/>
+  <extend-project name="platform_build" remote="fork" revision="refs/heads/envs-17"/>
   <extend-project name="platform_frameworks_base" remote="fork" revision="refs/heads/envs-17"/>
   <extend-project name="platform_packages_apps_Settings" remote="fork" revision="refs/heads/envs-17"/>
   <extend-project name="platform_packages_apps_SetupWizard2" remote="fork" revision="refs/heads/envs-17"/>

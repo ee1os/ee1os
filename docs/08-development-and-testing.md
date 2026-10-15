@@ -35,7 +35,9 @@ and to this repo.
   2026-10-13; the forks were moved from `faeton/`, whose URLs redirect). Forked repos, all on
   branch `envs-17` (created from GrapheneOS `17`): `platform_frameworks_base`,
   `platform_packages_apps_Settings`, `platform_packages_apps_SetupWizard2`,
-  `platform_system_sepolicy`, and `platform_packages_apps_Updater` (update URL). Add
+  `platform_system_sepolicy`, `platform_packages_apps_Updater` (update URL), and
+  `platform_build` (since 2026-10-15, created from tag `2026100600`; keeps GrapheneOS's boot
+  animation out, doc 00). Add
   `platform_system_vold` only if a stage needs it. The local manifest
   (`scripts/envs-local-manifest.xml`) points those projects at the forks; everything else syncs
   from GrapheneOS. Other repos: `os-ivan-gg` (this one), `manifest`, `releases`, `site`, and
@@ -48,7 +50,9 @@ and to this repo.
   it here: `git format-patch fork/17..HEAD -o <this repo>/patches/02-reboot-bfu/`.
 - Commit style: short subject in the imperative, upstream style, no noise.
 - **Rebase routine** when GrapheneOS publishes a release (about weekly; tags like
-  `2026100600` in every repo): `scripts/track-upstream.sh` does it nightly (doc 07 R5). By hand:
+  `2026100600` in every repo): `scripts/track-upstream.sh` does it nightly (doc 07 R5). Only
+  release tags: never merge or rebase onto upstream branch `17` between releases, it is their
+  development line and a merge breaks the next rebase (doc 00 decision 2026-10-15). By hand:
   1. `repo init -b refs/tags/<tag> && repo sync -j8` (in tmux, log to `sync.log`);
   2. in each fork project: `git rebase --onto refs/tags/<tag> <old base> envs-17`, then
      `git push -f fork envs-17`; the script keeps the old base per repo in `state/base/`;

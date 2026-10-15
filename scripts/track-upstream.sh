@@ -19,7 +19,8 @@ DEVICE=husky
 ORG=https://github.com/os-ivan-gg
 UPSTREAM=https://github.com/GrapheneOS
 # tree path : repo name, for every project we change
-FORKS=(frameworks/base:platform_frameworks_base
+FORKS=(build/make:platform_build
+       frameworks/base:platform_frameworks_base
        packages/apps/Settings:platform_packages_apps_Settings
        packages/apps/SetupWizard2:platform_packages_apps_SetupWizard2
        packages/apps/Updater:platform_packages_apps_Updater
@@ -108,9 +109,19 @@ for e in "${FORKS[@]}"; do
     git rev-parse "refs/tags/$tag" > "$STATE/base/$name"
 done
 m=$(mktemp -d)
+# A release tag's default.xml is a fully pinned rewrite, so our commits don't rebase onto it.
+# Rebuild instead: the tag's manifest, our envs.xml, and an include of it at the end.
+remanifest() {
+    git -C "$m" fetch -q "$UPSTREAM/platform_manifest" "refs/tags/$tag" || return 1
+    git -C "$m" show HEAD:envs.xml > "$m.envs" || return 1
+    git -C "$m" checkout -q -B envs-17 FETCH_HEAD || return 1
+    mv "$m.envs" "$m/envs.xml"
+    grep -q '<include name="envs.xml"/>' "$m/default.xml" \
+        || sed -i 's|</manifest>|\n  <include name="envs.xml"/>\n</manifest>|' "$m/default.xml"
+    git -C "$m" add envs.xml default.xml && git -C "$m" commit -q -m "Use the os-ivan-gg forks"
+}
 if git clone -q -b envs-17 "$ORG/manifest.git" "$m" \
-    && git -C "$m" fetch -q "$UPSTREAM/platform_manifest" "refs/tags/$tag" \
-    && git -C "$m" rebase -q --onto FETCH_HEAD HEAD~1 \
+    && remanifest \
     && git -C "$m" tag -f "$tag.os" \
     && git -C "$m" push -q --force origin envs-17 "refs/tags/$tag.os"; then
     log "manifest rebased onto $tag"
