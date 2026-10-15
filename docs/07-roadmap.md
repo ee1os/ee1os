@@ -325,6 +325,8 @@ in doc 08.
 | B8 | Settings screen flow | duress enrolment has no collision check; doc 04 *Settings flow* |
 | B9 | Where can enrolment probe a candidate against the owner's Secondary PIN without the duress hook and without counting a failure? | nowhere: every path hits the rate limiter and Weaver; ask for the second-factor PIN at enrolment instead (doc 04 *Settings flow* 5) |
 | B10 | PIN scrambling vs alternates (doc 04 Q4) | layout only, credential unchanged, no effect |
+| B11 | Release provenance: `publish-release.sh` names the checkout's current SHAs, not what the signed build was made from | open (2026-10-15): record the manifest, fork SHAs and upstream tag next to the artifacts at build time and publish that record |
+| B12 | `state/base` and `upstream-watch` reports are on `flash/scratch` (not backed up) | open: losing `state/base` stops `track-upstream.sh` safely; reseed from the fork tags `<tag>.os` |
 
 ## Design notes
 

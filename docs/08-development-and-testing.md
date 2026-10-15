@@ -66,12 +66,23 @@ and to this repo.
   changes are listed, not flagged. Reports go to `upstream-watch/` next to the tree; new
   flags go to klava hq (OS topic) once. If `state/review-hook` is an executable, it gets each flagged
   report and its impact review is saved as `<report>-review.md` and quoted in the message
-  (the hook is local to n5, not part of this repo).
+  (the hook is local to n5, not part of this repo; the report is untrusted upstream text, so
+  the hook may only read files). Projects whose history went backwards or that are past
+  GitHub's compare limits (250 commits, 300 files) are flagged as well.
 - **Strategic releases wait for the owner:** `track-upstream.sh` runs `upstream-watch.py check
   <tag>` first. If it flags anything, the release is synced, rebased, built and gated as usual
   but not pushed; the message links the report. `APPROVE=<tag> scripts/track-upstream.sh`
-  pushes it (refused if a fork's `envs-17` moved since the build). Routine releases go through
-  on their own.
+  pushes it (refused if a fork's `envs-17` moved since the build or `out/` holds another
+  build); `SKIP=<tag>` drops it and puts the forks back. While one is held, a newer release is
+  announced once and waits. Routine releases go through on their own.
+- **Safety rules of `track-upstream.sh`:** it starts only when every fork's local `envs-17`
+  equals the fork on GitHub, rebases from `state/base/<repo>` (the upstream commit under
+  `envs-17`, seeded 2026-10-15 with the `2026100600` commits), puts the branches back on any
+  failure before the push, and pushes with `--force-with-lease` against what it rebased
+  from. A release counts as done (`state/upstream-tag`) only when the forks and the manifest
+  are pushed. The manifest's `envs-17` follows the fork branches; its `<tag>.os` tag sits on
+  a commit that pins the forks to their `<tag>.os` tags, so a release can be synced again
+  exactly.
 - **Schedule** (TrueNAS cron, `sudo midclt call cronjob.query`): job 25 runs the preview at
   00:30, job 26 `track-upstream.sh` at 01:00 (n5 time, Europe/Lisbon). Logs:
   `upstream-watch.log` and `track-upstream.log` next to the tree.

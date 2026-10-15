@@ -158,8 +158,20 @@ def main():
             flags.append((f"nocompare:{n}:{rev}",
                           f"`{path}` can't be compared with our base (history rewritten?)"))
             continue
-        if c.get("ahead_by", 0) == 0:
+        status = c.get("status")
+        if status == "identical":
             continue
+        if status in ("behind", "diverged"):
+            # upstream went back or rewrote history: whatever it dropped isn't in the commit list
+            flags.append((f"{status}:{n}:{rev}",
+                          f"`{path}` is {status} our base ({c.get('behind_by', 0)} commit(s) gone)"))
+            if c.get("ahead_by", 0) == 0:
+                continue
+        if c.get("total_commits", 0) > len(c.get("commits", [])) or len(c.get("files", [])) >= 300:
+            # past GitHub's compare limits (250 commits, 300 files) a flagged file can hide
+            flags.append((f"toolarge:{n}:{rev}",
+                          f"`{path}`: {c.get('total_commits')} commits, {len(c.get('files', []))} "
+                          f"files, too large to check here"))
         ours = fork_files(path, frm) if path in FORKS else set()
         files = {f["filename"]: f.get("patch", "") for f in c.get("files", [])}
         file_reasons = {}

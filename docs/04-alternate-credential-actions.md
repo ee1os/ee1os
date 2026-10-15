@@ -734,6 +734,16 @@ SetupWizard2 `9738860`); decisions below.
   2026-10-15 our `platform_build` fork keeps GrapheneOS's `bootanimation_zip` out of the
   product (doc 00 decision 2026-10-15). A richer setup animation would be our own zip shown
   only before setup; not planned yet.
+- **2026-10-15, stock Android logo after setup, our own shine before:** our builds still had
+  GrapheneOS's 2048×605 shine (`android-logo-shine.png`) under the AOSP mask. `envs-17` now
+  starts with GrapheneOS's own revert of their logo (`7c9cd735f4`, AOSP mask and 128-pixel
+  shine), so after setup the logo is fully stock; on the next release's rebase that commit
+  becomes empty and is dropped (if upstream changes those images again, the rebase stops on
+  a binary conflict instead). Our 448×605 `setup-logo-mask.png` gets its own
+  `setup-logo-shine.png` (2048×605, generated, no upstream artwork), loaded with it in
+  `BootAnimation::android()`; with Android's 128-pixel shine most of it stayed dark. The commits
+  that edited `android-logo-mask.png` on the way no longer touch it. Reason: no GrapheneOS
+  branding (doc 00), and no binary conflict on every rebase.
 - **2026-10-13, "Browser" in user 0:** Vanadium's launcher entry
   (`app.vanadium.browser/com.google.android.apps.chrome.Main`) is shown as "Browser" in user 0
   through Android's per-user component label override, applied by system_server at boot

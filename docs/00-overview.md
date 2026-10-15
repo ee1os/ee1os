@@ -124,7 +124,9 @@ What the design aims to provide:
   shows our own (doc 04, boot logo). GrapheneOS's branch `17` added its own animation
   (`bootanimation_zip` from the new `branding` repo, listed in build/make
   `target/product/base_product.mk`); our `platform_build` fork filters it back out, so it isn't
-  installed once a release brings it in. Reason: the project is described as a fork of
+  installed once a release brings it in. Upstream also lists it in
+  `target/product/generic/Android.bp` (`product_image_defaults`), which only GSI images use,
+  not husky or the emulator; if we ever build those, drop it there too. Reason: the project is described as a fork of
   GrapheneOS, not branded as it (doc 07 R7).
 - **2026-10-15: we follow GrapheneOS stable release tags only, by rebase.** Upstream's branch
   `17` is their development line between releases; it is never merged into `envs-17`, because
