@@ -275,6 +275,14 @@ model; with one holder and one build machine that buys little here. A new model 
 still needs its own build: the images carry that model's kernel, drivers and firmware.
 Moving a model to its own keys later means a wipe and reinstall on its phones.
 
+No security preview releases (decided 2026-10-15, T9 U2): GrapheneOS's preview builds carry
+embargoed patches we don't get, so there is nothing to publish on those channels. The Updater
+fork ignores and hides the opt-in and no longer offers its screen, which makes setup skip that
+step (`UpdaterSecurityPreviewActivity`, SetupWizard2). Each release publishes every channel
+file the Updater can ask for (stable, beta and alpha for a user build, all the same build) and
+a `-security-preview` copy of each for phones that opted in on 2026101406, the only build that
+offered it. Reason: a phone asking for a missing channel file never updates, silently.
+
 Checklist for the first session, shell first so the hour goes to what only hardware shows
 (userdebug-style `adb` access is assumed for the shell steps; on a user build use the
 screens). Record each result in `tests/results/` like the emulator runs.
