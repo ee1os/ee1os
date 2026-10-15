@@ -90,6 +90,6 @@ $section" \
         "${uploads[@]/#/$out/}" "$out/SHA256SUMS-$bn"
 fi
 
-/mnt/tank/scripts/notify-telegram.sh "os.ivan.gg $bn $DEVICE ($VARIANT) published: https://github.com/$REPO/releases/tag/$bn" \
+/mnt/tank/scripts/notify-telegram.sh "os.ivan.gg $bn $DEVICE ($VARIANT) published: https://github.com/$REPO/releases/tag/$bn" 890 \
     > /dev/null 2>&1 || true
 echo "published $bn"

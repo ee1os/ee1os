@@ -12,7 +12,7 @@ commits touching files our forks change, and commits in the areas this project d
 
 Writes a report to $WS/upstream-watch/. If anything is flagged and the executable
 $WS/state/review-hook exists, it is run with the report path and its output is saved next to
-the report as <report>-review.md. preview notifies klava hq only about flags not seen before.
+the report as <report>-review.md. preview notifies klava hq (OS topic) only about flags not seen before.
 check exits 10 when anything is flagged, 0 when not, 1 on errors. DRY_RUN=1: no notification.
 """
 import json
@@ -28,6 +28,7 @@ TREE = f"{WS}/grapheneos-17"
 STATE = f"{WS}/state"
 OUT = f"{WS}/upstream-watch"
 NOTIFY = "/mnt/tank/scripts/notify-telegram.sh"
+TOPIC = "890"     # klava hq, "OS" topic
 GH_ORG = "GrapheneOS"
 
 # tree path -> repo name, for every project we change (as in track-upstream.sh)
@@ -256,7 +257,7 @@ def main():
             if review:
                 msg.append("\n" + summary(review))
             msg.append(f"\nReport: {rpath}")
-            if subprocess.run([NOTIFY, "\n".join(msg)[:3900]]).returncode == 0:
+            if subprocess.run([NOTIFY, "\n".join(msg)[:3900], TOPIC]).returncode == 0:
                 with open(seen_path, "a") as f:
                     f.writelines(k + "\n" for k, _ in fresh)
         return 0

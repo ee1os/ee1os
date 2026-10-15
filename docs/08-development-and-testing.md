@@ -64,7 +64,7 @@ and to this repo.
   change, and commits in the areas we depend on (credentials, duress, keyguard, boot animation
   and branding, product packages, Updater, setup, users, storage, private space). Routine
   changes are listed, not flagged. Reports go to `upstream-watch/` next to the tree; new
-  flags go to klava hq once. If `state/review-hook` is an executable, it gets each flagged
+  flags go to klava hq (OS topic) once. If `state/review-hook` is an executable, it gets each flagged
   report and its impact review is saved as `<report>-review.md` and quoted in the message
   (the hook is local to n5, not part of this repo).
 - **Strategic releases wait for the owner:** `track-upstream.sh` runs `upstream-watch.py check
@@ -77,7 +77,7 @@ and to this repo.
   `upstream-watch.log` and `track-upstream.log` next to the tree.
 - **Scripts:** `scripts/track-upstream.sh` (follow GrapheneOS, `DRY_RUN=1` to only detect),
   `scripts/release.sh` (sign and publish, run by the owner), `scripts/pack-flash.sh` (images
-  for `fastboot flashall`). All report to klava hq through `/mnt/tank/scripts/notify-telegram.sh`.
+  for `fastboot flashall`). All report to klava hq, topic "OS" (890), through `/mnt/tank/scripts/notify-telegram.sh`.
 
 ## Build container
 

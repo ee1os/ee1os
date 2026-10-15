@@ -8,7 +8,7 @@
 # A release with strategic changes (scripts/upstream-watch.py check: new projects, branding,
 # areas we depend on, files our forks change) stops after step 4, built but not pushed, until
 # the owner approves it: APPROVE=<tag> track-upstream.sh pushes it.
-# Every outcome goes to klava hq (NET topic). Signing and publishing stay manual: release.sh.
+# Every outcome goes to klava hq (OS topic, 890). Signing and publishing stay manual: release.sh.
 #   DRY_RUN=1 track-upstream.sh   only detect and print, no notification, no changes
 #   FORCE_TAG=<tag>               process this tag even if it was done before
 #   APPROVE=<tag>                 push a release held for approval
@@ -36,7 +36,7 @@ log() { echo "$(date -Is) $*" >> "$LOG"; }
 notify() {
     log "$*"
     if [ "$DRY" = 1 ]; then echo "$*"; return; fi
-    /mnt/tank/scripts/notify-telegram.sh "os.ivan.gg: $*" || log "notify failed"
+    /mnt/tank/scripts/notify-telegram.sh "os.ivan.gg: $*" 890 || log "notify failed"
 }
 fail() { notify "$*"; exit 1; }
 
