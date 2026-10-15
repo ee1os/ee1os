@@ -58,6 +58,23 @@ and to this repo.
      `git push -f fork envs-17`; the script keeps the old base per repo in `state/base/`;
   3. rebuild, rerun the regression gate (below), update pinned SHAs in doc 01, re-verify
      line references (backlog B1).
+- **Watching upstream between releases:** `scripts/upstream-watch.py preview` (nightly) compares
+  our release tag with upstream branch `17` and flags what needs a decision before the next
+  release: projects added or removed, a new AOSP base, commits touching files our forks
+  change, and commits in the areas we depend on (credentials, duress, keyguard, boot animation
+  and branding, product packages, Updater, setup, users, storage, private space). Routine
+  changes are listed, not flagged. Reports go to `upstream-watch/` next to the tree; new
+  flags go to klava hq once. If `state/review-hook` is an executable, it gets each flagged
+  report and its impact review is saved as `<report>-review.md` and quoted in the message
+  (the hook is local to n5, not part of this repo).
+- **Strategic releases wait for the owner:** `track-upstream.sh` runs `upstream-watch.py check
+  <tag>` first. If it flags anything, the release is synced, rebased, built and gated as usual
+  but not pushed; the message links the report. `APPROVE=<tag> scripts/track-upstream.sh`
+  pushes it (refused if a fork's `envs-17` moved since the build). Routine releases go through
+  on their own.
+- **Schedule** (TrueNAS cron, `sudo midclt call cronjob.query`): job 25 runs the preview at
+  00:30, job 26 `track-upstream.sh` at 01:00 (n5 time, Europe/Lisbon). Logs:
+  `upstream-watch.log` and `track-upstream.log` next to the tree.
 - **Scripts:** `scripts/track-upstream.sh` (follow GrapheneOS, `DRY_RUN=1` to only detect),
   `scripts/release.sh` (sign and publish, run by the owner), `scripts/pack-flash.sh` (images
   for `fastboot flashall`). All report to klava hq through `/mnt/tank/scripts/notify-telegram.sh`.

@@ -5,9 +5,13 @@
 #   3. rebase our envs-17 branches onto it (stops on a conflict)
 #   4. build husky userdebug, run the gate (tests/gate.sh, if present)
 #   5. push the rebased branches and the manifest, tag them <tag>.os
+# A release with strategic changes (scripts/upstream-watch.py check: new projects, branding,
+# areas we depend on, files our forks change) stops after step 4, built but not pushed, until
+# the owner approves it: APPROVE=<tag> track-upstream.sh pushes it.
 # Every outcome goes to klava hq (NET topic). Signing and publishing stay manual: release.sh.
 #   DRY_RUN=1 track-upstream.sh   only detect and print, no notification, no changes
 #   FORCE_TAG=<tag>               process this tag even if it was done before
+#   APPROVE=<tag>                 push a release held for approval
 set -uo pipefail
 
 WS=/mnt/flash/scratch/grapheneos
@@ -36,11 +40,67 @@ notify() {
 }
 fail() { notify "$*"; exit 1; }
 
+publish() {
+    # 5. publish the source: rebased branches, a tag per upstream release, the manifest
+    for e in "${FORKS[@]}"; do
+        p=${e%%:*} name=${e##*:}
+        cd "$TREE/$p" || exit 1
+        git tag -f "$tag.os" envs-17 > /dev/null
+        git push -q --force "$ORG/$name.git" envs-17 "refs/tags/$tag.os" >> "$LOG" 2>&1 \
+            || fail "push of $p failed"
+        git rev-parse "refs/tags/$tag" > "$STATE/base/$name"
+    done
+    m=$(mktemp -d)
+    # A release tag's default.xml is a fully pinned rewrite, so our commits don't rebase onto it.
+    # Rebuild instead: the tag's manifest, our envs.xml, and an include of it at the end.
+    remanifest() {
+        git -C "$m" fetch -q "$UPSTREAM/platform_manifest" "refs/tags/$tag" || return 1
+        git -C "$m" show HEAD:envs.xml > "$m.envs" || return 1
+        git -C "$m" checkout -q -B envs-17 FETCH_HEAD || return 1
+        mv "$m.envs" "$m/envs.xml"
+        grep -q '<include name="envs.xml"/>' "$m/default.xml" \
+            || sed -i 's|</manifest>|\n  <include name="envs.xml"/>\n</manifest>|' "$m/default.xml"
+        git -C "$m" add envs.xml default.xml && git -C "$m" commit -q -m "Use the os-ivan-gg forks"
+    }
+    if git clone -q -b envs-17 "$ORG/manifest.git" "$m" \
+        && remanifest \
+        && git -C "$m" tag -f "$tag.os" \
+        && git -C "$m" push -q --force origin envs-17 "refs/tags/$tag.os"; then
+        log "manifest rebased onto $tag"
+    else
+        notify "manifest rebase onto $tag failed; the forks are pushed"
+    fi
+    rm -rf "$m"
+
+    echo "$tag" > "$STATE/upstream-tag"
+    "$ENVS/scripts/pack-flash.sh" >> "$LOG" 2>&1
+    notify "build $bn on GrapheneOS $tag is ready: built, gate passed, source pushed. Flash archive: husky-flash.tar.gz. Release with scripts/release.sh $bn after a phone check."
+}
+
 exec 9> "$STATE/track.lock"
 flock -n 9 || exit 0
 # never start next to a running build
 if sudo docker ps --format '{{.Names}}' | grep -qx grapheneos-build; then
     log "a build is running, skipped"
+    exit 0
+fi
+
+# a release held for approval: push it when approved, otherwise wait
+if [ -s "$STATE/held-tag" ]; then
+    held=$(cat "$STATE/held-tag")
+    if [ "${APPROVE:-}" != "$held" ]; then
+        log "$held is held for approval (APPROVE=$held track-upstream.sh)"
+        exit 0
+    fi
+    tag=$held bn=$(cat "$STATE/held-bn")
+    for e in "${FORKS[@]}"; do
+        p=${e%%:*} name=${e##*:}
+        [ "$(git -C "$TREE/$p" rev-parse envs-17)" = "$(cat "$STATE/held/$name")" ] \
+            || fail "approval of $tag: envs-17 in $p moved since the build; not pushed"
+    done
+    notify "$tag approved, pushing."
+    publish
+    rm -rf "$STATE/held-tag" "$STATE/held-bn" "$STATE/held"
     exit 0
 fi
 
@@ -54,6 +114,10 @@ if [ "$tag" = "$last" ] && [ -z "${FORCE_TAG:-}" ]; then
 fi
 [ "$DRY" = 1 ] && { echo "new GrapheneOS release $tag (last done: $last)"; exit 0; }
 notify "GrapheneOS $tag is out (ours is on $last). Syncing, rebasing, building."
+
+# strategic changes hold the push for the owner (step 4b); a failed check counts as strategic
+watch=$("$ENVS/scripts/upstream-watch.py" check "$tag" 2>> "$LOG"); wrc=$?
+log "upstream-watch check $tag: exit $wrc, $(echo $watch)"
 
 # uncommitted work in a fork would be lost or mixed in
 for e in "${FORKS[@]}"; do
@@ -99,37 +163,22 @@ if [ -x "$ENVS/tests/gate.sh" ]; then
         || fail "build $bn on GrapheneOS $tag built but the test gate failed; not pushed."
 fi
 
-# 5. publish the source: rebased branches, a tag per upstream release, the manifest
-for e in "${FORKS[@]}"; do
-    p=${e%%:*} name=${e##*:}
-    cd "$TREE/$p" || exit 1
-    git tag -f "$tag.os" envs-17 > /dev/null
-    git push -q --force "$ORG/$name.git" envs-17 "refs/tags/$tag.os" >> "$LOG" 2>&1 \
-        || fail "push of $p failed"
-    git rev-parse "refs/tags/$tag" > "$STATE/base/$name"
-done
-m=$(mktemp -d)
-# A release tag's default.xml is a fully pinned rewrite, so our commits don't rebase onto it.
-# Rebuild instead: the tag's manifest, our envs.xml, and an include of it at the end.
-remanifest() {
-    git -C "$m" fetch -q "$UPSTREAM/platform_manifest" "refs/tags/$tag" || return 1
-    git -C "$m" show HEAD:envs.xml > "$m.envs" || return 1
-    git -C "$m" checkout -q -B envs-17 FETCH_HEAD || return 1
-    mv "$m.envs" "$m/envs.xml"
-    grep -q '<include name="envs.xml"/>' "$m/default.xml" \
-        || sed -i 's|</manifest>|\n  <include name="envs.xml"/>\n</manifest>|' "$m/default.xml"
-    git -C "$m" add envs.xml default.xml && git -C "$m" commit -q -m "Use the os-ivan-gg forks"
-}
-if git clone -q -b envs-17 "$ORG/manifest.git" "$m" \
-    && remanifest \
-    && git -C "$m" tag -f "$tag.os" \
-    && git -C "$m" push -q --force origin envs-17 "refs/tags/$tag.os"; then
-    log "manifest rebased onto $tag"
-else
-    notify "manifest rebase onto $tag failed; the forks are pushed"
+# 4b. hold strategic releases for the owner
+if [ "$wrc" != 0 ]; then
+    echo "$tag" > "$STATE/held-tag"; echo "$bn" > "$STATE/held-bn"; mkdir -p "$STATE/held"
+    for e in "${FORKS[@]}"; do
+        git -C "$TREE/${e%%:*}" rev-parse envs-17 > "$STATE/held/${e##*:}"
+    done
+    review=$(echo "$watch" | grep -- '-review.md$' | head -1)
+    sum=""
+    [ -n "$review" ] && sum=$(awk '/^#/{n++} n==2{exit} {print}' "$review" | head -c 2000)
+    [ "$wrc" = 10 ] && why="has changes that need a decision" || why="could not be checked (exit $wrc)"
+    notify "build $bn on GrapheneOS $tag is built and passed the gate, but the release $why. Not pushed.
+$sum
+Report: $(echo "$watch" | head -1)
+Push it with: APPROVE=$tag scripts/track-upstream.sh"
+    exit 0
 fi
-rm -rf "$m"
 
-echo "$tag" > "$STATE/upstream-tag"
-"$ENVS/scripts/pack-flash.sh" >> "$LOG" 2>&1
-notify "build $bn on GrapheneOS $tag is ready: built, gate passed, source pushed. Flash archive: husky-flash.tar.gz. Release with scripts/release.sh $bn after a phone check."
+# 5. publish the source
+publish
