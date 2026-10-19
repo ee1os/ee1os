@@ -24,7 +24,10 @@ corepack yarn install --cwd vendor/adevtool --frozen-lockfile
 vendor/adevtool/bin/run generate-all -d "$d"
 rm -rf "$keep"
 
-# the image just used is the newest; drop the older ones of this model
+# the image just used is the newest; drop the older ones of this model (best effort; the
+# unpacked trees are read-only)
 cd vendor/adevtool/dl
-ls -t "$d"-*-factory-*.zip 2>/dev/null | tail -n +2 | xargs -r rm -f
-ls -td unpacked/"$d"-* 2>/dev/null | tail -n +2 | xargs -r rm -rf
+ls -t "$d"-*-factory-*.zip 2>/dev/null | tail -n +2 | xargs -r rm -f || true
+for u in $(ls -td unpacked/"$d"-* 2>/dev/null | tail -n +2); do
+    chmod -R u+w "$u" && rm -rf "$u" || echo "couldn't remove $u"
+done
