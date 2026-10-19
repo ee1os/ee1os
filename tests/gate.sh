@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Regression gate on n5, run after a phone build (scripts/track-upstream.sh, or by hand):
 #   1. build the emulator target (ollama paused by emu-build.sh)
-#   2. start a wiped emulator
+#   2. start a wiped emulator and wait for its boot (one retry with a fresh one)
 #   3. run the alternate credential tests and the whole locksettings suite (atest)
 #   4. stop the emulator; exit non-zero if anything failed
 # Logs: /mnt/flash/scratch/grapheneos/gate-auth.log, gate-lss.log
@@ -14,20 +14,29 @@ cd "$WS" || exit 1
 ./emu-build.sh "$label" droid > /dev/null 2>&1
 sed -n "/=== $label/,\$p" build.log | grep -q 'BUILD_EXIT=0' || { echo "gate: emulator build failed"; exit 1; }
 
-sudo docker stop grapheneos-emu > /dev/null 2>&1 || true
-EMU_ARGS=-wipe-data "$RUN" emulator > /dev/null || { echo "gate: emulator didn't start"; exit 1; }
-
 # building the test module needs the build's memory limits, and ollama paused like a build
 sudo docker stop ollama > /dev/null && echo "$(date +%T) ollama stopped for the gate" >> mem.log
 trap 'sudo docker stop grapheneos-emu > /dev/null 2>&1
       sudo docker start ollama > /dev/null && echo "$(date +%T) ollama restarted after the gate" >> mem.log' EXIT
-JOBS=12 HIGHMEM=2 MEM=44g MEMSWAP=68g "$RUN" exec bash -c '
-  adb wait-for-device
-  for i in $(seq 120); do
-    [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = 1 ] && break
-    sleep 5
-  done
-  adb shell wm dismiss-keyguard; adb shell input keyevent 82
+# results of an earlier run must not count for this one
+rm -f "$WS/gate-auth.log" "$WS/gate-lss.log"
+
+# a wiped emulator, booted to the end; it sometimes hangs at boot (graphics pipe), so a
+# second try with a fresh one before giving up
+boot() {
+    sudo docker stop grapheneos-emu > /dev/null 2>&1 || true
+    EMU_ARGS=-wipe-data "$RUN" emulator > /dev/null || return 1
+    "$RUN" exec 'for i in $(seq 150); do
+        [ "$(timeout 10 adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = 1 ] && exit 0
+        sleep 5
+      done
+      exit 1' > /dev/null 2>&1
+}
+boot || { echo "gate: emulator didn't boot, trying a fresh one"; boot; } \
+    || { echo "gate: emulator didn't boot"; exit 1; }
+
+JOBS=12 HIGHMEM=2 MEM=44g MEMSWAP=68g "$RUN" exec '
+  timeout 60 adb shell wm dismiss-keyguard; timeout 60 adb shell input keyevent 82
   atest FrameworksServicesTests:com.android.server.locksettings.AlternateCredentialsTests \
       > /src/gate-auth.log 2>&1
   atest FrameworksServicesTests:com.android.server.locksettings > /src/gate-lss.log 2>&1
