@@ -86,7 +86,10 @@ and to this repo.
   the build container, ollama paused; the stock factory image is downloaded into
   `vendor/adevtool/dl/` when the release needs a new one. A failure stops the run like a failed
   build. Decided 2026-10-19: release 2026101600 moved adevtool and its first build failed at
-  product config. A build that ships any `bootanimation*.zip` is refused (no GrapheneOS boot animation,
+  product config. After the sync it also stops if any project has files missing from its
+  checkout: `repo sync` reported success for 2026101600 while `external/talkback` lacked its
+  prebuilt APK (objects never fetched); deleting that project and syncing it again fixed it.
+  A build that ships any `bootanimation*.zip` is refused (no GrapheneOS boot animation,
   doc 00). A release counts as done (`state/upstream-tag`) only when the forks and the manifest
   are pushed. The manifest's `envs-17` follows the fork branches; its `<tag>.os` tag sits on
   a commit that pins the forks to their `<tag>.os` tags, so a release can be synced again

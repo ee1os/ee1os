@@ -212,6 +212,10 @@ trap 'fail "track-upstream for $tag was stopped."' INT TERM HUP
 cd "$TREE" || fail "no tree."
 "$WS/bin/repo" init -b "refs/tags/$tag" >> "$LOG" 2>&1 || fail "repo init to $tag failed."
 "$WS/bin/repo" sync -j8 --force-sync >> "$WS/sync.log" 2>&1 || fail "repo sync to $tag failed (sync.log)."
+# a project whose objects didn't all arrive checks out with files missing, and repo still
+# reports success (external/talkback for 2026101600); a fresh sync of it fixes that
+broken=$("$WS/bin/repo" forall -j8 -c '[ -z "$(git ls-files --deleted | head -1)" ] || echo "$REPO_PATH"' 2>/dev/null | tr '\n' ' ')
+[ -z "$broken" ] || fail "sync to $tag left files missing in: $broken. Delete those projects (worktree and .repo/projects, .repo/project-objects) and sync them again."
 
 # 3. rebase each fork's envs-17 from its upstream base onto the tag
 for e in "${FORKS[@]}"; do
