@@ -5,7 +5,7 @@
 #   run.sh build [targets]    m -j$JOBS [targets]          (log: /src/build.log)
 #   run.sh emulator           start the emulator headless; adb at 127.0.0.1:5555 on n5
 #   run.sh emulator-stop      stop it
-#   run.sh exec <cmd...>      run a command with lunch done (adb, atest, tests/*.sh)
+#   run.sh exec <cmd...>      run a command with lunch done (adb, atest, tests/*.sh; NAME= names it)
 #   run.sh exec-it <cmd...>   the same with a terminal (prompts, e.g. the signing passphrase)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -62,7 +62,8 @@ case "${1:-}" in
     sudo docker stop grapheneos-emu ;;
   exec)
     shift
-    run "$IMAGE" bash -c "$setup; $*" ;;
+    # NAME=grapheneos-build makes it count as a build (guard.sh, the tracker's busy check)
+    run ${NAME:+--name "$NAME"} "$IMAGE" bash -c "$setup; $*" ;;
   exec-it)
     shift
     run -it "$IMAGE" bash -c "$setup; $*" ;;

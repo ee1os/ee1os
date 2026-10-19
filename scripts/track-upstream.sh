@@ -3,6 +3,7 @@
 #   1. detect a new stable tag for husky (releases.grapheneos.org)
 #   2. sync the tree to it
 #   3. rebase our envs-17 branches onto it (stops on a conflict)
+#   3b. regenerate the vendor modules (adevtool generate-all) if the sync moved adevtool
 #   4. build husky userdebug, run the gate (tests/gate.sh, if present)
 #   5. push the rebased branches and the manifest, tag them <tag>.os
 # A release with strategic changes (scripts/upstream-watch.py check: new projects, branding,
@@ -58,6 +59,13 @@ fail() {
     if [ "$RESTORE" = 1 ]; then restore; notify "$* Forks put back as they were."; else notify "$*"; fi
     exit 1
 }
+# the adevtool commit a vendor module was generated with (its adevtool-version-check.mk)
+module_rev() { sed -n 's/.*rev-parse HEAD),\([0-9a-f]\{40\}\)).*/\1/p' \
+    "$TREE/vendor/google_devices/$1/adevtool-version-check.mk" 2>/dev/null; }
+# the models to keep buildable, $DEVICE first: every one with keys or a vendor module (release.sh
+# builds them from this tree)
+models() { { echo "$DEVICE"; command ls "$TREE/keys" "$TREE/vendor/google_devices"; } 2>/dev/null \
+    | grep -E '^[a-z0-9]+$' | awk '!s[$0]++'; }
 dry() { if [ "$DRY" = 1 ]; then echo "DRY_RUN: $*"; exit 0; fi; }
 
 # 5. publish the source: rebased branches with a <tag>.os tag each, then the manifest. Returns
@@ -170,6 +178,14 @@ if [ -z "${FORCE_TAG:-}" ]; then
     if [ "$tag" = "$last" ]; then dry "no new release ($tag)"; log "no new release ($tag)"; exit 0; fi
     if [ "$tag" = "$(cat "$STATE/skipped-tag" 2>/dev/null)" ]; then log "$tag was skipped"; exit 0; fi
 fi
+if [ "$DRY" = 1 ]; then
+    # the adevtool the tag pins, from its manifest; the sync would move the tree to it
+    at=$(curl -fsS -m 30 "https://raw.githubusercontent.com/GrapheneOS/platform_manifest/refs/tags/$tag/default.xml" \
+        | sed -n 's/.*path="vendor\/adevtool"[^>]*revision="\([0-9a-f]\{40\}\)".*/\1/p')
+    for d in $(models); do
+        [ "$(module_rev "$d")" = "${at:-?}" ] || echo "DRY_RUN: would regenerate the $d vendor module (adevtool ${at:-unknown})"
+    done
+fi
 dry "new GrapheneOS release $tag (ours: $last)"
 notify "GrapheneOS $tag is out (ours is on $last). Syncing, rebasing, building."
 
@@ -190,6 +206,7 @@ for e in "${FORKS[@]}"; do
     git -C "$TREE/$p" rev-parse envs-17 > "$STATE/pre/$name"
 done
 RESTORE=1
+trap 'fail "track-upstream for $tag was stopped."' INT TERM HUP
 
 # 2. sync everything to the tag; the forks follow envs-17 (local manifest) and are rebased below
 cd "$TREE" || fail "no tree."
@@ -208,6 +225,37 @@ for e in "${FORKS[@]}"; do
         fail "rebase onto $tag conflicts in $p: $files. Needs a hand."
     fi
     log "$p rebased onto $tag ($(git rev-list --count "refs/tags/$tag"..HEAD) commits)"
+done
+
+# 3b. vendor modules (vendor/google_devices/<model>) are generated, not synced, and refuse to
+# build once the tree's adevtool moves past the commit they were made with. Regenerate them in
+# the build container (doc 08 Stage 6); the stock factory image goes to vendor/adevtool/dl/.
+at=$(git -C "$TREE/vendor/adevtool" rev-parse HEAD) || fail "no vendor/adevtool in the tree."
+for d in $(models); do
+    [ "$(module_rev "$d")" = "$at" ] && continue
+    # a new factory image (~5 GB) plus its unpacked copy (~6 GB) and the module
+    free=$(df -BG --output=avail "$TREE" | tail -1 | tr -dc 0-9)
+    [ "$free" -ge 25 ] || fail "only ${free} GB free in scratch; the $d vendor module for $tag needs about 25."
+    log "regenerating the $d vendor module for adevtool $at"
+    trap 'sudo docker start ollama > /dev/null' EXIT
+    sudo docker stop ollama > /dev/null && echo "$(date +%T) ollama stopped for adevtool $d" >> "$WS/mem.log"
+    (cd "$WS" && ./guard.sh) &
+    NAME=grapheneos-build JOBS=12 HIGHMEM=2 MEM=44g MEMSWAP=68g "$ENVS/workspace/build-env/run.sh" exec \
+        "$ENVS/scripts/vendor-module.sh $d" > "$WS/vendor-$d-$tag.log" 2>&1; vrc=$?
+    wait
+    if sudo docker start ollama > /dev/null; then
+        echo "$(date +%T) ollama restarted after adevtool $d" >> "$WS/mem.log"; trap - EXIT
+    else
+        notify "ollama didn't start again after the $d vendor module; start it by hand."
+    fi
+    if [ "$vrc" = 0 ] && [ "$(module_rev "$d")" = "$at" ]; then
+        log "$d vendor module regenerated"
+    elif [ "$d" = "$DEVICE" ]; then
+        fail "adevtool generate-all for $tag failed for $d (exit $vrc); see vendor-$d-$tag.log. Not pushed."
+    else
+        # another model doesn't hold up this build; it stays on its old module until fixed
+        notify "adevtool generate-all for $tag failed for $d (exit $vrc); see vendor-$d-$tag.log. Its old module is kept, so DEVICE=$d release.sh won't build until that is fixed. $DEVICE goes on."
+    fi
 done
 
 # 4. build and gate
