@@ -48,7 +48,7 @@ JOBS=12 HIGHMEM=2 MEM=44g MEMSWAP=68g "$RUN" exec '
 # the lock screen run sets its own PINs, so it gets a wiped emulator of its own
 krc=1
 if boot || boot; then
-    "$RUN" exec 'RES=/src/gate-keyguard.log timeout -k 30 900 /src/os-ivan-gg/tests/keyguard.sh' \
+    "$RUN" exec 'RES=/src/gate-keyguard.log timeout -k 30 1500 /src/os-ivan-gg/tests/keyguard.sh' \
         > /dev/null 2>&1
     krc=$?
 fi

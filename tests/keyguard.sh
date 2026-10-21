@@ -35,6 +35,18 @@ ui() {
 cur()   { sh_ am get-current-user; }
 shown() { sh_ dumpsys window | grep -m1 -oE 'isKeyguardShowing=[a-z]+' | cut -d= -f2; }
 top()   { sh_ dumpsys activity activities | grep -m1 topResumedActivity | grep -oE 'u[0-9]+ [^ ]+'; }
+# the bouncer's message line: a lockout shows "Try again in N seconds."
+# (minutes or hours too, for longer lockouts). uiautomator needs the screen idle for a moment and
+# the countdown changes every second, so a read is tried a few times
+msg()       { ui | tr '>' '\n' | grep -oE 'text="[^"]*(Try again|Wrong|Enter|PIN)[^"]*"' | head -3 | tr '\n' ' '; }
+countdown() {
+  local i
+  for i in 1 2 3; do
+    ui | grep -qE 'Try again in [0-9]+ (seconds?|minutes?|hours?)' && return 0
+    sleep 1
+  done
+  return 1
+}
 wait_user() {
   local i
   for i in $(seq 20); do [[ "$(cur)" == "$1" ]] && return 0; sleep 1; done
@@ -124,6 +136,20 @@ n="$(sh_ logcat -d | grep -c 'Verifying primary lockscreen credential for user 1
 [[ "$n" == 7 ]] && pass "all 7 entries reached the service" || fail "$n of 7 entries reached the service"
 [[ "$(cur)" == 0 ]] || fail "user $(cur) after the lockout entries"
 ui | grep -q 'id/key1' && pass "pad still up" || fail "pad gone during the lockout"
+countdown && pass "countdown shown" || fail "no countdown during the lockout (message: $(msg))"
+
+log "### only B in lockout: B's PIN shows B's countdown, and opens B once it ends"
+# A's unlock clears A's count only; one more wrong PIN then puts B alone into its next lockout
+# (6 failures, 5 min, SoftwareRateLimiter.java:107)
+sleep 65
+lock; bouncer && key_pin "$A_PIN"; opened 0 "A opens after the lockout"
+lock; bouncer && tap_pin 500006
+tap_pin "$B_PIN"
+if [[ "$(cur)" == 0 ]] && countdown; then pass "B's PIN during B's lockout: countdown, still user 0"
+else fail "B's PIN during B's lockout (user $(cur), message: $(msg))"; fi
+sleep 300
+lock; bouncer && tap_pin "$B_PIN"
+wait_user 10 && pass "B opens once its lockout ended" || fail "B didn't open after its lockout"
 
 log "results: $RES"
 log "result: $([[ $FAILS == 0 ]] && echo PASS || echo "FAIL ($FAILS)")"

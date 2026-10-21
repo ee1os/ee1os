@@ -517,7 +517,7 @@ fixes from that review are in.
   through the generic calls.
 - Dispatch: `LockSettingsService.dispatchCredential` (user 0 callers with the keyguard
   permission) checks user 0, then the protected user, then runs the duress and reboot hook
-  once for user 0. It returns the shorter of the two lockouts. SystemUI calls it from user
+  once for user 0. It returns the shorter of the two lockouts, or the only one (2026-10-21). SystemUI calls it from user
   0's primary pad (`KeyguardAbsKeyInputViewController`); on a protected-user match it marks
   that user in `KeyguardUpdateMonitor` and switches, and the protected user's bouncer then
   completes through `showNextSecurityScreenOrFinish` (SIM, secure lock device and admin
@@ -765,6 +765,17 @@ SetupWizard2 `9738860`); decisions below.
   boot, so after the protected space was set up it stayed in A's Security & privacy until the
   next boot (T9 F2). Setup now sends Settings a refresh for that one source
   (`LockSettingsService.refreshPrivateSpaceEntry`).
+- **2026-10-21, a lockout shows its countdown on user 0's pad, whoever's it is:** when an entry
+  matches nobody and A or B is in a lockout, dispatch returns the shorter lockout (or the only
+  one) and the bouncer shows "Try again in N seconds", with the pad still usable. Before, a
+  lockout of B alone was hidden behind A's "Wrong PIN", so B's correct PIN looked wrong or
+  dead for minutes (T11 8.1), and A's own countdown never showed (T11 7.2). A target in a
+  lockout is still not checked, so the countdown appears for any entry, never as a sign that
+  the entry was right. An entry that A's limiter refused unchecked no longer counts as an A
+  failure (failed-attempt policy, auto-confirm switching off at 5). SystemUI reads A's
+  lockout just before the check, so an entry in the same moment as A's lockout ending (or
+  starting from another check) can be counted one way too many. Accepted: one attempt either
+  way in that policy count; the service's own limiter is exact.
 
 ## Open questions
 
