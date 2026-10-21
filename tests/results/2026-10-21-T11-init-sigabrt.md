@@ -27,3 +27,17 @@ Crash this boot: pid 965 at 17:09:39.220. Kernel log:
 - The loaded policy has no `gpuflag` type: 0 matches in `vendor_sepolicy.cil`, `plat_sepolicy.cil`, `odm_sepolicy.cil`. So `setexeccon` returns EINVAL, and init's forked child aborts before exec.
 - Origin: `vendor/google_devices/husky/proprietary/vendor/etc/init/gpuflag.rc` and the `gpuflag` binary/aconfig lib come from the stock vendor image extracted for husky (`husky.mk` lines 373, 1243, 3285). The same files exist for stallion. No `gpuflag` policy anywhere in `device/` or `vendor/google_devices`. Nothing in os-ivan-gg touches these files or the sepolicy.
 - Conclusion: an upstream GrapheneOS packaging gap (the stock blob and its rc are shipped without the stock `gpuflag` SELinux domain), not ours. Effect: `gpuflag` never runs on any boot. Stock GrapheneOS husky should show the same line; not checked on a stock flash (no flashing on this phone). Fix options: drop `gpuflag.rc` from the vendor copy list, or add a `gpuflag` domain to the vendor sepolicy. Open: fix in the fork or leave it (nothing goes upstream).
+
+## Checked on the official GrapheneOS build (2026101600, offline)
+
+`husky-install-2026101600.zip` from releases.grapheneos.org (sha256 `b6692f9f…d45a48`, signature
+good for contact@grapheneos.org, `ssh-keygen -Y verify -n "factory images"`). Super images joined
+with `simg2img`, `vendor_a` taken with `lpunpack`, read with `debugfs`:
+
+- `/vendor/etc/init/gpuflag.rc` is there, same content: `exec_background u:r:gpuflag:s0 -- /vendor/bin/gpuflag`.
+- `/vendor/bin/gpuflag` is there (36016 bytes, 0755).
+- `gpuflag` appears nowhere in `/vendor/etc/selinux`: 0 hits in `vendor_sepolicy.cil`,
+  `vendor_file_contexts` and the compiled `precompiled_sepolicy`. Known vendor types in the same
+  files are found (`hal_authsecret_citadel`, `edgetpu_vendor_server`, `gpu_device`).
+
+So the official build ships the same rc without the domain and aborts the same way. Not ours.
