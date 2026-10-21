@@ -98,7 +98,8 @@ and to this repo.
   00:30, job 26 `track-upstream.sh` at 01:00 (n5 time, Europe/Lisbon). Logs:
   `upstream-watch.log` and `track-upstream.log` next to the tree.
 - **Scripts:** `scripts/track-upstream.sh` (follow GrapheneOS, `DRY_RUN=1` to only detect and
-  list the vendor modules it would regenerate), `scripts/vendor-module.sh` (adevtool, in the container),
+  list the vendor modules it would regenerate), `scripts/vendor-module.sh` (adevtool, in the container), `tests/gate.sh` (atest and
+  `tests/keyguard.sh` on the emulator),
   `scripts/release.sh` (sign and publish, run by the owner), `scripts/pack-flash.sh` (images
   for `fastboot flashall`). All report to klava hq, topic "OS" (890), through `/mnt/tank/scripts/notify-telegram.sh`.
 
@@ -206,7 +207,14 @@ Otherwise TradeFed reports the device unresponsive and reboots it (`sys.boot.rea
 (`tests/stage1.sh duress --yes-wipe`, then `EMU_ARGS=-wipe-data run.sh emulator`). Duress must
 still fire from every prompt it fires from today (doc 00 hard requirement). The script enters the
 duress PIN through `cmd lock_settings verify`; `adb shell input text` doesn't reach the keyguard
-bouncer on this build, so the keyguard itself is a T4 check.
+bouncer on this build. Taps on the pad keys and single key events do: `tests/keyguard.sh`
+types A's and B's PINs at the real bouncer both ways, locks B with an app open and checks that
+A's lock screen comes back with nothing of B on top, and that the pad still sends every entry
+during a lockout. Screenshots of the bouncer come out black (secure window), so it reads the
+screen with uiautomator. `tests/gate.sh` runs it on a second wiped emulator after the atest
+runs. Decided 2026-10-21: release 2026101600 changed the PIN pad's focus and the keyguard's
+occlusion right next to our dispatch, and no automatic check typed at the lock screen.
+Duress at the bouncer stays a T4/T5 check (it wipes).
 `DuressPasswordTest` can't run on goldfish: it asserts Weaver reads after every verify
 (`DuressPasswordTest.java:59`), so it runs at T5 on the test Pixel.
 
