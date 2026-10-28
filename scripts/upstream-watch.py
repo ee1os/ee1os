@@ -125,22 +125,33 @@ def main():
     except OSError:
         print("no $STATE/upstream-tag: the release tag we are on", file=sys.stderr)
         return 1
+    # a release held for the owner is already on envs-17: preview from there, not from the last push
+    try:
+        held = open(f"{STATE}/held-tag").read().strip()
+    except OSError:
+        held = ""
+    if mode == "preview" and held:
+        base = held
     target = "17" if mode == "preview" else sys.argv[2]
 
     old, old_aosp = manifest(base)
     new, new_aosp = manifest(target)
 
-    flags = []      # (key, text) strategic findings; key identifies it across runs
+    flags = []      # (key, text, short) strategic findings; key identifies it across runs,
+                    # short is the line for the notification
     report = []     # markdown lines
     patches = []    # (heading, patch) for flagged files
     routine = []
 
     if old_aosp != new_aosp:
-        flags.append((f"aosp:{new_aosp}", f"AOSP base changes: {old_aosp} -> {new_aosp}"))
+        flags.append((f"aosp:{new_aosp}", f"AOSP base changes: {old_aosp} -> {new_aosp}",
+                      f"new AOSP base {new_aosp}"))
     for n in sorted(set(new) - set(old)):
-        flags.append((f"added:{n}", f"new project {new[n][0]} ({n}, {new[n][2]})"))
+        flags.append((f"added:{n}", f"new project {new[n][0]} ({n}, {new[n][2]})",
+                      f"new project {new[n][0]}"))
     for n in sorted(set(old) - set(new)):
-        flags.append((f"removed:{n}", f"project removed: {old[n][0]} ({n})"))
+        flags.append((f"removed:{n}", f"project removed: {old[n][0]} ({n})",
+                      f"project removed: {old[n][0]}"))
 
     unchecked = []
     for n in sorted(new):
@@ -156,7 +167,8 @@ def main():
         if c is None:
             # GitHub can't relate the two revisions: history rewritten or the repo replaced
             flags.append((f"nocompare:{n}:{rev}",
-                          f"`{path}` can't be compared with our base (history rewritten?)"))
+                          f"`{path}` can't be compared with our base (history rewritten?)",
+                          f"{short(path)}: can't be compared, history rewritten?"))
             continue
         status = c.get("status")
         if status == "identical":
@@ -164,14 +176,17 @@ def main():
         if status in ("behind", "diverged"):
             # upstream went back or rewrote history: whatever it dropped isn't in the commit list
             flags.append((f"{status}:{n}:{rev}",
-                          f"`{path}` is {status} our base ({c.get('behind_by', 0)} commit(s) gone)"))
+                          f"`{path}` is {status} our base ({c.get('behind_by', 0)} commit(s) gone)",
+                          f"{short(path)}: upstream rewrote history, "
+                          f"{c.get('behind_by', 0)} commit(s) dropped"))
             if c.get("ahead_by", 0) == 0:
                 continue
         if c.get("total_commits", 0) > len(c.get("commits", [])) or len(c.get("files", [])) >= 300:
             # past GitHub's compare limits (250 commits, 300 files) a flagged file can hide
             flags.append((f"toolarge:{n}:{rev}",
                           f"`{path}`: {c.get('total_commits')} commits, {len(c.get('files', []))} "
-                          f"files, too large to check here"))
+                          f"files, too large to check here",
+                          f"{short(path)}: {c.get('total_commits')} commits, too many to check"))
         ours = fork_files(path, frm) if path in FORKS else set()
         files = {f["filename"]: f.get("patch", "") for f in c.get("files", [])}
         file_reasons = {}
@@ -204,7 +219,8 @@ def main():
             if kw:
                 why.append(f"keyword '{kw.group(0)}'")
             if why:
-                flags.append((f"commit:{cm['sha']}", f"{line} — {', '.join(why)}"))
+                flags.append((f"commit:{cm['sha']}", f"{line} — {', '.join(why)}",
+                              f"{short(path)}: {subject} [{', '.join(why)}]"))
             else:
                 routine.append(line)
         for f, why in file_reasons.items():
@@ -215,16 +231,19 @@ def main():
         seen = set(open(seen_path).read().split())
     except OSError:
         seen = set()
-    fresh = [(k, t) for k, t in flags if k not in seen]
+    fresh = [f for f in flags if f[0] not in seen]
 
     stamp = date.today().isoformat()
     name = f"{stamp}-{mode}-{base}-to-{target}"
     rpath = f"{OUT}/{name}.md"
     report.append(f"# GrapheneOS {base} -> {target} ({mode}, {stamp})\n")
+    if mode == "preview" and held:
+        report.append(f"Base {held} is a release held for the owner's approval; it is already on "
+                      f"envs-17 in the forks, not pushed yet.\n")
     report.append(f"Flagged: {len(flags)} ({len(fresh)} new since the last report). "
                   f"Routine: {len(routine)}.\n")
     report.append("## Flagged\n")
-    report += [f"- {'**new** ' if (k, t) in fresh else ''}{t}" for k, t in flags] or ["- none"]
+    report += [f"- {'**new** ' if f in fresh else ''}{f[1]}" for f in flags] or ["- none"]
     report.append("\n## Routine\n")
     report += [f"- {t}" for t in routine] or ["- none"]
     if unchecked:
@@ -261,26 +280,58 @@ def main():
         if fresh and os.environ.get("DRY_RUN") == "1":
             print(f"DRY_RUN: would notify about {len(fresh)} item(s)")
         elif fresh:
-            msg = [f"os.ivan.gg: upstream preview, GrapheneOS {base} -> branch 17: "
-                   f"{len(fresh)} new item(s) need a look before the next release."]
-            msg += [f"- {t}" for _, t in fresh[:15]]
-            if len(fresh) > 15:
-                msg.append(f"... and {len(fresh) - 15} more")
-            if review:
-                msg.append("\n" + summary(review))
-            msg.append(f"\nReport: {rpath}")
-            if subprocess.run([NOTIFY, "\n".join(msg)[:3900], TOPIC]).returncode == 0:
+            msg = notification(fresh, base, held, review, rpath)
+            if subprocess.run([NOTIFY, msg, TOPIC]).returncode == 0:
                 with open(seen_path, "a") as f:
-                    f.writelines(k + "\n" for k, _ in fresh)
+                    f.writelines(k + "\n" for k, _, _ in fresh)
         return 0
     return 10 if flags else 0
 
 
-def summary(path):
-    """The review up to its second heading (its summary section), for the notification."""
-    text = open(path).read().strip()
-    heads = [m.start() for m in re.finditer(r"^#{1,3} ", text, re.M)]
-    return text[:heads[1] if len(heads) > 1 else len(text)][:2000].strip()
+def short(path):
+    return path.removeprefix("packages/apps/")
+
+
+VERDICTS = {
+    "decision": "⚠️ Your decision needed before the next release",
+    "test": "🧪 Safe to take, but test before the next release",
+    "none": "✅ Nothing to do",
+}
+
+
+def notification(fresh, base, held, review, rpath):
+    """Plain-text Telegram message: verdict first, then what to do, then what changed."""
+    verdict, todo, notes = None, [], []
+    if review:
+        # the review's summary: "Verdict: ..." and "To do: ..." lines, then a few notes
+        text = open(review).read().replace("`", "")
+        heads = [m.start() for m in re.finditer(r"^#{1,3} ", text, re.M)]
+        for line in text[:heads[1] if len(heads) > 1 else len(text)].splitlines()[1:]:
+            line = line.strip().lstrip("-• ").strip()
+            if m := re.match(r"verdict:\s*(\w+)", line, re.I):
+                verdict = m.group(1).lower()
+            elif m := re.match(r"to ?do:\s*(.+)", line, re.I):
+                todo.append(m.group(1))
+            elif line:
+                notes.append(line)
+    head = VERDICTS.get(verdict, "👀 New upstream changes, not reviewed yet: please look")
+    msg = [f"os.ivan.gg · upstream watch", head, "",
+           f"GrapheneOS's dev branch moved past {base}: {len(fresh)} new change(s) "
+           f"in areas we care about."]
+    if todo:
+        msg += ["", "To do:"] + [f"• {t}" for t in todo]
+    msg += ["", "What changed:"] + [f"• {sh}" for _, _, sh in fresh[:10]]
+    if len(fresh) > 10:
+        msg.append(f"• … and {len(fresh) - 10} more")
+    if notes:
+        msg += ["", "Review:"] + [f"• {n}" for n in notes[:6]]
+    if held:
+        msg += ["", f"⏸ Release {held} is still waiting for you. In os-ivan-gg on n5:",
+                f"APPROVE={held} scripts/track-upstream.sh  (push it)",
+                f"SKIP={held} scripts/track-upstream.sh  (drop it)"]
+    msg += ["", f"Details: {review or rpath}"]
+    out = "\n".join(msg)
+    return out if len(out) <= 3900 else out[:3890] + "\n…"
 
 
 if __name__ == "__main__":

@@ -59,14 +59,16 @@ and to this repo.
   3. rebuild, rerun the regression gate (below), update pinned SHAs in doc 01, re-verify
      line references (backlog B1).
 - **Watching upstream between releases:** `scripts/upstream-watch.py preview` (nightly) compares
-  our release tag with upstream branch `17` and flags what needs a decision before the next
+  our release tag (or the release held for approval, which `envs-17` already carries) with
+  upstream branch `17` and flags what needs a decision before the next
   release: projects added or removed, a new AOSP base, commits touching files our forks
   change, and commits in the areas we depend on (credentials, duress, keyguard, boot animation
   and branding, product packages, Updater, setup, users, storage, private space). Routine
   changes are listed, not flagged. Reports go to `upstream-watch/` next to the tree; new
   flags go to klava hq (OS topic) once. If `state/review-hook` is an executable, it gets each flagged
-  report and its impact review is saved as `<report>-review.md` and quoted in the message
-  (the hook is local to n5, not part of this repo; the report is untrusted upstream text, so
+  report and its impact review is saved as `<report>-review.md`. The message leads with the
+  review's verdict (decision needed / test first / nothing to do) and its to-do lines, and
+  reminds about a held release with the `APPROVE=`/`SKIP=` commands (the hook is local to n5, not part of this repo; the report is untrusted upstream text, so
   the hook may only read files). Projects whose history went backwards or that are past
   GitHub's compare limits (250 commits, 300 files) are flagged as well.
 - **Strategic releases wait for the owner:** `track-upstream.sh` runs `upstream-watch.py check
