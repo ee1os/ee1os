@@ -171,3 +171,17 @@ What the design aims to provide:
   Both stay installable from Apps for anyone who wants them. The notification grant for
   `app.attestation.auditor` in `DefaultPermissionGrantPolicy.java:985` is left alone: it is a
   no-op when the package isn't there.
+- **2026-10-30: wallpapers: Earth for the main space, Mars for the protected space, one
+  shared set** (owner decision). frameworks/base `core/res/res/drawable-nodpi/default_wallpaper.webp`
+  is NASA's Blue Marble (replaces the stock AOSP image restored on 2026-10-12, and its three
+  PNGs). SetupWizard2 `res/drawable-nodpi/protected_wallpaper.webp` is Mars (Viking orbiter);
+  `WelcomeActions.setProtectedWallpaper` sets it once, when the protected space first starts
+  setup, so an existing protected space keeps its wallpaper until its user picks another. Both
+  spaces get the same 23 wallpapers in the picker, in four collections (Earth, Planets,
+  Abstract, Dark): the partner customization package `Ee1osWallpapers` in frameworks/base
+  `packages/Ee1osWallpapers` (`res/xml/wallpapers.xml`, read by ThemePicker through
+  `PARTNER_CUSTOMIZATION`; sources in its `NOTICE`), listed in build/make
+  `target/product/handheld_product.mk`. About 6 MB as WebP. Reason: our own look without
+  GrapheneOS's or Google's images; the NASA images are public domain, the rest are AOSP's or
+  made for the project (`scripts/wallpaper-patterns.py` draws four of them). Pixel wallpapers
+  are Google's and are not used.
