@@ -26,7 +26,7 @@ ENVS=/mnt/flash/home/faeton/work/os-ivan-gg
 STATE=$WS/state
 LOG=$WS/track-upstream.log
 DEVICE=husky
-ORG=https://github.com/os-ivan-gg
+ORG=https://github.com/ee1os
 UPSTREAM=https://github.com/GrapheneOS
 source "$ENVS/scripts/forks.sh"   # FORKS: tree path : repo name, for every project we change
 DRY=${DRY_RUN:-0}
@@ -36,7 +36,7 @@ log() { [ "$DRY" = 1 ] || echo "$(date -Is) $*" >> "$LOG"; }
 notify() {
     if [ "$DRY" = 1 ]; then echo "$*"; return; fi
     log "$*"
-    /mnt/tank/scripts/notify-telegram.sh "os.ivan.gg: $*" 890 || log "notify failed"
+    /mnt/tank/scripts/notify-telegram.sh "ee1os: $*" 890 || log "notify failed"
 }
 # put every fork's envs-17 back where it was before this run's rebase
 restore() {
@@ -93,7 +93,7 @@ $(echo "$out" | grep '^FAIL' | head -15)"; return 1; }
         mv "$m.envs" "$m/envs.xml"
         grep -q '<include name="envs.xml"/>' "$m/default.xml" \
             || sed -i 's|</manifest>|\n  <include name="envs.xml"/>\n</manifest>|' "$m/default.xml"
-        git -C "$m" add envs.xml default.xml && git -C "$m" commit -q -m "Use the os-ivan-gg forks" \
+        git -C "$m" add envs.xml default.xml && git -C "$m" commit -q -m "Use the ee1os forks" \
             || return 1
         git -C "$m" checkout -q --detach || return 1
         sed -i "s|revision=\"refs/heads/envs-17\"|revision=\"refs/tags/$tag.os\"|" "$m/envs.xml"

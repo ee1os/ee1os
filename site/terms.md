@@ -1,8 +1,8 @@
-<!-- Terms page draft for os.ivan.gg. Moves to the site repo. -->
+<!-- Terms page draft for ee1os. Moves to the site repo. -->
 
 # Terms
 
-**os.ivan.gg is a personal research and test project.** It is published for study and testing
+**ee1os is a personal research and test project.** It is published for study and testing
 only. It is alpha software: expect bugs, data loss, failed updates and features that change or
 disappear.
 
@@ -21,7 +21,7 @@ You use it entirely at your own risk.
 bootloader, which erases the device and may affect its warranty. Keep backups. Don't rely on
 this project to protect anyone's safety, freedom or data.
 
-**No support, no affiliation.** There is no guaranteed support. os.ivan.gg is an independent
+**No support, no affiliation.** There is no guaranteed support. ee1os is an independent
 fork of GrapheneOS, not affiliated with or endorsed by the GrapheneOS project; please don't
 ask GrapheneOS for help with it. GrapheneOS is a trademark of the GrapheneOS Foundation; Android
 and Pixel are trademarks of Google LLC.

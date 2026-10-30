@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build, sign and publish a release of os.ivan.gg for one model (DEVICE=<codename>, default husky).
+# Build, sign and publish a release of ee1os for one model (DEVICE=<codename>, default husky).
 # Signing reads the key passphrase from /mnt/flash/scratch/grapheneos/.secrets/key-passphrase, or asks for it in a terminal.
 # All models share the husky keys (doc 08 Stage 6); keys/<codename> is a copy of keys/husky.
 #   [DEVICE=shiba] release.sh [variant]     user (default; testers) or userdebug (the test phone's dev channel)
@@ -9,7 +9,7 @@
 #      previous build's outputs don't get signed); verify-tree.sh again after it
 #   2. finalize + generate-release (signing; prompts)  -> releases/<bn>/release-<codename>-<bn>/
 #   3. upload: the OTA zip and channel metadata replace the rolling "updates" release; the
-#      install zip gets a release of its own (github.com/os-ivan-gg/releases)
+#      install zip gets a release of its own (github.com/ee1os/releases)
 #   4. notify klava hq
 # PUBLISH=0 stops after step 2.
 set -euo pipefail
@@ -20,7 +20,7 @@ ENVS=/mnt/flash/home/faeton/work/os-ivan-gg
 RUN=$ENVS/workspace/build-env/run.sh
 DEVICE=${DEVICE:-husky}
 VARIANT=${1:-user}
-REPO=os-ivan-gg/releases
+REPO=ee1os/releases
 CHANNEL=$([ "$VARIANT" = user ] && echo stable || echo testing)
 PWFILE=$WS/.secrets/key-passphrase
 

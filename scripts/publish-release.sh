@@ -9,7 +9,7 @@ set -euo pipefail
 WS=/mnt/flash/scratch/grapheneos
 TREE=$WS/grapheneos-17
 DEVICE=${DEVICE:-husky}
-REPO=os-ivan-gg/releases
+REPO=ee1os/releases
 bn=${1:?build number}
 VARIANT=${2:-user}
 CHANNEL=$([ "$VARIANT" = user ] && echo stable || echo testing)
@@ -85,7 +85,7 @@ if [ "$VARIANT" = user ] && gh release view "$bn" -R "$REPO" > /dev/null 2>&1; t
 $section"
     rm -rf "$tmp"
 elif [ "$VARIANT" = user ]; then
-    gh release create "$bn" -R "$REPO" --title "os.ivan.gg $bn" \
+    gh release create "$bn" -R "$REPO" --title "ee1os $bn" \
         --notes "Factory images. Based on GrapheneOS $base.
 
 Verified boot key fingerprint (SHA-256 of avb_pkmd.bin), the same for every model:
@@ -100,6 +100,6 @@ $section" \
         "${uploads[@]/#/$out/}" "$out/SHA256SUMS-$bn"
 fi
 
-/mnt/tank/scripts/notify-telegram.sh "os.ivan.gg $bn $DEVICE ($VARIANT) published: https://github.com/$REPO/releases/tag/$bn" 890 \
+/mnt/tank/scripts/notify-telegram.sh "ee1os $bn $DEVICE ($VARIANT) published: https://github.com/$REPO/releases/tag/$bn" 890 \
     > /dev/null 2>&1 || true
 echo "published $bn"

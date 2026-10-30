@@ -315,7 +315,7 @@ def notification(fresh, base, held, review, rpath):
             elif line:
                 notes.append(line)
     head = VERDICTS.get(verdict, "👀 New upstream changes, not reviewed yet: please look")
-    msg = [f"os.ivan.gg · upstream watch", head, "",
+    msg = [f"ee1os · upstream watch", head, "",
            f"GrapheneOS's dev branch moved past {base}: {len(fresh)} new change(s) "
            f"in areas we care about."]
     if todo:

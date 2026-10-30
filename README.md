@@ -1,4 +1,6 @@
-# os.ivan.gg
+# ee1os
+
+ee·1·os: two environments, one OS. [ee1os.com](https://ee1os.com)
 
 An Android OS based on [GrapheneOS](https://grapheneos.org) where the PIN you type decides what
 opens: the everyday profile, a protected space with its own keys, an immediate reboot to the
@@ -8,7 +10,7 @@ fully locked state, or a wipe.
 > liability of any kind. Not affiliated with or endorsed by the GrapheneOS project.
 
 This repo holds the design docs, test scripts, build tooling and per-feature patches. The code
-itself is on the `envs-17` branch of the forks in [os-ivan-gg](https://github.com/os-ivan-gg).
+itself is on the `envs-17` branch of the forks in [ee1os](https://github.com/ee1os).
 
 ## Docs
 
@@ -31,7 +33,7 @@ scripts/              local manifest (forks), source sync
 workspace/build-env/  build container (Dockerfile, run.sh)
 tests/                stage test scripts; results/ holds run records
 patches/              format-patch export per stage
-site/                 os.ivan.gg page drafts (moving to the site repo)
+site/                 ee1os.com page drafts (moving to the site repo)
 ```
 
 ## Building

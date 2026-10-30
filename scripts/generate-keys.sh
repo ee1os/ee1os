@@ -8,6 +8,7 @@
 # Refuses to touch existing keys. Keep one more copy offline.
 set -euo pipefail
 DEVICE=husky
+# husky's keys (2026-10-13) carry the project's earlier name; a phone keeps its key.
 CN=os.ivan.gg
 WS=/mnt/flash/scratch/grapheneos
 ENVS=/mnt/flash/home/faeton/work/os-ivan-gg

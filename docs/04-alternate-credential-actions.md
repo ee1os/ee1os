@@ -744,6 +744,10 @@ SetupWizard2 `9738860`); decisions below.
   `BootAnimation::android()`; with Android's 128-pixel shine most of it stayed dark. The commits
   that edited `android-logo-mask.png` on the way no longer touch it. Reason: no GrapheneOS
   branding (doc 00), and no binary conflict on every rebase.
+- **2026-10-30, setup logo says ee1os:** `setup-logo-mask.png` now reads "ee1os" (same 448×605
+  canvas, text centred where "os.ivan.gg" was, Archivo as on the site; the `1` has a flag and a
+  foot so it doesn't read as `l`). The shine is unchanged. Reason: the rename (doc 00 decision
+  2026-10-30).
 - **2026-10-13, "Browser" in user 0:** Vanadium's launcher entry
   (`app.vanadium.browser/com.google.android.apps.chrome.Main`) is shown as "Browser" in user 0
   through Android's per-user component label override, applied by system_server at boot
