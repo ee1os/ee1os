@@ -233,6 +233,16 @@ What the emulator can't show: secure-element / Weaver throttling (goldfish has n
 so lockout is the software limiter, doc 03), eSIM wipe, verified boot with our own key, A/B
 slots (goldfish is not A/B, doc 06).
 
+**The test Pixel** (Pixel 8 Pro `3A101FDJG000C4`) holds real data in B since 2026-10-30: updates
+by OTA, tests over adb only. No wipe, `-w` flash or duress PIN on it without the owner's OK for
+that run; duress-wipe tests run on another device. Its USB-C port is set to "Charging-only when
+locked, except before first unlock" (T12). Leaving B with the power button switches to A's
+locked lock screen and adb disappears (from the Mac's USB list too) until A is unlocked: the new
+USB session after the switch counts as locked. Locking inside A, and locking B after a
+reboot-PIN boot (A still before first unlock), keep adb (T13). Drivers stop at that step and
+wait for the owner to unlock A; don't count the steps run meanwhile as results. Not yet
+confirmed against the setting itself (shell can't read `persist.security.usb_mode`).
+
 ## Phases
 
 Each stage from the roadmap runs through the same steps: read → build → test → record. The
