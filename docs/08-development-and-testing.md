@@ -16,17 +16,28 @@ GrapheneOS builds only on x86_64 Linux (<https://grapheneos.org/build>).
 
 ## Layout on n5
 
+One folder, `~/work/ee1os`; work starts there.
+
 ```
-/mnt/flash/scratch/grapheneos/          (= ~/work/grapheneos; not snapshotted, not backed up)
-  grapheneos-17/                        repo tree, branch 17 + local manifest
-    .repo/local_manifests/envs.xml  ->  ee1os/scripts/envs-local-manifest.xml
-    out/                                build output (~100 GiB)
-  ee1os/                            ->  ~/work/ee1os  (this repo; backed up)
-  bin/repo                              repo launcher
-  build.log, sync.log
+~/work/ee1os/                           flash/home: snapshots, tank, vv
+  (local notes, in no repo)
+  os/                                   this repo (github.com/ee1os/ee1os)
+  site/                                 the site (github.com/ee1os/site)
+  keys/                                 signing keys backup, archive/ for retired keys (700)
+  build/                            ->  /mnt/flash/scratch/grapheneos (not snapshotted, not backed up)
+    grapheneos-17/                      repo tree, branch 17 + local manifest
+      .repo/local_manifests/envs.xml -> ee1os/scripts/envs-local-manifest.xml
+      keys/                             signing keys used by release.sh
+      out/                              build output (~100 GiB)
+    ee1os/                          ->  ~/work/ee1os/os (seen as /src/ee1os in the build container)
+    .secrets/                           key passphrase (owner-only)
+    bin/repo                            repo launcher
+    build.log, sync.log, state/
+/mnt/tank/scripts/ee1os/                review hook for upstream-watch.py (outside the repo)
 ```
 
-Nothing that can't be rebuilt lives under `flash/scratch`. Commits go to the forks on GitHub
+Nothing that can't be rebuilt lives under `flash/scratch`, except `.secrets/`, which is kept
+out of the backups on purpose. Commits go to the forks on GitHub
 and to this repo.
 
 ## Source control
@@ -41,7 +52,7 @@ and to this repo.
   animation out, doc 00). Add
   `platform_system_vold` only if a stage needs it. The local manifest
   (`scripts/envs-local-manifest.xml`) points those projects at the forks; everything else syncs
-  from GrapheneOS. Other repos: `ee1os` (this one, `~/work/ee1os`), `manifest`, `releases`, `site`, and
+  from GrapheneOS. Other repos: `ee1os` (this one, `~/work/ee1os/os`), `manifest`, `releases`, `site`, and
   `.github` (the organization's front page).
 - Work in the tree: `repo start dev frameworks/base packages/apps/Settings`, commit there,
   push with `git push fork HEAD:envs-17`. n5 has no GitHub SSH key; push over HTTPS
@@ -381,14 +392,14 @@ Owner-run, in order:
    `verify-tree.sh` stops the release build.
 3. **New keys** on n5: `scripts/generate-keys.sh --rotate`. It checks the tree's keys match the
    backup, asks for `ROTATE`, moves the current keys to `grapheneos-17/keys/archive/<date>-65894abf/`
-   and `~/work/ee1os-keys/archive/<date>-65894abf/`, the passphrase file to
+   and `~/work/ee1os/keys/archive/<date>-65894abf/`, the passphrase file to
    `.secrets/archive/`, then asks for a new passphrase (twice, at least 12 characters), makes
    the keys in the container, backs them up and copies them for every model that had keys.
    It prints the new fingerprint. If it stops after archiving, run `scripts/generate-keys.sh`
    without `--rotate`, then copy the keys for the other models (`cp -a keys/husky
    keys/stallion`). At the end it asks whether to save the passphrase in
    `.secrets/key-passphrase` (mode 600), so `release.sh` signs without asking.
-4. **Offline copy** of `~/work/ee1os-keys/` (the new keys and the archive) next to the
+4. **Offline copy** of `~/work/ee1os/keys/` (the new keys and the archive) next to the
    existing offline copy. Keep the old passphrase with the old keys.
 5. **Fingerprint**: `scripts/set-fingerprint.sh` puts the new one on the site pages, in both
    install scripts and their tests, the release notes template and this doc. Run the site's
@@ -398,7 +409,7 @@ Owner-run, in order:
    `grapheneos-17/releases/<bn>/release-husky-<bn>/husky-install-<bn>.zip`. On m3max, copy it
    and the new installer:
    `scp n5:/mnt/flash/scratch/grapheneos/grapheneos-17/releases/<bn>/release-husky-<bn>/husky-install-<bn>.zip .`
-   and `scp n5:work/ee1os-site/scripts/install.sh .`
+   and `scp n5:work/ee1os/site/scripts/install.sh .`
 7. **Phone**: in user 0, Settings → System → Developer options → OEM unlocking on (needs a
    network connection). Then on m3max: `bash install.sh --zip husky-install-<bn>.zip`. It
    checks the zip's key against the new fingerprint, asks for `UNLOCK` (confirm on the phone
@@ -407,7 +418,7 @@ Owner-run, in order:
 8. **Check**: the yellow boot notice shows the new fingerprint's first 8 characters;
    `adb shell getprop ro.boot.verifiedbootstate` = `yellow` once adb is on. Set up user 0, turn
    OEM unlocking off, rebuild B and the PINs, restore the backups. Don't test the duress PIN on
-   this phone (CLAUDE.md rule 8).
+   this phone.
 9. **Publish**: `DEVICE=husky scripts/publish-release.sh <bn> user` (updates channel and the
    install zip), then deploy the site (`./deploy.sh` in the site repo). OTAs work again from
    here. Record the run in `tests/results/`.

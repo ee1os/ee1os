@@ -27,7 +27,7 @@ set -uo pipefail
 
 WS=/mnt/flash/scratch/grapheneos
 TREE=$WS/grapheneos-17
-ENVS=/mnt/flash/home/faeton/work/ee1os
+ENVS=/mnt/flash/home/faeton/work/ee1os/os
 STATE=$WS/state
 SIGNERS=/mnt/tank/scripts/ee1os/allowed_signers
 GOS=$ENVS/scripts/grapheneos-allowed-signers

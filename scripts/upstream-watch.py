@@ -326,7 +326,7 @@ def notification(fresh, base, held, review, rpath):
     if notes:
         msg += ["", "Review:"] + [f"• {n}" for n in notes[:6]]
     if held:
-        msg += ["", f"⏸ Release {held} is still waiting for you. In ~/work/ee1os on n5:",
+        msg += ["", f"⏸ Release {held} is still waiting for you. In ~/work/ee1os/os on n5:",
                 f"APPROVE={held} scripts/track-upstream.sh  (push it)",
                 f"SKIP={held} scripts/track-upstream.sh  (drop it)"]
     msg += ["", f"Details: {review or rpath}"]

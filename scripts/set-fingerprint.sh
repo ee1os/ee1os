@@ -6,8 +6,8 @@
 set -euo pipefail
 
 WS=/mnt/flash/scratch/grapheneos
-ENVS=/mnt/flash/home/faeton/work/ee1os
-SITE=/mnt/flash/home/faeton/work/ee1os-site
+ENVS=/mnt/flash/home/faeton/work/ee1os/os
+SITE=/mnt/flash/home/faeton/work/ee1os/site
 PKMD=${1:-$WS/grapheneos-17/keys/husky/avb_pkmd.bin}
 
 [ -s "$PKMD" ] || { echo "no $PKMD"; exit 1; }

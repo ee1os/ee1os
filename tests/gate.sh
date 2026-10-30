@@ -8,7 +8,7 @@
 # Logs: /mnt/flash/scratch/grapheneos/gate-auth.log, gate-lss.log, gate-keyguard.log
 set -uo pipefail
 WS=/mnt/flash/scratch/grapheneos
-RUN=/mnt/flash/home/faeton/work/ee1os/workspace/build-env/run.sh
+RUN=/mnt/flash/home/faeton/work/ee1os/os/workspace/build-env/run.sh
 label="emu build for the gate, $(date +%F_%H%M)"
 
 cd "$WS" || exit 1

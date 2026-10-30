@@ -6,10 +6,10 @@
 # Asks for one passphrase (hidden, typed twice) and uses it for every key, then copies the keys
 # to a backed-up folder and prints the fingerprint of the AVB public key for the install page.
 #   keys:   grapheneos-17/keys/husky/     (tree on flash/scratch, not backed up)
-#   backup: ~/work/ee1os-keys/husky/ (flash/home: snapshots, tank, vv)
+#   backup: ~/work/ee1os/keys/husky/ (flash/home: snapshots, tank, vv)
 # Never deletes keys. --rotate moves, for the current key fingerprint <fp>:
 #   grapheneos-17/keys/<model>/   -> grapheneos-17/keys/archive/<date>-<fp>/<model>/
-#   ~/work/ee1os-keys/husky/ -> ~/work/ee1os-keys/archive/<date>-<fp>/husky/
+#   ~/work/ee1os/keys/husky/ -> ~/work/ee1os/keys/archive/<date>-<fp>/husky/
 #   .secrets/key-passphrase       -> .secrets/archive/<date>-<fp>-key-passphrase
 # (keys/ and .secrets/ are hidden from builds, run.sh). All models get a copy of the new husky
 # keys (doc 08 Stage 6). Keep one more copy offline, old and new.
@@ -18,8 +18,8 @@ DEVICE=husky
 # The first keys (2026-10-13, 65894abf...) said CN=os.ivan.gg, the project's earlier name
 CN=ee1os
 WS=/mnt/flash/scratch/grapheneos
-ENVS=/mnt/flash/home/faeton/work/ee1os
-BACKUP=/mnt/flash/home/faeton/work/ee1os-keys
+ENVS=/mnt/flash/home/faeton/work/ee1os/os
+BACKUP=/mnt/flash/home/faeton/work/ee1os/keys
 
 if [ "${1:-}" = --rotate ]; then
     keys=$WS/grapheneos-17/keys

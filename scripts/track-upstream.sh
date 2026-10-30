@@ -22,7 +22,7 @@ set -uo pipefail
 
 WS=/mnt/flash/scratch/grapheneos
 TREE=$WS/grapheneos-17
-ENVS=/mnt/flash/home/faeton/work/ee1os
+ENVS=/mnt/flash/home/faeton/work/ee1os/os
 STATE=$WS/state
 LOG=$WS/track-upstream.log
 DEVICE=husky
