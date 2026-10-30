@@ -8,18 +8,21 @@
 #              the tag's manifest pins, an ancestor of HEAD, and state/base/<repo>
 #   projects   every other project at the revision of the tag's signed default.xml, and the tree
 #              has no project the manifest doesn't list; .repo/local_manifests is only envs.xml
-#   clean      no uncommitted or untracked change in any project (ignored files too, in the
-#              forks), no assume-unchanged/skip-worktree entries, replace refs or grafts
-#   files      linkfile/copyfile targets at the tree root match their sources; nothing else at the
-#              root but projects, out*/, keys/, releases/
+#   clean      no uncommitted, untracked or ignored file in any project (but adevtool's dl/ and
+#              node_modules/), no assume-unchanged/skip-worktree entries, replace refs or
+#              grafts; each fork's HEAD is its envs-17 branch
+#   files      linkfile/copyfile targets match their sources; the dirs holding projects hold
+#              nothing else (at the root also out*/, keys/, releases/)
 #   vendor     each generated module (vendor/google_devices/<model>) matches the hash recorded when
 #              vendor-module.sh made it (state/vendor/<model>), for the adevtool the tree has
 # Approvals: if $SIGNERS exists, the last commit that changed approved.txt must carry a good
 # signature by a key in it. That file is root's, outside the repo.
 #   TAG=<tag> verify-tree.sh   check against this upstream tag (track-upstream.sh, after its
 #                              rebase); default: state/upstream-tag
-#   VENDOR=<model> ...         check only the vendor modules of these models (the one being
-#                              built); default: all. No way to skip a check.
+#   VENDOR=<model> ...         require the tree's adevtool only for these models' modules (the
+#                              one being built; "-": none, before regenerating them); default:
+#                              all. Every module's content is checked always. No way to skip a
+#                              check.
 set -uo pipefail
 
 WS=/mnt/flash/scratch/grapheneos
@@ -30,6 +33,8 @@ SIGNERS=/mnt/tank/scripts/os-ivan-gg/allowed_signers
 GOS=$ENVS/scripts/grapheneos-allowed-signers
 REPO=$WS/bin/repo
 source "$ENVS/scripts/forks.sh"
+# every git here, repo forall's too, without user or system config and replace objects
+export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1
 tag=${TAG:-$(cat "$STATE/upstream-tag")}
 t0=$(date +%s)
 bad=0
@@ -79,9 +84,11 @@ EOF
 cd "$TREE" || exit 1
 "$REPO" forall -j12 -c 'printf "%s %s\n" "$REPO_PATH" "$(git rev-parse HEAD)"' > "$tmp/heads" 2>/dev/null \
     || no "repo forall failed"
+# ignored files count too, except adevtool's downloads and its node_modules
 "$REPO" forall -j12 -c '
-    s=$(git status --porcelain --ignore-submodules=none 2>&1 | head -3)
-    [ -z "$s" ] || printf "%s: uncommitted or untracked: %s\n" "$REPO_PATH" "$(echo $s)"
+    s=$(git status --porcelain --untracked-files=all --ignored=traditional --ignore-submodules=none 2>&1 \
+        | if [ "$REPO_PATH" = vendor/adevtool ]; then grep -Ev "^!! (dl|node_modules)/"; else cat; fi | head -3)
+    [ -z "$s" ] || printf "%s: uncommitted, untracked or ignored: %s\n" "$REPO_PATH" "$(echo $s)"
     git ls-files -v | grep -q "^[a-zS]" && echo "$REPO_PATH: assume-unchanged or skip-worktree entries"
     [ -z "$(git for-each-ref refs/replace)" ] || echo "$REPO_PATH: replace refs"
     [ ! -e "$(git rev-parse --git-path info/grafts)" ] || echo "$REPO_PATH: grafts"
@@ -111,7 +118,8 @@ for e in "${FORKS[@]}"; do
     "${g[@]}" merge-base --is-ancestor "$base" HEAD || { no "$p: HEAD isn't on $tag"; continue; }
     [ -n "${TAG:-}" ] || [ "$(cat "$STATE/base/$name" 2>/dev/null)" = "$base" ] \
         || no "$p: state/base/$name isn't the $tag commit"
-    [ -z "$("${g[@]}" status --porcelain --ignored)" ] || no "$p: ignored files in the worktree"
+    # publish pushes envs-17: it has to be what was checked
+    [ "$("${g[@]}" symbolic-ref -q HEAD)" = refs/heads/envs-17 ] || no "$p: HEAD isn't the envs-17 branch"
     : > "$tmp/have"
     for c in $("${g[@]}" rev-list --reverse "$base..HEAD"); do
         if [ "$("${g[@]}" rev-list --parents -n1 "$c" | wc -w)" -gt 2 ]; then no "$p: merge commit ${c:0:12}"; continue; fi
@@ -128,31 +136,56 @@ for e in "${FORKS[@]}"; do
 done 2>&1 | tee "$tmp/forkout"
 grep -q '^FAIL' "$tmp/forkout" && bad=1
 
-# tree root: projects' top dirs, link/copy targets, outputs, keys, releases; nothing else
-declare -A top
-for path in "${!pin[@]}"; do top[${path%%/*}]=1; done
+# files outside every project: linkfile/copyfile targets must match their sources, and the
+# dirs that hold projects (the root, device/, vendor/, ...) nothing else. At the root also
+# out*/, keys/, releases/; vendor/google_devices is checked below.
 while read -r k kind src dest; do
     [ "$k" = F ] || continue
-    top[${dest%%/*}]=1
     if [ "$kind" = linkfile ]; then
         [ "$(readlink -f "$dest")" = "$(readlink -f "$src")" ] || no "$dest: not a link to $src"
     else
         cmp -s "$src" "$dest" || no "$dest: differs from $src"
     fi
 done < "$tmp/pinned"
-for f in $(command ls -A "$TREE"); do
-    case $f in .repo|out|out_*|keys|releases) continue ;; esac
-    [ -n "${top[$f]:-}" ] || no "unexpected at the tree root: $f"
-done
+python3 -I - "$TREE" "$tmp/pinned" > "$tmp/stray" 2>&1 <<'EOF' || no "walking the tree failed: $(cat "$tmp/stray")"
+import os, sys
+tree, pinned = sys.argv[1], sys.argv[2]
+P, D = set(), set()
+for l in open(pinned):
+    f = l.split()
+    if f[0] == 'P': P.add(f[1])
+    else: D.add(f[3])
+A = {''}
+for x in P | D:
+    parts = x.split('/')
+    for i in range(1, len(parts)):
+        A.add('/'.join(parts[:i]))
+A -= P
+for a in sorted(A):
+    for e in sorted(os.listdir(os.path.join(tree, a) if a else tree)):
+        rel = a + '/' + e if a else e
+        if rel in P or rel in A or rel in D or rel == 'vendor/google_devices':
+            continue
+        if not a and (e in ('.repo', 'keys', 'releases', 'out') or e.startswith('out_')):
+            continue
+        print(rel)
+EOF
+while read -r l; do no "outside every project: $l"; done < "$tmp/stray"
 
 # generated vendor modules
+# generated vendor modules: every one is read by every build (soong parses the whole tree), so
+# each must match its record; the adevtool commit only for the models in $VENDOR
 at=$(xgit -C "$TREE/vendor/adevtool" rev-parse HEAD)
-for d in ${VENDOR:-$(command ls "$TREE/vendor/google_devices")}; do
+for d in $(command ls -A "$TREE/vendor/google_devices"); do
     rec=$STATE/vendor/$d
     [ -s "$rec" ] || { no "vendor module $d: no recorded hash ($rec)"; continue; }
-    grep -qx "adevtool=$at" "$rec" || no "vendor module $d: recorded for another adevtool than the tree's ${at:0:12}"
     grep -qx "tree=$(module_hash "$TREE/vendor/google_devices/$d")" "$rec" \
         || no "vendor module $d: content differs from the recorded hash"
+done
+for d in ${VENDOR:-$(command ls -A "$TREE/vendor/google_devices")}; do
+    [ "$d" = - ] && continue
+    grep -qx "adevtool=$at" "$STATE/vendor/$d" 2>/dev/null \
+        || no "vendor module $d: not made with the tree's adevtool ${at:0:12}"
 done
 
 echo "checked $n projects against $tag in $(( $(date +%s) - t0 ))s"

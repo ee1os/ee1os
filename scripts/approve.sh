@@ -3,6 +3,8 @@
 #   approve.sh <repo> <commit>...   add these commits of one fork (repo name, e.g.
 #                                   platform_frameworks_base) to approved.txt
 #   approve.sh --draft              print a line for every commit over the upstream tag in all forks
+#   approve.sh --prune              drop the lines no commit over the tag has any more (a commit the
+#                                   rebase changed: approve the new one, prune the old)
 # Lines: <repo> <patch-id> <short-sha> <subject>. Only <repo> <patch-id> are checked; the SHA and
 # subject say what was approved. This doesn't commit: the owner reviews and commits approved.txt,
 # signed, from m3max.
@@ -35,6 +37,20 @@ if [ "${1:-}" = --draft ]; then
             line "$p" "$name" "$c"
         done
     done
+    exit 0
+fi
+if [ "${1:-}" = --prune ]; then
+    keep=$(mktemp)
+    for e in "${FORKS[@]}"; do
+        p=${e%%:*} name=${e##*:}
+        for c in $(xgit -C "$TREE/$p" rev-list --reverse "refs/tags/$tag..HEAD"); do
+            echo "$name $(patch_id "$TREE/$p" "$c")"
+        done
+    done > "$keep"
+    while read -r r id rest; do
+        if grep -qx "$r $id" "$keep"; then echo "$r $id $rest"; else echo "dropped: $r $id $rest" >&2; fi
+    done < "$LIST" > "$LIST.new"
+    mv "$LIST.new" "$LIST"; rm -f "$keep"
     exit 0
 fi
 

@@ -119,6 +119,87 @@ $(echo "$out" | grep '^FAIL' | head -15)"; return 1; }
     notify "build $bn on GrapheneOS $tag is ready: built, $gated, source pushed. $packed Release with scripts/release.sh $bn after a phone check."
 }
 
+# 3b-5 for the rebased forks of $tag: vendor modules, tree check, build, gate, then hold (strategic,
+# $wrc) or push. Run by the nightly path, and by APPROVE= for a release held before its build.
+build_and_push() {
+    # 3b. vendor modules (vendor/google_devices/<model>) are generated, not synced, and refuse to
+    # build once the tree's adevtool moves past the commit they were made with. Regenerate them in
+    # the build container (doc 08 Stage 6); the stock factory image goes to vendor/adevtool/dl/.
+    at=$(git -C "$TREE/vendor/adevtool" rev-parse HEAD) || fail "no vendor/adevtool in the tree."
+    for d in $(models); do
+        [ "$(module_rev "$d")" = "$at" ] && continue
+        # a new factory image (~5 GB) plus its unpacked copy (~6 GB) and the module
+        free=$(df -BG --output=avail "$TREE" | tail -1 | tr -dc 0-9)
+        [ "$free" -ge 25 ] || fail "only ${free} GB free in scratch; the $d vendor module for $tag needs about 25."
+        log "regenerating the $d vendor module for adevtool $at"
+        trap 'sudo docker start ollama > /dev/null' EXIT
+        sudo docker stop ollama > /dev/null && echo "$(date +%T) ollama stopped for adevtool $d" >> "$WS/mem.log"
+        (cd "$WS" && ./guard.sh) &
+        NAME=grapheneos-build JOBS=12 HIGHMEM=2 MEM=44g MEMSWAP=68g "$ENVS/workspace/build-env/run.sh" exec \
+            "$ENVS/scripts/vendor-module.sh $d" > "$WS/vendor-$d-$tag.log" 2>&1; vrc=$?
+        wait
+        if sudo docker start ollama > /dev/null; then
+            echo "$(date +%T) ollama restarted after adevtool $d" >> "$WS/mem.log"; trap - EXIT
+        else
+            notify "ollama didn't start again after the $d vendor module; start it by hand."
+        fi
+        if [ "$vrc" = 0 ] && [ "$(module_rev "$d")" = "$at" ]; then
+            log "$d vendor module regenerated"
+        elif [ "$d" = "$DEVICE" ]; then
+            fail "adevtool generate-all for $tag failed for $d (exit $vrc); see vendor-$d-$tag.log. Not pushed."
+        else
+            # another model doesn't hold up this build; it stays on its old module until fixed
+            notify "adevtool generate-all for $tag failed for $d (exit $vrc); see vendor-$d-$tag.log. Its old module is kept, so DEVICE=$d release.sh won't build until that is fixed. $DEVICE goes on."
+        fi
+    done
+
+    # 3c. the whole tree, vendor modules included, before any of it is built
+    vout=$(TAG=$tag VENDOR=$DEVICE "$ENVS/scripts/verify-tree.sh" 2>&1) \
+        || fail "tree check for $tag failed, not built:
+    $(echo "$vout" | grep '^FAIL' | head -15)"
+
+    # 4. build and gate
+    bn=$(date -u +%Y%m%d%H)
+    label="husky $bn on GrapheneOS $tag at $(date +%s)"
+    cd "$WS" || fail "no workspace."
+    LUNCH=$DEVICE-cur-userdebug OUT_DIR=out BUILD_NUMBER=$bn BUILD_DATETIME=$(date +%s) \
+        ./emu-build.sh "$label" droid > "$WS/husky-build-$bn.log" 2>&1
+    # the first BUILD_EXIT after this run's header (as in release.sh)
+    rc=$(awk -v m="=== $label " 'index($0, m) == 1 { f = 1; r = "" } f && r == "" && /^BUILD_EXIT=/ { r = $0 } END { print r }' build.log)
+    [ "$rc" = BUILD_EXIT=0 ] || fail "build $bn on GrapheneOS $tag failed ($rc); see build.log. Not pushed."
+    # no boot animation zip may ship: it would replace our setup logo and the stock one (doc 00)
+    zips=$(find "$TREE/out/target/product/$DEVICE"/{system,product,system_ext,vendor,oem}/media \
+        -maxdepth 1 -name 'bootanimation*.zip' 2>/dev/null | sed "s|$TREE/out/target/product/$DEVICE/||")
+    [ -z "$zips" ] || fail "build $bn on GrapheneOS $tag ships a boot animation ($zips); not pushed."
+    if [ -x "$ENVS/tests/gate.sh" ]; then
+        "$ENVS/tests/gate.sh" >> "$LOG" 2>&1 \
+            || fail "build $bn on GrapheneOS $tag built but the test gate failed; not pushed."
+    fi
+
+    # 4b. hold strategic releases for the owner; the rebased branches stay as they are
+    if [ "$wrc" != 0 ]; then
+        echo "$tag" > "$STATE/held-tag"; echo "$bn" > "$STATE/held-bn"; mkdir -p "$STATE/held"
+        for e in "${FORKS[@]}"; do
+            git -C "$TREE/${e%%:*}" rev-parse envs-17 > "$STATE/held/${e##*:}"
+        done
+        RESTORE=0
+        review=$(echo "$watch" | grep -- '-review.md$' | head -1)
+        sum=""
+        [ -n "$review" ] && sum=$(awk '/^#/{n++} n==2{exit} {print}' "$review" | head -c 2000)
+        if [ "$wrc" = 10 ]; then why="has changes that need a decision"; else why="could not be checked (exit $wrc)"; fi
+        notify "build $bn on GrapheneOS $tag is built, but the release $why. Not pushed.
+    $sum
+    Report: $(echo "$watch" | head -1)
+    Push: APPROVE=$tag scripts/track-upstream.sh, or drop: SKIP=$tag scripts/track-upstream.sh"
+        exit 0
+    fi
+
+    # 5. publish. A failure here leaves the rebased branches as they are: some may be pushed.
+    RESTORE=0
+    publish || fail "publishing $tag failed; see track-upstream.log."
+    rm -rf "$STATE/held-tag" "$STATE/held-bn" "$STATE/held"
+}
+
 if [ "$DRY" != 1 ]; then
     mkdir -p "$STATE/base"
     exec 9> "$STATE/track.lock"
@@ -142,12 +223,22 @@ if [ -s "$STATE/held-tag" ]; then
         exit 0
     fi
     if [ "${APPROVE:-}" = "$held" ]; then
-        tag=$held bn=$(cat "$STATE/held-bn")
+        tag=$held
         for e in "${FORKS[@]}"; do
             p=${e%%:*} name=${e##*:}
             [ "$(git -C "$TREE/$p" rev-parse envs-17)" = "$(cat "$STATE/held/$name")" ] \
-                || fail "approval of $tag: envs-17 in $p moved since the build; not pushed"
+                || fail "approval of $tag: envs-17 in $p moved since it was held; not pushed"
         done
+        if [ ! -s "$STATE/held-bn" ]; then
+            # held before its build for commits to approve: check, build and push now (the owner's
+            # approval covers strategic changes too)
+            dry "would check, build and push held $tag"
+            notify "$tag approved, checking and building."
+            wrc=0 watch=""
+            build_and_push
+            exit 0
+        fi
+        bn=$(cat "$STATE/held-bn")
         # the flash archive is packed from out/: it has to be this build
         grep -qx "ro.build.version.incremental=$bn" "$TREE/out/target/product/$DEVICE/system/build.prop" \
             || fail "approval of $tag: out/ no longer holds build $bn; rebuild before approving"
@@ -230,92 +321,28 @@ for e in "${FORKS[@]}"; do
     log "$p rebased onto $tag ($(git rev-list --count "refs/tags/$tag"..HEAD) commits)"
 done
 
-# 3b. vendor modules (vendor/google_devices/<model>) are generated, not synced, and refuse to
-# build once the tree's adevtool moves past the commit they were made with. Regenerate them in
-# the build container (doc 08 Stage 6); the stock factory image goes to vendor/adevtool/dl/.
-at=$(git -C "$TREE/vendor/adevtool" rev-parse HEAD) || fail "no vendor/adevtool in the tree."
-for d in $(models); do
-    [ "$(module_rev "$d")" = "$at" ] && continue
-    # a new factory image (~5 GB) plus its unpacked copy (~6 GB) and the module
-    free=$(df -BG --output=avail "$TREE" | tail -1 | tr -dc 0-9)
-    [ "$free" -ge 25 ] || fail "only ${free} GB free in scratch; the $d vendor module for $tag needs about 25."
-    log "regenerating the $d vendor module for adevtool $at"
-    trap 'sudo docker start ollama > /dev/null' EXIT
-    sudo docker stop ollama > /dev/null && echo "$(date +%T) ollama stopped for adevtool $d" >> "$WS/mem.log"
-    (cd "$WS" && ./guard.sh) &
-    NAME=grapheneos-build JOBS=12 HIGHMEM=2 MEM=44g MEMSWAP=68g "$ENVS/workspace/build-env/run.sh" exec \
-        "$ENVS/scripts/vendor-module.sh $d" > "$WS/vendor-$d-$tag.log" 2>&1; vrc=$?
-    wait
-    if sudo docker start ollama > /dev/null; then
-        echo "$(date +%T) ollama restarted after adevtool $d" >> "$WS/mem.log"; trap - EXIT
-    else
-        notify "ollama didn't start again after the $d vendor module; start it by hand."
-    fi
-    if [ "$vrc" = 0 ] && [ "$(module_rev "$d")" = "$at" ]; then
-        log "$d vendor module regenerated"
-    elif [ "$d" = "$DEVICE" ]; then
-        fail "adevtool generate-all for $tag failed for $d (exit $vrc); see vendor-$d-$tag.log. Not pushed."
-    else
-        # another model doesn't hold up this build; it stays on its old module until fixed
-        notify "adevtool generate-all for $tag failed for $d (exit $vrc); see vendor-$d-$tag.log. Its old module is kept, so DEVICE=$d release.sh won't build until that is fixed. $DEVICE goes on."
-    fi
-done
-
-# 3c. the rebased tree against the approvals, before any of it is built. Commits whose patch-id
-# the rebase changed (or new ones) hold the release until the owner approves them
-# (scripts/approve.sh, commit approved.txt, APPROVE=<tag>); anything else stops here.
-vout=$(TAG=$tag VENDOR=$DEVICE "$ENVS/scripts/verify-tree.sh" 2>&1); vrc=$?
-log "verify-tree $tag: exit $vrc"
-unapproved=""
+# 3a. the rebased forks against the approvals, before anything from the tree runs (vendor
+# modules come after). Commits whose patch-id the rebase changed, or new ones, hold the release
+# unbuilt until the owner approves them; any other failure stops here.
+vout=$(TAG=$tag VENDOR=- "$ENVS/scripts/verify-tree.sh" 2>&1); vrc=$?
+log "verify-tree $tag (before the build): exit $vrc"
 if [ "$vrc" != 0 ]; then
-    other=$(echo "$vout" | grep '^FAIL' | grep -v ': commit not approved: \|: approved commit missing: ')
-    [ -z "$other" ] || fail "tree check after the rebase onto $tag failed:
-$(echo "$other" | head -15)"
-    unapproved=$(echo "$vout" | grep '^FAIL' | sed 's/^FAIL: //' | head -15)
-fi
-
-# 4. build and gate
-bn=$(date -u +%Y%m%d%H)
-label="husky $bn on GrapheneOS $tag at $(date +%s)"
-cd "$WS" || fail "no workspace."
-LUNCH=$DEVICE-cur-userdebug OUT_DIR=out BUILD_NUMBER=$bn BUILD_DATETIME=$(date +%s) \
-    ./emu-build.sh "$label" droid > "$WS/husky-build-$bn.log" 2>&1
-# the first BUILD_EXIT after this run's header (as in release.sh)
-rc=$(awk -v m="=== $label " 'index($0, m) == 1 { f = 1; r = "" } f && r == "" && /^BUILD_EXIT=/ { r = $0 } END { print r }' build.log)
-[ "$rc" = BUILD_EXIT=0 ] || fail "build $bn on GrapheneOS $tag failed ($rc); see build.log. Not pushed."
-# no boot animation zip may ship: it would replace our setup logo and the stock one (doc 00)
-zips=$(find "$TREE/out/target/product/$DEVICE"/{system,product,system_ext,vendor,oem}/media \
-    -maxdepth 1 -name 'bootanimation*.zip' 2>/dev/null | sed "s|$TREE/out/target/product/$DEVICE/||")
-[ -z "$zips" ] || fail "build $bn on GrapheneOS $tag ships a boot animation ($zips); not pushed."
-if [ -x "$ENVS/tests/gate.sh" ]; then
-    "$ENVS/tests/gate.sh" >> "$LOG" 2>&1 \
-        || fail "build $bn on GrapheneOS $tag built but the test gate failed; not pushed."
-fi
-
-# 4b. hold strategic releases, and ones with commits to approve, for the owner; the rebased
-# branches stay as they are
-if [ "$wrc" != 0 ] || [ -n "$unapproved" ]; then
-    echo "$tag" > "$STATE/held-tag"; echo "$bn" > "$STATE/held-bn"; mkdir -p "$STATE/held"
+    fails=$(echo "$vout" | grep '^FAIL: ')
+    other=$(echo "$fails" | grep -v ': commit not approved: \|: approved commit missing: ')
+    if [ -z "$fails" ] || [ -n "$other" ]; then
+        fail "tree check after the rebase onto $tag failed, not built:
+$(echo "${other:-$vout}" | head -15)"
+    fi
+    echo "$tag" > "$STATE/held-tag"; rm -f "$STATE/held-bn"; mkdir -p "$STATE/held"
     for e in "${FORKS[@]}"; do
         git -C "$TREE/${e%%:*}" rev-parse envs-17 > "$STATE/held/${e##*:}"
     done
+    [ "$wrc" = 0 ] || touch "$STATE/held/strategic"
     RESTORE=0
-    review=$(echo "$watch" | grep -- '-review.md$' | head -1)
-    sum=""
-    [ -n "$review" ] && sum=$(awk '/^#/{n++} n==2{exit} {print}' "$review" | head -c 2000)
-    if [ "$wrc" = 0 ]; then why="has fork commits to approve"
-    elif [ "$wrc" = 10 ]; then why="has changes that need a decision"
-    else why="could not be checked (exit $wrc)"; fi
-    [ -z "$unapproved" ] || sum="Fork commits to approve (scripts/approve.sh, then commit approved.txt):
-$unapproved
-$sum"
-    notify "build $bn on GrapheneOS $tag is built, but the release $why. Not pushed.
-$sum
-Report: $(echo "$watch" | head -1)
-Push: APPROVE=$tag scripts/track-upstream.sh, or drop: SKIP=$tag scripts/track-upstream.sh"
+    notify "GrapheneOS $tag: after the rebase some fork commits need approval; not built, not pushed.
+$(echo "$fails" | sed 's/^FAIL: //' | head -15)
+Approve: TAG=$tag scripts/approve.sh <repo> <commit>..., drop stale lines: TAG=$tag scripts/approve.sh --prune, commit approved.txt, then APPROVE=$tag scripts/track-upstream.sh (builds and pushes). Or SKIP=$tag.$([ "$wrc" = 0 ] || echo " It also has strategic changes: $(echo "$watch" | head -1)")"
     exit 0
 fi
 
-# 5. publish. A failure here leaves the rebased branches as they are: some may be pushed.
-RESTORE=0
-publish || fail "publishing $tag failed; see track-upstream.log."
+build_and_push

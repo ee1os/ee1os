@@ -104,16 +104,22 @@ and to this repo.
   (`scripts/grapheneos-allowed-signers`, from grapheneos.org/allowed_signers) and pinned by the
   tag's signed `default.xml`. Every other project must be at that manifest's revision, with no
   project it doesn't list; `.repo/local_manifests` holds only `envs.xml`. No project may have
-  uncommitted, untracked (in the forks also ignored) files, assume-unchanged or skip-worktree
-  entries, replace refs or grafts. The tree root holds only project dirs, linkfile/copyfile
-  targets matching their sources, `out*/`, `keys/` and `releases/`. Each generated vendor
-  module matches `state/vendor/<model>` (adevtool commit, factory image with its SHA-256, a hash
-  over paths, modes, link targets and contents), written by `vendor-module.sh`; husky and
+  uncommitted, untracked or ignored files (except `vendor/adevtool`'s `dl/` and
+  `node_modules/`), assume-unchanged or skip-worktree entries, replace refs or grafts; each
+  fork's `HEAD` is its `envs-17` branch, the one that gets pushed. Outside the projects, the
+  dirs that hold them (the root, `device/`, `vendor/`, ...) contain only projects, the dirs
+  leading to them and linkfile/copyfile targets matching their sources, plus `out*/`, `keys/`
+  and `releases/` at the root: a stray `device/x/vendorsetup.sh` would run at `envsetup`. Every
+  generated vendor module (soong reads them all in any build) matches `state/vendor/<model>`
+  (adevtool commit, factory image with its SHA-256, a hash over paths, modes, link targets and
+  contents), written by `vendor-module.sh`; the adevtool commit is required for the model being
+  built (`VENDOR=<model>`). Husky and
   stallion were recorded from their existing modules on 2026-10-30 (adevtool `78aac18c`,
   images `cp3a.261005.005`, SHA-256 equal to Google's in the file names). About 7 s on n5.
   - `scripts/approve.sh <repo> <commit>...` adds lines (`<repo> <patch-id> <short-sha>
-    <subject>`, only the first two are checked); `--draft` lists every commit over the tag. It
-    doesn't commit: the owner reviews and commits `approved.txt` from m3max. The first list
+    <subject>`, only the first two are checked); `--draft` lists every commit over the tag,
+    `--prune` drops lines no commit has any more (`TAG=<tag>` for a held rebase). It doesn't
+    commit: the owner reviews and commits `approved.txt` from m3max. The first list
     (63 commits on `2026102100`) became the reference with the owner's OK.
   - Patch-id: `git show --binary --full-index --no-renames`, no user config, then `git patch-id
     --verbatim` (whitespace counts; it can't be combined with `--stable`, and file order is
@@ -127,10 +133,13 @@ and to this repo.
     checks again, then signs. No way around the check. The signing keys and the passphrase
     are in the container only for the signing step: `run.sh` covers `keys/` and `.secrets/`
     with an empty root-only tmpfs unless `KEYS=1`; the build doesn't read them.
-  - `track-upstream.sh` checks after the rebase and before the build. If the only failures are
-    commits to approve, it builds and holds the release like a strategic one (approve, commit
-    `approved.txt`, then `APPROVE=<tag>`); any other failure stops it and puts the forks back.
-    Its push (`publish()`, also for `APPROVE=`) checks again.
+  - `track-upstream.sh` checks right after the rebase, before anything from the tree runs
+    (adevtool included). If the only failures are commits to approve, it holds the release
+    unbuilt (approve, prune, commit `approved.txt`, then `APPROVE=<tag>`, which checks, builds
+    and pushes); any other failure, or a check that fails without saying why, stops it and puts
+    the forks back. After the vendor modules it checks the whole tree again, and its push
+    (`publish()`, also for `APPROVE=`) once more. Unapproved code is never built: a build can
+    write to this repo and `state/`, so it could rewrite the check itself.
   - Not covered: root or the owner's shell on n5 (it can change the check itself); moving
     signing off n5 is a separate task. Approvals are checked against SSH signatures once
     `/mnt/tank/scripts/os-ivan-gg/allowed_signers` (root's, outside the repo) exists; until
