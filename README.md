@@ -1,10 +1,11 @@
 # ee1os
 
-ee·1·os: two environments, one OS. [ee1os.com](https://ee1os.com)
+A phone OS for your personal security. [ee1os.com](https://ee1os.com)
 
-An Android OS based on [GrapheneOS](https://grapheneos.org) where the PIN you type decides what
-opens: the everyday profile, a protected space with its own keys, an immediate reboot to the
-fully locked state, or a wipe.
+Built on [GrapheneOS](https://grapheneos.org) for Pixel phones. Sensitive accounts, wallets and
+contacts live in a protected space with its own keys, opened from the normal lock screen by its
+own PIN. Other PINs open the everyday profile, reboot at once to the fully locked state, or
+wipe the phone.
 
 > Personal research and test project, alpha quality. Provided as is, with no warranty and no
 > liability of any kind. Not affiliated with or endorsed by the GrapheneOS project.

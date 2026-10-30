@@ -133,7 +133,7 @@ What the design aims to provide:
   `scripts/track-upstream.sh` rebases each fork from its release-tag base onto the next tag and
   a merge would make it replay upstream commits. Their changes reach us with the next tag.
 - **2026-10-30: the project is renamed ee1os, at ee1os.com** (owner decision; replaces the
-  working name os.ivan.gg and the `NAME` placeholder in the landing draft, now `drafts/landing.md` in the site repo). Read "ee-one-os":
+  working name os.ivan.gg and the `NAME` placeholder in the landing draft, since removed from the site repo). Read "ee-one-os":
   **two environments, one OS**.
   - *ee* is the two environments, A (user 0) and B (secondary user), each with its own
     synthetic password and CE key (goal 3, 6); also **e**ncrypted **e**nvironments, which
@@ -155,3 +155,11 @@ What the design aims to provide:
     stays owned, and can point at the reboot-to-BFU page.
   - Outside reviews of both names: doc 07 *Review log*.
   The rename itself is doc 07 R8.
+- **2026-10-30: the site leads with "A phone OS for your personal security."** (owner decision;
+  replaces "Your PIN decides what opens" and the "explain it once next to the name" mitigation
+  above). The pages no longer expand the name: the footer says only how to read it
+  ("ee-one-os"). Reason: the old headline described the interface, not why anyone would want
+  it, and "two environments, one OS" made visitors parse the name before they knew what the
+  phone does. The pages lead with what people protect (accounts, wallets, contacts), then the
+  PINs. The expansion stays here, in this decision, as the origin of the name. Same day: the
+  site drops its web fonts and the `drafts/` folder; the pages are the copy.
