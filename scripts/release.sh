@@ -16,7 +16,7 @@ set -euo pipefail
 
 WS=/mnt/flash/scratch/grapheneos
 TREE=$WS/grapheneos-17
-ENVS=/mnt/flash/home/faeton/work/os-ivan-gg
+ENVS=/mnt/flash/home/faeton/work/ee1os
 RUN=$ENVS/workspace/build-env/run.sh
 DEVICE=${DEVICE:-husky}
 VARIANT=${1:-user}

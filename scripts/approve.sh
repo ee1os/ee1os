@@ -12,7 +12,7 @@ set -euo pipefail
 
 WS=/mnt/flash/scratch/grapheneos
 TREE=$WS/grapheneos-17
-ENVS=/mnt/flash/home/faeton/work/os-ivan-gg
+ENVS=/mnt/flash/home/faeton/work/ee1os
 LIST=$ENVS/patches/approved.txt
 source "$ENVS/scripts/forks.sh"
 tag=${TAG:-$(cat "$WS/state/upstream-tag")}   # TAG=<tag>: over another tag (a held rebase)

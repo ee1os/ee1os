@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stage 1 baseline experiments on the unmodified emulator (docs/07-roadmap.md, Stage 1).
-# Run inside the build container:  run.sh exec /src/os-ivan-gg/tests/stage1.sh <item>
+# Run inside the build container:  run.sh exec /src/ee1os/tests/stage1.sh <item>
 #   setup      owner PIN + secondary user "envB" with its own PIN          (item 1)
 #   evict      CE state of envB after switch / stop / no_run_in_background (item 2)
 #   bootorder  switch to envB before the owner unlocks after a reboot      (item 3)

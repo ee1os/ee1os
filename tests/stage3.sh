@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stage 3 checks (docs/07-roadmap.md, Stage 3). Needs the Stage 1 setup (owner PIN, envB).
-# Run inside the build container:  run.sh exec /src/os-ivan-gg/tests/stage3.sh <item>
+# Run inside the build container:  run.sh exec /src/ee1os/tests/stage3.sh <item>
 #   openfiles  use envB, stop it, list CE files of envB still open after the key is removed (3c)
 # Every check prints PASS or FAIL; the script exits 1 if any check failed.
 set -euo pipefail

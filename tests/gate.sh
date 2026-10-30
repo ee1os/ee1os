@@ -8,7 +8,7 @@
 # Logs: /mnt/flash/scratch/grapheneos/gate-auth.log, gate-lss.log, gate-keyguard.log
 set -uo pipefail
 WS=/mnt/flash/scratch/grapheneos
-RUN=/mnt/flash/home/faeton/work/os-ivan-gg/workspace/build-env/run.sh
+RUN=/mnt/flash/home/faeton/work/ee1os/workspace/build-env/run.sh
 label="emu build for the gate, $(date +%F_%H%M)"
 
 cd "$WS" || exit 1
@@ -48,7 +48,7 @@ JOBS=12 HIGHMEM=2 MEM=44g MEMSWAP=68g "$RUN" exec '
 # the lock screen run sets its own PINs, so it gets a wiped emulator of its own
 krc=1
 if boot || boot; then
-    "$RUN" exec 'RES=/src/gate-keyguard.log timeout -k 30 1500 /src/os-ivan-gg/tests/keyguard.sh' \
+    "$RUN" exec 'RES=/src/gate-keyguard.log timeout -k 30 1500 /src/ee1os/tests/keyguard.sh' \
         > /dev/null 2>&1
     krc=$?
 fi

@@ -19,9 +19,9 @@ GrapheneOS builds only on x86_64 Linux (<https://grapheneos.org/build>).
 ```
 /mnt/flash/scratch/grapheneos/          (= ~/work/grapheneos; not snapshotted, not backed up)
   grapheneos-17/                        repo tree, branch 17 + local manifest
-    .repo/local_manifests/envs.xml  ->  os-ivan-gg/scripts/envs-local-manifest.xml
+    .repo/local_manifests/envs.xml  ->  ee1os/scripts/envs-local-manifest.xml
     out/                                build output (~100 GiB)
-  os-ivan-gg/                       ->  ~/work/os-ivan-gg  (this repo; backed up)
+  ee1os/                            ->  ~/work/ee1os  (this repo; backed up)
   bin/repo                              repo launcher
   build.log, sync.log
 ```
@@ -41,7 +41,7 @@ and to this repo.
   animation out, doc 00). Add
   `platform_system_vold` only if a stage needs it. The local manifest
   (`scripts/envs-local-manifest.xml`) points those projects at the forks; everything else syncs
-  from GrapheneOS. Other repos: `ee1os` (this one; the local checkout is still `~/work/os-ivan-gg`), `manifest`, `releases`, `site`, and
+  from GrapheneOS. Other repos: `ee1os` (this one, `~/work/ee1os`), `manifest`, `releases`, `site`, and
   `.github` (the organization's front page).
 - Work in the tree: `repo start dev frameworks/base packages/apps/Settings`, commit there,
   push with `git push fork HEAD:envs-17`. n5 has no GitHub SSH key; push over HTTPS
@@ -143,7 +143,7 @@ and to this repo.
     write to this repo and `state/`, so it could rewrite the check itself.
   - Not covered: root or the owner's shell on n5 (it can change the check itself); moving
     signing off n5 is a separate task. Approvals are checked against SSH signatures once
-    `/mnt/tank/scripts/os-ivan-gg/allowed_signers` (root's, outside the repo) exists; until
+    `/mnt/tank/scripts/ee1os/allowed_signers` (root's, outside the repo) exists; until
     then anyone who can commit to this repo's `HEAD` on n5 can approve.
 - **Schedule** (TrueNAS cron, `sudo midclt call cronjob.query`): job 25 runs the preview at
   00:30, job 26 `track-upstream.sh` at 01:00 (n5 time, Europe/Lisbon). Logs:
@@ -238,7 +238,7 @@ still work; the sandbox only guards against undeclared inputs.
 | T0 | It builds, no new warnings in touched files | container | `run.sh build` |
 | T1 | Unit tests, locksettings | emulator (instrumentation) | `run.sh exec 'atest FrameworksServicesTests:com.android.server.locksettings'` |
 | T2 | Host tests: GrapheneOS `DuressPasswordTest`, later `RebootBfuTest` | a target with a Weaver HAL (test Pixel; goldfish has none) | `run.sh exec 'atest DuressPasswordTest'` |
-| T3 | Scripted scenarios over adb (`tests/*.sh`) | emulator | `run.sh exec /src/os-ivan-gg/tests/stage1.sh <item>` |
+| T3 | Scripted scenarios over adb (`tests/*.sh`) | emulator | `run.sh exec /src/ee1os/tests/stage1.sh <item>` |
 | T4 | Manual matrix at the real keyguard and in Settings | emulator via `scrcpy` | checklist below |
 | T5 | Hardware behaviour | test Pixel | Stage 6 checklist |
 
@@ -381,14 +381,14 @@ Owner-run, in order:
    `verify-tree.sh` stops the release build.
 3. **New keys** on n5: `scripts/generate-keys.sh --rotate`. It checks the tree's keys match the
    backup, asks for `ROTATE`, moves the current keys to `grapheneos-17/keys/archive/<date>-65894abf/`
-   and `~/work/os-ivan-gg-keys/archive/<date>-65894abf/`, the passphrase file to
+   and `~/work/ee1os-keys/archive/<date>-65894abf/`, the passphrase file to
    `.secrets/archive/`, then asks for a new passphrase (twice, at least 12 characters), makes
    the keys in the container, backs them up and copies them for every model that had keys.
    It prints the new fingerprint. If it stops after archiving, run `scripts/generate-keys.sh`
    without `--rotate`, then copy the keys for the other models (`cp -a keys/husky
-   keys/stallion`). Optional: write the new passphrase to `.secrets/key-passphrase`
-   (mode 600) for unattended signing.
-4. **Offline copy** of `~/work/os-ivan-gg-keys/` (the new keys and the archive) next to the
+   keys/stallion`). At the end it asks whether to save the passphrase in
+   `.secrets/key-passphrase` (mode 600), so `release.sh` signs without asking.
+4. **Offline copy** of `~/work/ee1os-keys/` (the new keys and the archive) next to the
    existing offline copy. Keep the old passphrase with the old keys.
 5. **Fingerprint**: `scripts/set-fingerprint.sh` puts the new one on the site pages, in both
    install scripts and their tests, the release notes template and this doc. Run the site's
@@ -398,7 +398,7 @@ Owner-run, in order:
    `grapheneos-17/releases/<bn>/release-husky-<bn>/husky-install-<bn>.zip`. On m3max, copy it
    and the new installer:
    `scp n5:/mnt/flash/scratch/grapheneos/grapheneos-17/releases/<bn>/release-husky-<bn>/husky-install-<bn>.zip .`
-   and `scp n5:work/os-ivan-gg-site/scripts/install.sh .`
+   and `scp n5:work/ee1os-site/scripts/install.sh .`
 7. **Phone**: in user 0, Settings → System → Developer options → OEM unlocking on (needs a
    network connection). Then on m3max: `bash install.sh --zip husky-install-<bn>.zip`. It
    checks the zip's key against the new fingerprint, asks for `UNLOCK` (confirm on the phone

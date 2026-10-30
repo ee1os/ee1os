@@ -27,9 +27,9 @@ set -uo pipefail
 
 WS=/mnt/flash/scratch/grapheneos
 TREE=$WS/grapheneos-17
-ENVS=/mnt/flash/home/faeton/work/os-ivan-gg
+ENVS=/mnt/flash/home/faeton/work/ee1os
 STATE=$WS/state
-SIGNERS=/mnt/tank/scripts/os-ivan-gg/allowed_signers
+SIGNERS=/mnt/tank/scripts/ee1os/allowed_signers
 GOS=$ENVS/scripts/grapheneos-allowed-signers
 REPO=$WS/bin/repo
 source "$ENVS/scripts/forks.sh"
@@ -42,11 +42,11 @@ no() { echo "FAIL: $*"; bad=1; }
 vtag() { xgit -C "$1" -c gpg.ssh.allowedSignersFile="$GOS" verify-tag "refs/tags/$tag" > /dev/null 2>&1; }
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 
-# approvals, from os-ivan-gg's HEAD
+# approvals, from ee1os's HEAD
 [ -z "$(xgit -C "$ENVS" status --porcelain -- scripts patches workspace/build-env)" ] \
-    || no "os-ivan-gg has uncommitted changes in scripts/, patches/ or workspace/build-env/"
+    || no "ee1os has uncommitted changes in scripts/, patches/ or workspace/build-env/"
 xgit -C "$ENVS" show HEAD:patches/approved.txt > "$tmp/approved" 2>/dev/null \
-    || no "patches/approved.txt isn't committed in os-ivan-gg"
+    || no "patches/approved.txt isn't committed in ee1os"
 if [ -e "$SIGNERS" ]; then
     [ "$(stat -c %U "$SIGNERS")" = root ] || no "$SIGNERS isn't owned by root"
     c=$(xgit -C "$ENVS" log -1 --format=%H -- patches/approved.txt)

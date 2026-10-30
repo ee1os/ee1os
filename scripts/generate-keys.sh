@@ -6,10 +6,10 @@
 # Asks for one passphrase (hidden, typed twice) and uses it for every key, then copies the keys
 # to a backed-up folder and prints the fingerprint of the AVB public key for the install page.
 #   keys:   grapheneos-17/keys/husky/     (tree on flash/scratch, not backed up)
-#   backup: ~/work/os-ivan-gg-keys/husky/ (flash/home: snapshots, tank, vv)
+#   backup: ~/work/ee1os-keys/husky/ (flash/home: snapshots, tank, vv)
 # Never deletes keys. --rotate moves, for the current key fingerprint <fp>:
 #   grapheneos-17/keys/<model>/   -> grapheneos-17/keys/archive/<date>-<fp>/<model>/
-#   ~/work/os-ivan-gg-keys/husky/ -> ~/work/os-ivan-gg-keys/archive/<date>-<fp>/husky/
+#   ~/work/ee1os-keys/husky/ -> ~/work/ee1os-keys/archive/<date>-<fp>/husky/
 #   .secrets/key-passphrase       -> .secrets/archive/<date>-<fp>-key-passphrase
 # (keys/ and .secrets/ are hidden from builds, run.sh). All models get a copy of the new husky
 # keys (doc 08 Stage 6). Keep one more copy offline, old and new.
@@ -18,8 +18,8 @@ DEVICE=husky
 # The first keys (2026-10-13, 65894abf...) said CN=os.ivan.gg, the project's earlier name
 CN=ee1os
 WS=/mnt/flash/scratch/grapheneos
-ENVS=/mnt/flash/home/faeton/work/os-ivan-gg
-BACKUP=/mnt/flash/home/faeton/work/os-ivan-gg-keys
+ENVS=/mnt/flash/home/faeton/work/ee1os
+BACKUP=/mnt/flash/home/faeton/work/ee1os-keys
 
 if [ "${1:-}" = --rotate ]; then
     keys=$WS/grapheneos-17/keys
@@ -51,7 +51,6 @@ if [ "${1:-}" = --rotate ]; then
         [ "$m" = "$DEVICE" ] || cp -a "$keys/$DEVICE" "$keys/$m"
     done
     echo "copied the new keys for: $models"
-    echo "release.sh reads the passphrase from $WS/.secrets/key-passphrase (owner-only, 600) or asks."
     exit 0
 fi
 
@@ -94,6 +93,20 @@ for key in "${signing_keys[@]}"; do
 done
 export password
 openssl genrsa 4096 2>/dev/null | openssl pkcs8 -topk8 -scrypt -passout env:password -out avb.pem
-unset password
 ../../external/avb/avbtool.py extract_public_key --key avb.pem --output avb_pkmd.bin
 echo "made avb.pem and avb_pkmd.bin"
+# release.sh signs without asking when the passphrase is in .secrets/key-passphrase
+pw=/src/.secrets/key-passphrase
+if [ -e "$pw" ]; then
+    echo "$pw exists; left as it is (release.sh will use it, so make sure it matches)"
+else
+    read -rp "Save the passphrase in .secrets/key-passphrase (owner-only, 600) so releases are signed without asking? [y/N] " answer
+    if [ "$answer" = y ] || [ "$answer" = Y ]; then
+        mkdir -p /src/.secrets && chmod 700 /src/.secrets
+        printf '%s\n' "$password" > "$pw" && chmod 600 "$pw"
+        echo "saved $pw"
+    else
+        echo "not saved; release.sh will ask for it"
+    fi
+fi
+unset password

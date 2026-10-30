@@ -2,7 +2,7 @@
 # Stage 2b checks: Reboot PIN screens in Settings, driven with uiautomator
 # (docs/07-roadmap.md, Stage 2b; doc 04 *Settings flow*). Needs the Stage 2 builds of
 # frameworks/base and Settings and the Stage 1 setup (owner PIN).
-# Run inside the build container:  run.sh exec /src/os-ivan-gg/tests/stage2b.sh <item>
+# Run inside the build container:  run.sh exec /src/ee1os/tests/stage2b.sh <item>
 #   screens    add, duress collision error, update, delete, add again through the screens
 # Every check prints PASS or FAIL; the script exits 1 if any check failed.
 # Screen behaviour (layout, keyboard, texts) is still a T4 check: this only proves the flow.

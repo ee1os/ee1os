@@ -24,7 +24,7 @@ corepack yarn install --cwd vendor/adevtool --frozen-lockfile
 vendor/adevtool/bin/run generate-all -d "$d"
 rm -rf "$keep"
 # what verify-tree.sh checks the module against: the adevtool, the image it came from, its hash
-source /mnt/flash/home/faeton/work/os-ivan-gg/scripts/forks.sh
+source /mnt/flash/home/faeton/work/ee1os/scripts/forks.sh
 img=$(ls -t vendor/adevtool/dl/"$d"-*-factory-*.zip | head -1)
 mkdir -p /src/state/vendor
 { echo "adevtool=$(git -C vendor/adevtool rev-parse HEAD)"

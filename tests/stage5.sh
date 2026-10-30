@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stage 5 checks: envB unlocked while the owner stays locked (docs/07-roadmap.md, Stage 5).
 # Needs the Stage 1 setup (owner PIN, envB with its own PIN).
-# Run inside the build container:  run.sh exec /src/os-ivan-gg/tests/stage5.sh <item>
+# Run inside the build container:  run.sh exec /src/ee1os/tests/stage5.sh <item>
 #   storage    reboot, unlock envB first: shared storage, MediaStore, owner CE still locked,
 #              then the owner unlocks with both users' storage working
 # Every check prints PASS or FAIL; the script exits 1 if any check failed.

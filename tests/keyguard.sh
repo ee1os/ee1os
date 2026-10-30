@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lock screen dispatch on the emulator, typed at the real bouncer (doc 04 *Lock screen*).
 # Needs a freshly wiped emulator (EMU_ARGS=-wipe-data run.sh emulator); sets A, B and a reboot PIN.
-# Run inside the build container:  run.sh exec /src/os-ivan-gg/tests/keyguard.sh
+# Run inside the build container:  run.sh exec /src/ee1os/tests/keyguard.sh
 # Each PIN goes in as taps on the pad and as key events (those need the pad's focus).
 # Screenshots of the bouncer come out black (secure window): what is on screen is read from
 # uiautomator instead. Every check prints PASS or FAIL; the script exits 1 if any check failed.
