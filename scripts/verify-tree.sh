@@ -92,8 +92,12 @@ cd "$TREE" || exit 1
     git ls-files -v | grep -q "^[a-zS]" && echo "$REPO_PATH: assume-unchanged or skip-worktree entries"
     [ -z "$(git for-each-ref refs/replace)" ] || echo "$REPO_PATH: replace refs"
     [ ! -e "$(git rev-parse --git-path info/grafts)" ] || echo "$REPO_PATH: grafts"
-    true' > "$tmp/dirty" 2>/dev/null
-while read -r l; do no "$l"; done < "$tmp/dirty"
+    echo "@done $REPO_PATH"' > "$tmp/dirty" 2> "$tmp/dirty.err" \
+    || no "repo forall (status) failed: $(head -3 "$tmp/dirty.err")"
+grep -v '^@done ' "$tmp/dirty" | while read -r l; do no "$l"; done | tee "$tmp/dirtyout"
+grep -q '^FAIL' "$tmp/dirtyout" && bad=1
+[ "$(grep -c '^@done ' "$tmp/dirty")" = "$(wc -l < "$tmp/heads")" ] \
+    || no "the status pass covered $(grep -c '^@done ' "$tmp/dirty") of $(wc -l < "$tmp/heads") projects"
 
 declare -A pin fork seen
 while read -r k path rev; do [ "$k" = P ] && pin[$path]=$rev; done < "$tmp/pinned"

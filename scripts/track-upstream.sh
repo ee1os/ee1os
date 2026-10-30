@@ -122,6 +122,10 @@ $(echo "$out" | grep '^FAIL' | head -15)"; return 1; }
 # 3b-5 for the rebased forks of $tag: vendor modules, tree check, build, gate, then hold (strategic,
 # $wrc) or push. Run by the nightly path, and by APPROVE= for a release held before its build.
 build_and_push() {
+    # nothing from the tree runs before this (both ways in: the nightly path and APPROVE=)
+    vout=$(TAG=$tag VENDOR=- "$ENVS/scripts/verify-tree.sh" 2>&1) \
+        || fail "tree check for $tag failed, not built:
+$(echo "$vout" | grep '^FAIL' | head -15)"
     # 3b. vendor modules (vendor/google_devices/<model>) are generated, not synced, and refuse to
     # build once the tree's adevtool moves past the commit they were made with. Regenerate them in
     # the build container (doc 08 Stage 6); the stock factory image goes to vendor/adevtool/dl/.

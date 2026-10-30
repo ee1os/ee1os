@@ -40,13 +40,16 @@ if [ "${1:-}" = --draft ]; then
     exit 0
 fi
 if [ "${1:-}" = --prune ]; then
+    # the whole set first; any error stops before approved.txt is touched
     keep=$(mktemp)
     for e in "${FORKS[@]}"; do
         p=${e%%:*} name=${e##*:}
-        for c in $(xgit -C "$TREE/$p" rev-list --reverse "refs/tags/$tag..HEAD"); do
-            echo "$name $(patch_id "$TREE/$p" "$c")"
+        cs=$(xgit -C "$TREE/$p" rev-list --reverse "refs/tags/$tag..HEAD")
+        for c in $cs; do
+            id=$(patch_id "$TREE/$p" "$c")
+            echo "$name $id" >> "$keep"
         done
-    done > "$keep"
+    done
     while read -r r id rest; do
         if grep -qx "$r $id" "$keep"; then echo "$r $id $rest"; else echo "dropped: $r $id $rest" >&2; fi
     done < "$LIST" > "$LIST.new"
