@@ -22,15 +22,15 @@ done
 # itself checks for the file: a pipe into grep -q fails under pipefail when unzip gets SIGPIPE
 unzip -qql "$out/$DEVICE-target_files.zip" SYSTEM/priv-app/Updater/Updater.apk > /dev/null \
     || { echo "no Updater in $DEVICE-target_files.zip (OFFICIAL_BUILD unset?), not published"; exit 1; }
-# GitHub refuses files over 2 GiB. An install zip over that goes up in parts (.zip.part1, ...),
-# listed in order in SHA256SUMS before the whole zip; the install scripts join them. The OTA
-# zip can't be split: the Updater reads it in one piece.
+# GitHub refuses files over 2 GiB. An install zip over 2.14 GB (7 MB short of that) goes up in
+# parts (.zip.part1, ...), listed in order in SHA256SUMS before the whole zip; the install
+# scripts join them. The OTA zip can't be split: the Updater reads it in one piece.
 [ "$(stat -c %s "$out/$DEVICE-ota_update-$bn.zip")" -lt 2147483648 ] \
     || { echo "$DEVICE-ota_update-$bn.zip is over 2 GiB, GitHub won't take it; not published"; exit 1; }
 inst=$DEVICE-install-$bn.zip
 rm -f "$out/$inst".part[0-9]
 uploads=("$inst")
-if [ "$(stat -c %s "$out/$inst")" -gt 2000000000 ]; then
+if [ "$(stat -c %s "$out/$inst")" -gt 2140000000 ]; then
     (cd "$out" && split -b 1900M --numeric-suffixes=1 -a 1 "$inst" "$inst.part")
     uploads=()
     for f in "$out/$inst".part[0-9]; do uploads+=("$(basename "$f")"); done
