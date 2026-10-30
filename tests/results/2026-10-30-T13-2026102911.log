@@ -1,0 +1,73 @@
+# part 1 (stopped when adb dropped at 10:22)
+10:20:50 ## T13 on google/husky/husky:17/CP3A.261005.005/2026102911:user/release-keys, slot _b, yellow, locked=1
+10:20:51 users:  UserInfo{0:Owner:4c13} running
+ UserInfo{10:Protected:410}
+10:20:51 ### 1. A's PIN opens A; B's PIN at A's lock screen opens B
+10:21:15     PASS: A opens
+10:21:39     PASS: B opens (u10 com.android.launcher3/.uioverrides.QuickstepLauncher)
+10:21:39 ### 2. power in B with an app open: A's lock screen, nothing of B; wake: still A locked
+10:21:43     before: top u10 com.android.settings/.homepage.SettingsHomepageActivity
+10:21:53     samples after power: [0|none|Window{945d3a9 u0 NotificationShade}] [0|none|Window{945d3a9 u0 NotificationShade}] [0|none|Window{945d3a9 u0 NotificationShade}] [0|none|Window{945d3a9 u0 NotificationShade}] [0|none|Window{945d3a9 u0 NotificationShade}] [0|none|Window{945d3a9 u0 NotificationShade}] [0|none|Window{945d3a9 u0 NotificationShade}] [0|none|Window{945d3a9 u0 NotificationShade}] [0|none|Window{945d3a9 u0 NotificationShade}] [|none|Window{945d3a9 u0 NotificationShade}] 
+10:22:14     FAIL: user  after power
+10:22:18     samples after wake: [|||] [|||] [|||] [|||] [|||] [|||] 
+10:22:18     FAIL: after wake: user , keyguard 
+10:22:18     PASS: no u10 window after wake
+10:22:30     FAIL: no PIN pad
+10:22:51     FAIL: A opens after B (user , keyguard showing , msg: )
+10:22:51 ### 3. camera from the lock screen (double power), back returns to the lock screen
+10:22:59     camera: user , top , keyguard showing 
+10:22:59     FAIL: camera not on top ()
+10:23:01     after back: user , keyguard , top , focus 
+10:23:01     FAIL: not back on the lock screen
+10:23:13     FAIL: no PIN pad
+10:23:34     FAIL: A opens after camera (user , keyguard showing , msg: )
+10:23:34 ### 4a. 5 wrong PINs: A's countdown shows and ticks
+10:23:49     FAIL: no PIN pad
+10:24:30     msg:  | 6 s later: 
+10:24:33     FAIL: no countdown
+10:24:33     FAIL: countdown not ticking
+10:24:33     FAIL: user  during A's lockout
+10:24:33     FAIL: pad gone during lockout
+10:25:48     FAIL: no PIN pad
+
+# parts 2 and 3
+10:29:52 ## T13 part 2 on google/husky/husky:17/CP3A.261005.005/2026102911:user/release-keys, slot _b, yellow, locked=1
+10:29:52 users:  UserInfo{0:Owner:4c13} running
+ UserInfo{10:Protected:410}
+10:29:52 ### 3. camera from the lock screen (double power), back returns to the lock screen
+10:30:01     camera: user 0, top u0 app.grapheneos.camera/.ui.activities.SecureMainActivity, keyguard showing true
+10:30:01     PASS: camera opened over the lock screen
+10:30:04     after back: user 0, keyguard true, top , focus Window{945d3a9 u0 NotificationShade}
+10:30:04     PASS: back on A's lock screen
+10:30:25     PASS: A opens after camera
+10:30:25 ### 4a. 5 wrong PINs: A's countdown shows and ticks
+10:31:33     msg: text="Try again in 53 seconds" text="Too many attempts with incorrect PIN&#10;Learn more at g.co/android/unlock"  | 6 s later: text="Try again in 44 seconds" text="Too many attempts with incorrect PIN&#10;Learn more at g.co/android/unlock" 
+10:31:36     PASS: countdown shown
+10:31:36     PASS: countdown ticks
+10:31:39     PASS: pad still up
+10:33:07     PASS: A opens after the lockout
+10:33:07 ### 4b. one more wrong PIN: B alone locked out, countdown for B, A still opens
+10:33:34     msg after 500006: text="Try again in 5 minutes" text="Too many attempts with incorrect PIN&#10;Learn more at g.co/android/unlock" 
+10:33:53     B's PIN: text="Try again in 5 minutes" text="Too many attempts with incorrect PIN&#10;Learn more at g.co/android/unlock"  | 6 s later: text="Try again in 5 minutes" text="Too many attempts with incorrect PIN&#10;Learn more at g.co/android/unlock" 
+10:33:56     PASS: B's PIN during B's lockout: countdown, still user 0
+10:33:56     note: B's countdown text unchanged over 6 s (minute granularity?)
+10:34:05     PASS: A opens during B's lockout
+10:39:29     PASS: B opens after its lockout
+10:39:29 B left open; result so far: PASS
+10:41:18 ## T13 part 3
+10:41:18     owner, 2 (physical power in B): no flash of B; second press: A's lock screen; A unlocked by owner
+10:41:19     now: user 0, keyguard false
+10:41:19 ### 5. reboot PIN at A's lock screen, then B as first unlock
+10:42:14     booted: reason reboot,userrequested, build 2026102911 _b, user0 RUNNING_LOCKED
+10:42:14     PASS: reboot PIN rebooted
+10:42:50     PASS: B first after reboot (user0 RUNNING_LOCKED)
+10:42:50 ### 6. state and logs (taken in B, before leaving it)
+10:42:50 users:  UserInfo{0:Owner:4c13} running
+ UserInfo{10:Protected:410} running
+10:42:51 FATAL/ANR since boot: 0
+10:42:51 dispatch: 
+10:42:51 crash buffer: 10-30 05:12:03.299   959   959 F libc    : Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 959 (init), pid 959 (init);
+10:42:57     PASS: lock in B → user 0
+10:42:57 result part 3: PASS
+10:43:22     PASS: A opens after B-first (first unlock of A)
+10:43:22 user0 RUNNING_UNLOCKED, user10 User is not started: 10
