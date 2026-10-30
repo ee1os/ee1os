@@ -31,6 +31,7 @@ All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*
    build.
 4. ~~Weaver-backed alternates~~ shelved, doc 00 decision 2026-10-13.
 5. Remaining phone checks: reboot PIN, auto-confirm with the layout, duress wipe last.
+6. Rename to ee1os (R8, doc 00 decision 2026-10-30).
 
 The earlier list (2026-10-11) is done or folded in above: Stage 3 wording and Stage 5
 coverage stay open in their sections.
@@ -45,10 +46,11 @@ before the owner says so.
 | R1 | Our own update server | Done 2026-10-13: `packages/apps/Updater/res/values/config.xml:3` (fork branch `envs-17`) points at `https://github.com/os-ivan-gg/releases/releases/download/updates/` (rolling "updates" release; the GrapheneOS-only TLS pin set doesn't apply to it). To check on the first release: update_engine streams the payload from that URL and has to follow GitHub's redirect to its download host |
 | R2 | Release script on n5 | first version 2026-10-13: `scripts/release.sh [user\|userdebug]` builds target files, signs (`script/generate-release.sh`, passphrase prompt), uploads the update zip and channel metadata to the rolling "updates" release and the install zip to a release of its own, notifies klava hq. Untested until the keys exist; old update zips aren't pruned yet |
 | R3 | Tester install | install zip plus a short script, later an adapted web installer page: unlock, flash, set `avb_custom_key`, lock |
-| R4 | os.ivan.gg page | what it is, install steps, release notes; static hosting with the images; drafted here, published by the owner |
+| R4 | ee1os.com page (was os.ivan.gg) | what it is, install steps, release notes; static hosting with the images; drafted here, published by the owner |
 | R5 | Tracking GrapheneOS releases | first version 2026-10-13: `scripts/track-upstream.sh`, nightly. Detects a new husky stable tag, syncs, rebases each fork's `envs-17` (stops and notifies on a conflict), builds, runs `tests/gate.sh` if present, then force-pushes the branches with a `<tag>.os` tag, rebuilds the manifest on the tag and packs the flash archive. 2026-10-15: the manifest step rebased only its last commit, which a release tag's pinned `default.xml` doesn't take anyway; it now starts from the tag, copies our `envs.xml` and adds one include. Releases only, never upstream branch `17` (doc 00 decision 2026-10-15). 2026-10-15: `scripts/upstream-watch.py` previews branch `17` nightly and flags strategic changes; a release with flags is built but held until `APPROVE=<tag>` (doc 08). Phone check and release stay manual. Owner decision: GrapheneOS stable releases sync automatically. Open: `tests/gate.sh` (unit tests + emulator scenarios), scheduled 2026-10-15 as TrueNAS cron jobs 25 (`upstream-watch.py preview`, 00:30) and 26 (`track-upstream.sh`, 01:00), user faeton, n5 time |
 | R6 | Update compatibility test | install release N, set up the layout, update to N+1, check users, PINs, duress and reboot records still work |
-| R7 | Naming | "a fork of GrapheneOS" as description only; no GrapheneOS name, logo or boot animation as branding. 2026-10-15: GrapheneOS's new boot animation is kept out by the `platform_build` fork (doc 00 decision) |
+| R7 | Naming | "a fork of GrapheneOS" as description only; no GrapheneOS name, logo or boot animation as branding. 2026-10-15: GrapheneOS's new boot animation is kept out by the `platform_build` fork (doc 00 decision). 2026-10-30: the name is ee1os, "two environments, one OS" (doc 00 decision) |
+| R8 | Rename to ee1os | Not started. Register/point ee1os.com (owner); rename the GitHub organization `os-ivan-gg` and this repo, then the Updater URL (R1), `scripts/envs-local-manifest.xml`, the release and tracking scripts, the boot logo and on-device strings that say os.ivan.gg (doc 04, boot logo), `site/` drafts (`NAME`), key CN in `scripts/generate-keys.sh` before the release keys exist. Installed test builds update from the old URL, so the old release location keeps redirecting or serving until every tester is on a build with the new one. fri4.com stays owned |
 
 ## Stages
 
@@ -358,3 +360,12 @@ on them. Line numbers re-checked 2026-10-08.
   (`UserManagerService.java:3362-3367`); no cryptographic owner-first dependency found. Before
   owner unlock `getVolumeList` reports every volume unmounted, except to MediaStore
   (`StorageManagerService.java:3931-3934`, `:3995-4001`). Stage 1 item 3 tests what else breaks.
+
+## Review log
+
+Outside reviews, advisory only, no file writes.
+
+| Date | Reviewer | Subject | Outcome |
+|---|---|---|---|
+| 2026-10-30 | Grok, Codex, agy | Project domain fri4.com | Best reading `4` = `a`, *fría*, "cold" → BFU; also Scandinavian *fri*, "free"; `3744` on a phone keypad. Risks: Frida, FRIA (EU AI Act), cold-boot attacks, spoken ambiguity |
+| 2026-10-30 | Grok, Codex (agy: quota) | Project domain ee1os.com | Both rank "two environments, one OS" first; Codex adds "encrypted environments". Risks: Eelo (old /e/OS name), `1`/`l`/`I`, EE carrier, "-os" reads as a fork (accurate for us). Codex: "ee1os has the cleverer explanation; fri4 has the cleaner brand." Owner chose ee1os (doc 00 decision 2026-10-30) |

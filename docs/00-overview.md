@@ -132,3 +132,26 @@ What the design aims to provide:
   `17` is their development line between releases; it is never merged into `envs-17`, because
   `scripts/track-upstream.sh` rebases each fork from its release-tag base onto the next tag and
   a merge would make it replay upstream commits. Their changes reach us with the next tag.
+- **2026-10-30: the project is renamed ee1os, at ee1os.com** (owner decision; replaces the
+  working name os.ivan.gg and the `NAME` placeholder in `site/landing.md`). Read "ee-one-os":
+  **two environments, one OS**.
+  - *ee* is the two environments, A (user 0) and B (secondary user), each with its own
+    synthetic password and CE key (goal 3, 6); also **e**ncrypted **e**nvironments, which
+    is what makes B worth having. This repo was `grapheneos-envs` for the same reason.
+  - *1os* is one OS: one GrapheneOS build, one signing root, one update channel, not a
+    dual boot (decision 2026-10-06, doc 06).
+  - The "-os" suffix marks a separately maintained distribution. That is accurate here: we
+    ship our own builds and updates from the forks (doc 07 *Fork and upstream*, R1–R7).
+  - Side readings, never used as claims: *eel* (`1` = `l`), a thing that slips out of a
+    grip; and Greek *eleos*, mercy. The eel must not turn into "hidden" or "undetectable"
+    wording: deniability is a non-goal (above).
+  - Known costs, accepted: `1` reads as `l` or `I` (`eelos`, `eeios`); `eelo` was the 2017
+    name of /e/OS; EE is a UK mobile carrier. Mitigation: always write it lowercase as
+    `ee1os`, explain it once next to the name ("ee·1·os — two environments, one OS"), keep
+    GrapheneOS out of the branding (doc 07 R7).
+  - fri4.com (owned) was the other candidate: `4` = `a`, *fría*, "cold" (Spanish), the BFU
+    state the reboot PIN returns to, and four PINs (A, B, duress, reboot). Cleaner as a
+    brand, but it names one action out of four; ee1os names the whole design. fri4.com
+    stays owned, and can point at the reboot-to-BFU page.
+  - Reviews: Grok and Codex on both names, agy on fri4 only (quota); doc 07 *Review log*.
+  The rename itself is doc 07 R8.
