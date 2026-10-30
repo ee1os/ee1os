@@ -33,7 +33,6 @@ scripts/              local manifest (forks), source sync
 workspace/build-env/  build container (Dockerfile, run.sh)
 tests/                stage test scripts; results/ holds run records
 patches/              format-patch export per stage
-site/                 ee1os.com page drafts (moving to the site repo)
 ```
 
 ## Building

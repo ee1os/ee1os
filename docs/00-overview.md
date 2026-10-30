@@ -133,7 +133,7 @@ What the design aims to provide:
   `scripts/track-upstream.sh` rebases each fork from its release-tag base onto the next tag and
   a merge would make it replay upstream commits. Their changes reach us with the next tag.
 - **2026-10-30: the project is renamed ee1os, at ee1os.com** (owner decision; replaces the
-  working name os.ivan.gg and the `NAME` placeholder in `site/landing.md`). Read "ee-one-os":
+  working name os.ivan.gg and the `NAME` placeholder in the landing draft, now `drafts/landing.md` in the site repo). Read "ee-one-os":
   **two environments, one OS**.
   - *ee* is the two environments, A (user 0) and B (secondary user), each with its own
     synthetic password and CE key (goal 3, 6); also **e**ncrypted **e**nvironments, which
