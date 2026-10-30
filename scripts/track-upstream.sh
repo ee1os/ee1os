@@ -28,13 +28,7 @@ LOG=$WS/track-upstream.log
 DEVICE=husky
 ORG=https://github.com/os-ivan-gg
 UPSTREAM=https://github.com/GrapheneOS
-# tree path : repo name, for every project we change
-FORKS=(build/make:platform_build
-       frameworks/base:platform_frameworks_base
-       packages/apps/Settings:platform_packages_apps_Settings
-       packages/apps/SetupWizard2:platform_packages_apps_SetupWizard2
-       packages/apps/Updater:platform_packages_apps_Updater
-       system/sepolicy:platform_system_sepolicy)
+source "$ENVS/scripts/forks.sh"   # FORKS: tree path : repo name, for every project we change
 DRY=${DRY_RUN:-0}
 RESTORE=0   # 1 while forks are rebased locally and a failure should put them back
 
@@ -71,6 +65,11 @@ dry() { if [ "$DRY" = 1 ]; then echo "DRY_RUN: $*"; exit 0; fi; }
 # 5. publish the source: rebased branches with a <tag>.os tag each, then the manifest. Returns
 # non-zero if anything wasn't pushed; the release then counts as not done.
 publish() {
+    # only a tree that is exactly what was reviewed (verify-tree.sh); approving a held release
+    # comes through here too
+    out=$(TAG=$tag VENDOR=$DEVICE "$ENVS/scripts/verify-tree.sh" 2>&1) \
+        || { notify "tree check for $tag failed, not pushed:
+$(echo "$out" | grep '^FAIL' | head -15)"; return 1; }
     for e in "${FORKS[@]}"; do
         p=${e%%:*} name=${e##*:}
         cd "$TREE/$p" || return 1
@@ -262,6 +261,19 @@ for d in $(models); do
     fi
 done
 
+# 3c. the rebased tree against the approvals, before any of it is built. Commits whose patch-id
+# the rebase changed (or new ones) hold the release until the owner approves them
+# (scripts/approve.sh, commit approved.txt, APPROVE=<tag>); anything else stops here.
+vout=$(TAG=$tag VENDOR=$DEVICE "$ENVS/scripts/verify-tree.sh" 2>&1); vrc=$?
+log "verify-tree $tag: exit $vrc"
+unapproved=""
+if [ "$vrc" != 0 ]; then
+    other=$(echo "$vout" | grep '^FAIL' | grep -v ': commit not approved: \|: approved commit missing: ')
+    [ -z "$other" ] || fail "tree check after the rebase onto $tag failed:
+$(echo "$other" | head -15)"
+    unapproved=$(echo "$vout" | grep '^FAIL' | sed 's/^FAIL: //' | head -15)
+fi
+
 # 4. build and gate
 bn=$(date -u +%Y%m%d%H)
 label="husky $bn on GrapheneOS $tag at $(date +%s)"
@@ -280,8 +292,9 @@ if [ -x "$ENVS/tests/gate.sh" ]; then
         || fail "build $bn on GrapheneOS $tag built but the test gate failed; not pushed."
 fi
 
-# 4b. hold strategic releases for the owner; the rebased branches stay as they are
-if [ "$wrc" != 0 ]; then
+# 4b. hold strategic releases, and ones with commits to approve, for the owner; the rebased
+# branches stay as they are
+if [ "$wrc" != 0 ] || [ -n "$unapproved" ]; then
     echo "$tag" > "$STATE/held-tag"; echo "$bn" > "$STATE/held-bn"; mkdir -p "$STATE/held"
     for e in "${FORKS[@]}"; do
         git -C "$TREE/${e%%:*}" rev-parse envs-17 > "$STATE/held/${e##*:}"
@@ -290,7 +303,12 @@ if [ "$wrc" != 0 ]; then
     review=$(echo "$watch" | grep -- '-review.md$' | head -1)
     sum=""
     [ -n "$review" ] && sum=$(awk '/^#/{n++} n==2{exit} {print}' "$review" | head -c 2000)
-    if [ "$wrc" = 10 ]; then why="has changes that need a decision"; else why="could not be checked (exit $wrc)"; fi
+    if [ "$wrc" = 0 ]; then why="has fork commits to approve"
+    elif [ "$wrc" = 10 ]; then why="has changes that need a decision"
+    else why="could not be checked (exit $wrc)"; fi
+    [ -z "$unapproved" ] || sum="Fork commits to approve (scripts/approve.sh, then commit approved.txt):
+$unapproved
+$sum"
     notify "build $bn on GrapheneOS $tag is built, but the release $why. Not pushed.
 $sum
 Report: $(echo "$watch" | head -1)

@@ -1,8 +1,17 @@
 # Patches
 
-`git format-patch` exports of the fork commits, one directory per roadmap stage. Base:
-`frameworks/base` `84183aff` and `packages/apps/Settings` `e5c0d9dd` (branch `17`); the fork
-branches are `envs-17`.
+`approved.txt` is the list of fork commits that may be built and signed: one line per commit,
+`<repo> <patch-id> <short-sha> <subject>`, checked by `scripts/verify-tree.sh` and extended with
+`scripts/approve.sh` (doc 08, *Tree check*). It covers all six forks (`platform_build`,
+`platform_frameworks_base`, `platform_packages_apps_Settings`,
+`platform_packages_apps_SetupWizard2`, `platform_packages_apps_Updater`,
+`platform_system_sepolicy`), branch `envs-17` over the GrapheneOS release tag in
+`state/upstream-tag` (`2026102100` on 2026-10-30).
+
+The directories are `git format-patch` exports of the early stage commits, kept as a record.
+They were made on the old base, `frameworks/base` `84183aff` and `packages/apps/Settings`
+`e5c0d9dd` (branch `17`), and don't apply to the current forks; the forks themselves are the
+source.
 
 | Dir | Commit | What |
 |---|---|---|
@@ -17,5 +26,4 @@ branches are `envs-17`.
 | | `2d11384e` | Add reboot escrow and alternate credential tests |
 | `02-reboot-bfu/settings/` | Settings `a64a0967` | Add reboot PIN screens (2b); applies to `packages/apps/Settings` |
 
-Within a directory the patches apply in number order; the directories touch different files and
-apply in any order (`git am`). Results: `tests/results/`.
+Results: `tests/results/`.

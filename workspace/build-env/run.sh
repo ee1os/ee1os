@@ -27,6 +27,13 @@ common=(--rm --memory "$MEM" --memory-swap "$MEMSWAP" --network host
         -v "$SRC:/src" -v "$ENVS:$ENVS"
         --device /dev/kvm --group-add "$KVM_GID"
         -e JOBS="$JOBS" -e NINJA_HIGHMEM_NUM_JOBS="$HIGHMEM" -e LUNCH="$LUNCH" -e BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE="$SUPER" -e EMU_ARGS="$EMU_ARGS")
+# the signing keys and their passphrase only for signing (KEYS=1, release.sh step 2): code built
+# from the tree never sees them; an empty root-only tmpfs over both
+if [ "${KEYS:-0}" != 1 ]; then
+  for d in "$SRC/grapheneos-17/keys" "$SRC/.secrets"; do
+    if [ -d "$d" ]; then common+=(--mount "type=tmpfs,destination=/src/${d#$SRC/},tmpfs-mode=0700"); fi
+  done
+fi
 # envsetup keeps the previous build number unless these are set (phone builds set both)
 [ -n "${BUILD_NUMBER:-}" ] && common+=(-e BUILD_NUMBER="$BUILD_NUMBER")
 [ -n "${BUILD_DATETIME:-}" ] && common+=(-e BUILD_DATETIME="$BUILD_DATETIME")

@@ -96,6 +96,45 @@ and to this repo.
   are pushed. The manifest's `envs-17` follows the fork branches; its `<tag>.os` tag sits on
   a commit that pins the forks to their `<tag>.os` tags, so a release can be synced again
   exactly.
+- **Tree check before anything runs or is signed** (decided 2026-10-30): `scripts/verify-tree.sh`
+  fails, with every reason, unless the tree is exactly what was reviewed. Fork commits over the
+  upstream tag (`HEAD`, not the fork on GitHub) must match `patches/approved.txt` as committed
+  in this repo's `HEAD`, by patch-id: no extra, none missing, no merge or empty commits. Each
+  fork must sit on the tag's commit, the tag signed by GrapheneOS
+  (`scripts/grapheneos-allowed-signers`, from grapheneos.org/allowed_signers) and pinned by the
+  tag's signed `default.xml`. Every other project must be at that manifest's revision, with no
+  project it doesn't list; `.repo/local_manifests` holds only `envs.xml`. No project may have
+  uncommitted, untracked (in the forks also ignored) files, assume-unchanged or skip-worktree
+  entries, replace refs or grafts. The tree root holds only project dirs, linkfile/copyfile
+  targets matching their sources, `out*/`, `keys/` and `releases/`. Each generated vendor
+  module matches `state/vendor/<model>` (adevtool commit, factory image with its SHA-256, a hash
+  over paths, modes, link targets and contents), written by `vendor-module.sh`; husky and
+  stallion were recorded from their existing modules on 2026-10-30 (adevtool `78aac18c`,
+  images `cp3a.261005.005`, SHA-256 equal to Google's in the file names). About 7 s on n5.
+  - `scripts/approve.sh <repo> <commit>...` adds lines (`<repo> <patch-id> <short-sha>
+    <subject>`, only the first two are checked); `--draft` lists every commit over the tag. It
+    doesn't commit: the owner reviews and commits `approved.txt` from m3max. The first list
+    (63 commits on `2026102100`) became the reference with the owner's OK.
+  - Patch-id: `git show --binary --full-index --no-renames`, no user config, then `git patch-id
+    --verbatim` (whitespace counts; it can't be combined with `--stable`, and file order is
+    fixed by git anyway). A clean rebase keeps it: all 62 commits kept their ids from
+    `2026101600` to `2026102100`. A rebase that changes a commit (conflict, changed context)
+    gives a new id, and that commit is approved again. Reason: patch-ids survive the nightly
+    rebase where commit SHAs don't; what upstream changes around our patches is
+    `upstream-watch.py`'s job.
+  - `release.sh` checks before the build (an unreviewed `build/make` runs at `lunch`), builds in
+    an emptied `out_release/` (its old outputs and otatools would be signed or run otherwise),
+    checks again, then signs. No way around the check. The signing keys and the passphrase
+    are in the container only for the signing step: `run.sh` covers `keys/` and `.secrets/`
+    with an empty root-only tmpfs unless `KEYS=1`; the build doesn't read them.
+  - `track-upstream.sh` checks after the rebase and before the build. If the only failures are
+    commits to approve, it builds and holds the release like a strategic one (approve, commit
+    `approved.txt`, then `APPROVE=<tag>`); any other failure stops it and puts the forks back.
+    Its push (`publish()`, also for `APPROVE=`) checks again.
+  - Not covered: root or the owner's shell on n5 (it can change the check itself); moving
+    signing off n5 is a separate task. Approvals are checked against SSH signatures once
+    `/mnt/tank/scripts/os-ivan-gg/allowed_signers` (root's, outside the repo) exists; until
+    then anyone who can commit to this repo's `HEAD` on n5 can approve.
 - **Schedule** (TrueNAS cron, `sudo midclt call cronjob.query`): job 25 runs the preview at
   00:30, job 26 `track-upstream.sh` at 01:00 (n5 time, Europe/Lisbon). Logs:
   `upstream-watch.log` and `track-upstream.log` next to the tree.

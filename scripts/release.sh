@@ -4,7 +4,9 @@
 # All models share the husky keys (doc 08 Stage 6); keys/<codename> is a copy of keys/husky.
 #   [DEVICE=shiba] release.sh [variant]     user (default; testers) or userdebug (the test phone's dev channel)
 # Steps:
-#   1. build target files and OTA tools with a fresh build number
+#   0. verify-tree.sh: the tree is exactly what was reviewed, or nothing is built (no way around it)
+#   1. build target files and OTA tools with a fresh build number, in an emptied out_release/ (a
+#      previous build's outputs don't get signed); verify-tree.sh again after it
 #   2. finalize + generate-release (signing; prompts)  -> releases/<bn>/release-<codename>-<bn>/
 #   3. upload: the OTA zip and channel metadata replace the rolling "updates" release; the
 #      install zip gets a release of its own (github.com/os-ivan-gg/releases)
@@ -33,21 +35,27 @@ export OFFICIAL_BUILD=true LUNCH=$DEVICE-cur-$VARIANT OUT_DIR=out_release BUILD_
 label="release $bn $DEVICE $VARIANT"
 echo "== release $bn $DEVICE ($VARIANT, channel $CHANNEL)"
 
-# 1. build (ollama paused by emu-build.sh)
+# 0. the tree, before any of its code runs
+VENDOR=$DEVICE "$ENVS/scripts/verify-tree.sh" || { echo "tree check failed; not built"; exit 1; }
+
+# 1. build (ollama paused by emu-build.sh) from an empty output tree
+rm -rf "$TREE/$OUT_DIR"
 cd "$WS"
 ./emu-build.sh "$label" target-files-package otatools-package
 # the first BUILD_EXIT after this run's header (no grep -q in a pipe: pipefail and SIGPIPE)
 rc=$(awk -v m="=== $label " 'index($0, m) == 1 { f = 1; r = "" } f && r == "" && /^BUILD_EXIT=/ { r = $0 } END { print r }' build.log)
 [ "$rc" = BUILD_EXIT=0 ] || { echo "build failed ($rc)"; exit 1; }
+VENDOR=$DEVICE "$ENVS/scripts/verify-tree.sh" || { echo "tree check failed after the build; not signed"; exit 1; }
 
 # 2. finalize and sign. The key passphrase comes from $PWFILE when it exists (owner-only file
 #    on flash/scratch, kept out of the backups that hold the encrypted keys), else it is asked.
+#    Only this step gets the keys and the passphrase in the container (KEYS=1, run.sh).
 sign="cd /src/grapheneos-17 && script/finalize.sh && script/generate-release.sh $DEVICE $bn"
 if [ -s "$PWFILE" ]; then
     # the passphrase is read inside the container, never put on a command line
-    "$RUN" exec "password=\$(cat /src/${PWFILE#$WS/}); export password; $sign"
+    KEYS=1 "$RUN" exec "password=\$(cat /src/${PWFILE#$WS/}); export password; $sign"
 else
-    "$RUN" exec-it "$sign"
+    KEYS=1 "$RUN" exec-it "$sign"
 fi
 out=$TREE/releases/$bn/release-$DEVICE-$bn
 ls -la "$out"/$DEVICE-ota_update-$bn.zip "$out"/$DEVICE-install-$bn.zip

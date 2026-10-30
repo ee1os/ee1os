@@ -23,6 +23,13 @@ export ADEVTOOL_SKIP_DEP_BUILD=1
 corepack yarn install --cwd vendor/adevtool --frozen-lockfile
 vendor/adevtool/bin/run generate-all -d "$d"
 rm -rf "$keep"
+# what verify-tree.sh checks the module against: the adevtool, the image it came from, its hash
+source /mnt/flash/home/faeton/work/os-ivan-gg/scripts/forks.sh
+img=$(ls -t vendor/adevtool/dl/"$d"-*-factory-*.zip | head -1)
+mkdir -p /src/state/vendor
+{ echo "adevtool=$(git -C vendor/adevtool rev-parse HEAD)"
+  echo "image=$(basename "$img") $(sha256sum < "$img" | cut -d' ' -f1)"
+  echo "tree=$(module_hash "$mod")"; } > /src/state/vendor/"$d"
 
 # the image just used is the newest; drop the older ones of this model (best effort; the
 # unpacked trees are read-only)
