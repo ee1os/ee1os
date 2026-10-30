@@ -88,7 +88,7 @@ cd "$TREE" || exit 1
 "$REPO" forall -j12 -c '
     s=$(git status --porcelain --untracked-files=all --ignored=traditional --ignore-submodules=none 2>&1 \
         | if [ "$REPO_PATH" = vendor/adevtool ]; then grep -Ev "^!! (dl|node_modules)/"; else cat; fi | head -3)
-    [ -z "$s" ] || printf "%s: uncommitted, untracked or ignored: %s\n" "$REPO_PATH" "$(echo $s)"
+    [ -z "$s" ] || printf "%s: uncommitted, untracked or ignored: %s\n" "$REPO_PATH" "$(echo "$s" | tr "\n" " ")"
     git ls-files -v | grep -q "^[a-zS]" && echo "$REPO_PATH: assume-unchanged or skip-worktree entries"
     [ -z "$(git for-each-ref refs/replace)" ] || echo "$REPO_PATH: replace refs"
     [ ! -e "$(git rev-parse --git-path info/grafts)" ] || echo "$REPO_PATH: grafts"
