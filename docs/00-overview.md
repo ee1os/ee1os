@@ -163,3 +163,11 @@ What the design aims to provide:
   phone does. The pages lead with what people protect (accounts, wallets, contacts), then the
   PINs. The expansion stays here, in this decision, as the origin of the name. Same day: the
   site drops its web fonts and the `drafts/` folder; the pages are the copy.
+- **2026-10-30: no Auditor and no Info app** (owner decision). Our `platform_build` fork drops
+  `Auditor` and `InfoApp` from `PRODUCT_PACKAGES` in build/make
+  `target/product/handheld_product.mk`. Reason: Auditor verifies against GrapheneOS's and the
+  stock verified boot keys, not ours, so it can't vouch for this OS; Info shows GrapheneOS's
+  release notes and news, which aren't ours and are their branding (decision of 2026-10-15).
+  Both stay installable from Apps for anyone who wants them. The notification grant for
+  `app.attestation.auditor` in `DefaultPermissionGrantPolicy.java:985` is left alone: it is a
+  no-op when the package isn't there.
