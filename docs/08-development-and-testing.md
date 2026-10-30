@@ -350,7 +350,7 @@ wrong PINs. Never automated from this repo.
 
 One key set for all models (decided 2026-10-14, owner): the keys made for husky also sign
 every other model, so there is one passphrase, one backup and one verified boot fingerprint
-(`65894abf…f161`) on the site. GrapheneOS uses a set per model, which limits a leak to one
+(`70b98fe0…669f`) on the site. GrapheneOS uses a set per model, which limits a leak to one
 model; with one holder and one build machine that buys little here. A new model gets
 `keys/<codename>` as a copy of `keys/husky`, its vendor files from adevtool
 (`generate-all -d <codename>`), then `DEVICE=<codename> scripts/release.sh`. Each model

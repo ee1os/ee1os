@@ -89,7 +89,7 @@ elif [ "$VARIANT" = user ]; then
         --notes "Factory images. Based on GrapheneOS $base.
 
 Verified boot key fingerprint (SHA-256 of avb_pkmd.bin), the same for every model:
-\`65894abf95040084e7f27ff8cb8e0d291b04abc266103fb88cef5e0c8c8bf161\`
+\`70b98fe0d9925692af9afc29981d3a58ec076ca4a056d53ff4ca14d1f0d0669f\`
 
 Source:
 \`\`\`
