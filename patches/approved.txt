@@ -65,3 +65,4 @@ platform_frameworks_base 69d1bf78a668ea3f4438ebee01f8b47c728353c8 d85243578faa R
 platform_packages_apps_Settings 242758b85c15e2020f8d73920da96caa6ef32744 389b087009da Name ee1os in the duress text
 platform_packages_apps_SetupWizard2 52a0ecb605e4b7a853ddf0687430c6b5a35bef19 56ab0e577257 Call it ee1os on the setup screens
 platform_packages_apps_Updater 010f779ff4da9bfcf902c5e24a46f3692e04fb33 b4f17ca36fe4 Fetch updates from the ee1os releases
+platform_build e7f7cbf46e8fc0d920e0ef03550a33709e7438d9 7e2b441f4dc0 Leave out Auditor and the Info app
