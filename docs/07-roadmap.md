@@ -365,7 +365,7 @@ on them. Line numbers re-checked 2026-10-08.
 
 Outside reviews, advisory only, no file writes.
 
-| Date | Reviewer | Subject | Outcome |
+| Date | Reviews | Subject | Outcome |
 |---|---|---|---|
-| 2026-10-30 | Grok, Codex, agy | Project domain fri4.com | Best reading `4` = `a`, *fría*, "cold" → BFU; also Scandinavian *fri*, "free"; `3744` on a phone keypad. Risks: Frida, FRIA (EU AI Act), cold-boot attacks, spoken ambiguity |
-| 2026-10-30 | Grok, Codex (agy: quota) | Project domain ee1os.com | Both rank "two environments, one OS" first; Codex adds "encrypted environments". Risks: Eelo (old /e/OS name), `1`/`l`/`I`, EE carrier, "-os" reads as a fork (accurate for us). Codex: "ee1os has the cleverer explanation; fri4 has the cleaner brand." Owner chose ee1os (doc 00 decision 2026-10-30) |
+| 2026-10-30 | 3 | Project domain fri4.com | Best reading `4` = `a`, *fría*, "cold" → BFU; also Scandinavian *fri*, "free"; `3744` on a phone keypad. Risks: Frida, FRIA (EU AI Act), cold-boot attacks, spoken ambiguity |
+| 2026-10-30 | 2 | Project domain ee1os.com | Both rank "two environments, one OS" first; one adds "encrypted environments". Risks: Eelo (old /e/OS name), `1`/`l`/`I`, EE carrier, "-os" reads as a fork (accurate for us). One summary: "ee1os has the cleverer explanation; fri4 has the cleaner brand." Owner chose ee1os (doc 00 decision 2026-10-30) |

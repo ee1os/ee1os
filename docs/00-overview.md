@@ -153,5 +153,5 @@ What the design aims to provide:
     state the reboot PIN returns to, and four PINs (A, B, duress, reboot). Cleaner as a
     brand, but it names one action out of four; ee1os names the whole design. fri4.com
     stays owned, and can point at the reboot-to-BFU page.
-  - Reviews: Grok and Codex on both names, agy on fri4 only (quota); doc 07 *Review log*.
+  - Outside reviews of both names: doc 07 *Review log*.
   The rename itself is doc 07 R8.
