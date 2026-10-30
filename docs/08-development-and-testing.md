@@ -357,6 +357,70 @@ model; with one holder and one build machine that buys little here. A new model 
 still needs its own build: the images carry that model's kernel, drivers and firmware.
 Moving a model to its own keys later means a wipe and reinstall on its phones.
 
+#### Key rotation
+
+Decided 2026-10-30 (owner): the first keys (2026-10-13, `CN=os.ivan.gg`, `65894abf…f161`) are
+replaced by a new set with `CN=ee1os`. Only one phone runs our builds, the test Pixel, locked
+on the old key. The old keys are never deleted: they move to an archive and stay in the
+backups. Reason: the rename (doc 00 decision 2026-10-30); a later rotation costs a wipe on every
+tester's phone.
+
+Why a wipe: a locked phone boots only builds signed with the key in `avb_custom_key`, and
+update_engine takes only an update signed with the running build's key, so a new-key build
+can't arrive over the air. `avb_custom_key` can be changed only with the bootloader unlocked,
+and unlocking erases the phone. Until step 9 the phone stays on the old key and keeps working;
+nothing signed with the new key goes on the updates channel before that, or the phone would
+download an update it then refuses.
+
+Owner-run, in order:
+
+1. **Back up the phone** (the unlock in step 7 erases A and B). In each user: Settings →
+   System → Backup (Seedvault) to a USB drive; copy photos and files off over USB; export
+   2FA seeds and anything else an app holds only on the phone. Many banking apps opt out of
+   backup: note what needs a new login or re-enrolment. Write down the layout to rebuild: B's
+   PIN, the reboot PIN, the duress PIN. eSIM profiles live on the eSIM chip; a bootloader
+   unlock erases data, not the eSIM, but have the carrier's transfer details at hand.
+2. **Approve the fork commits** that are not in `patches/approved.txt` yet (`approve.sh
+   --draft`, then `approve.sh <repo> <commit>…`, commit `approved.txt` signed from m3max), or
+   `verify-tree.sh` stops the release build.
+3. **New keys** on n5: `scripts/generate-keys.sh --rotate`. It checks the tree's keys match the
+   backup, asks for `ROTATE`, moves the current keys to `grapheneos-17/keys/archive/<date>-65894abf/`
+   and `~/work/os-ivan-gg-keys/archive/<date>-65894abf/`, the passphrase file to
+   `.secrets/archive/`, then asks for a new passphrase (twice, at least 12 characters), makes
+   the keys in the container, backs them up and copies them for every model that had keys.
+   It prints the new fingerprint. If it stops after archiving, run `scripts/generate-keys.sh`
+   without `--rotate`. Optional: write the new passphrase to `.secrets/key-passphrase`
+   (mode 600) for unattended signing.
+4. **Offline copy** of `~/work/os-ivan-gg-keys/` (the new keys and the archive) next to the
+   existing offline copy. Keep the old passphrase with the old keys.
+5. **Fingerprint**: `scripts/set-fingerprint.sh` puts the new one on the site pages, in both
+   install scripts and their tests, the release notes template and this doc. Run the site's
+   install tests (`scripts/tests/run.sh`, then `KIND=ps`) and commit both repos. Don't deploy
+   the site yet.
+6. **Build and sign, don't publish**: `PUBLISH=0 scripts/release.sh user`. The install zip is
+   `grapheneos-17/releases/<bn>/release-husky-<bn>/husky-install-<bn>.zip`. On m3max, copy it
+   and the new installer:
+   `scp n5:/mnt/flash/scratch/grapheneos/grapheneos-17/releases/<bn>/release-husky-<bn>/husky-install-<bn>.zip .`
+   and `scp n5:work/os-ivan-gg-site/scripts/install.sh .`
+7. **Phone**: in user 0, Settings → System → Developer options → OEM unlocking on (needs a
+   network connection). Then on m3max: `bash install.sh --zip husky-install-<bn>.zip`. It
+   checks the zip's key against the new fingerprint, asks for `UNLOCK` (confirm on the phone
+   with the volume keys; this erases everything), flashes, installs the new `avb_custom_key`
+   and asks for `LOCK` to lock the bootloader again.
+8. **Check**: the yellow boot notice shows the new fingerprint's first 8 characters;
+   `adb shell getprop ro.boot.verifiedbootstate` = `yellow` once adb is on. Set up user 0, turn
+   OEM unlocking off, rebuild B and the PINs, restore the backups. Don't test the duress PIN on
+   this phone (CLAUDE.md rule 8).
+9. **Publish**: `DEVICE=husky scripts/publish-release.sh <bn> user` (updates channel and the
+   install zip), then deploy the site (`./deploy.sh` in the site repo). OTAs work again from
+   here. Record the run in `tests/results/`.
+
+Going back before step 7: nothing on the phone changed; move `keys/<model>` aside and the
+archived ones back, and restore the old fingerprint with `git revert` of step 5's commits.
+After step 7 the old key is still usable: the last old-key release (2026102911 on GitHub) and
+the old installer (`git show <step 5's parent>:scripts/install.sh` in the site repo) flash the
+phone back onto it, again with an erase.
+
 No security preview releases (decided 2026-10-15, T9 U2): GrapheneOS's preview builds carry
 embargoed patches we don't get, so there is nothing to publish on those channels. The Updater
 fork ignores and hides the opt-in and no longer offers its screen, which makes setup skip that
