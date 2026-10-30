@@ -359,27 +359,23 @@ Moving a model to its own keys later means a wipe and reinstall on its phones.
 
 #### Key rotation
 
-Decided 2026-10-30 (owner): the first keys (2026-10-13, `CN=os.ivan.gg`, `65894abf…f161`) are
+Decided 2026-10-30 (owner): the first keys (2026-10-13, `CN=os.ivan.gg`, fingerprint `65894abf`) are
 replaced by a new set with `CN=ee1os`. Only one phone runs our builds, the test Pixel, locked
 on the old key. The old keys are never deleted: they move to an archive and stay in the
 backups. Reason: the rename (doc 00 decision 2026-10-30); a later rotation costs a wipe on every
 tester's phone.
 
-Why a wipe: a locked phone boots only builds signed with the key in `avb_custom_key`, and
-update_engine takes only an update signed with the running build's key, so a new-key build
-can't arrive over the air. `avb_custom_key` can be changed only with the bootloader unlocked,
+Why a wipe: a locked phone boots only images signed with the key in `avb_custom_key` (AVB),
+and update_engine takes only a payload signed with the running build's OTA key (releasekey);
+both change, so a new-key build can't arrive over the air. `avb_custom_key` can be changed only with the bootloader unlocked,
 and unlocking erases the phone. Until step 9 the phone stays on the old key and keeps working;
 nothing signed with the new key goes on the updates channel before that, or the phone would
 download an update it then refuses.
 
 Owner-run, in order:
 
-1. **Back up the phone** (the unlock in step 7 erases A and B). In each user: Settings →
-   System → Backup (Seedvault) to a USB drive; copy photos and files off over USB; export
-   2FA seeds and anything else an app holds only on the phone. Many banking apps opt out of
-   backup: note what needs a new login or re-enrolment. Write down the layout to rebuild: B's
-   PIN, the reboot PIN, the duress PIN. eSIM profiles live on the eSIM chip; a bootloader
-   unlock erases data, not the eSIM, but have the carrier's transfer details at hand.
+1. **Before the erase** (the unlock in step 7 erases A and B; on the test phone both are test
+   users, nothing to back up): note the layout to rebuild (B's PIN, the reboot PIN).
 2. **Approve the fork commits** that are not in `patches/approved.txt` yet (`approve.sh
    --draft`, then `approve.sh <repo> <commit>…`, commit `approved.txt` signed from m3max), or
    `verify-tree.sh` stops the release build.
@@ -389,7 +385,8 @@ Owner-run, in order:
    `.secrets/archive/`, then asks for a new passphrase (twice, at least 12 characters), makes
    the keys in the container, backs them up and copies them for every model that had keys.
    It prints the new fingerprint. If it stops after archiving, run `scripts/generate-keys.sh`
-   without `--rotate`. Optional: write the new passphrase to `.secrets/key-passphrase`
+   without `--rotate`, then copy the keys for the other models (`cp -a keys/husky
+   keys/stallion`). Optional: write the new passphrase to `.secrets/key-passphrase`
    (mode 600) for unattended signing.
 4. **Offline copy** of `~/work/os-ivan-gg-keys/` (the new keys and the archive) next to the
    existing offline copy. Keep the old passphrase with the old keys.

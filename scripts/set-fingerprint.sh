@@ -18,8 +18,6 @@ old=$(grep -oE '[0-9a-f]{64}' "$ENVS/scripts/publish-release.sh" | head -n 1)
 echo "old: $old"
 echo "new: $new"
 
-cp "$PKMD" "$SITE/scripts/tests/fixtures/avb_pkmd.bin"   # public key; the install tests check it
-
 python3 - "$old" "$new" "$(date +%F)" "$ENVS" "$SITE" <<'EOF'
 import pathlib, re, sys
 old, new, today, envs, site = sys.argv[1:]
@@ -34,6 +32,10 @@ short = re.compile(re.escape(old[:8]) + "…([0-9a-f]{3,12})")
 files = [f"{site}/{f}" for f in ("install.html", "lock.html", "lock/index.html", "scripts/install.sh",
          "scripts/install.ps1", "scripts/tests/run.sh", "PRODUCT.md", "README.md", ".impeccable/design.json")]
 files += [f"{envs}/{f}" for f in ("scripts/publish-release.sh", "docs/08-development-and-testing.md")]
+para = re.compile(r"Builds are signed with our own keys, generated on [0-9-]+\. Their certificates use\n"
+                  r"    <code>CN=[^<]*</code>[^\n]*?(?= These are not)")
+if not para.search(pathlib.Path(f"{site}/install.html").read_text()):
+    sys.exit("install.html: the keys paragraph didn't match; nothing changed")
 for f in files:
     p = pathlib.Path(f)
     if not p.exists():
@@ -46,15 +48,13 @@ for f in files:
         p.write_text(t); print("updated", f)
 # the install page says when the keys were made and what came before
 p = pathlib.Path(f"{site}/install.html"); s = p.read_text()
-t = re.sub(r"Builds are signed with our own keys, generated on [0-9-]+\. Their certificates use\n"
-           r"    <code>CN=[^<]*</code>[^\n]*?(?= These are not)",
+t = para.sub(
            f"Builds are signed with our own keys, generated on {today}. Their certificates use\n"
            f"    <code>CN=ee1os</code>. Builds before {today} used an earlier key ({old[:8]}…{old[-4:]}); a\n"
            f"    phone on that key needs a fresh install (unlock, which erases it) to move to this one.\n   ", s)
-if t == s:
-    sys.exit("install.html: the keys paragraph didn't match; edit it by hand")
 p.write_text(t); print("updated install.html keys paragraph")
 EOF
+cp "$PKMD" "$SITE/scripts/tests/fixtures/avb_pkmd.bin"   # public key; the install tests check it
 
 left=$(grep -rln "$old" "$SITE" "$ENVS" --exclude-dir=.git --exclude-dir=dist --exclude-dir=.wrangler \
     --exclude-dir=results 2>/dev/null | grep -v "/install.html$" || true)

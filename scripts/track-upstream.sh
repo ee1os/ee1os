@@ -59,7 +59,7 @@ module_rev() { sed -n 's/.*rev-parse HEAD),\([0-9a-f]\{40\}\)).*/\1/p' \
 # the models to keep buildable, $DEVICE first: every one with keys or a vendor module (release.sh
 # builds them from this tree)
 models() { { echo "$DEVICE"; command ls "$TREE/keys" "$TREE/vendor/google_devices"; } 2>/dev/null \
-    | grep -E '^[a-z0-9]+$' | awk '!s[$0]++'; }
+    | grep -E '^[a-z0-9]+$' | grep -vx archive | awk '!s[$0]++'; }
 dry() { if [ "$DRY" = 1 ]; then echo "DRY_RUN: $*"; exit 0; fi; }
 
 # 5. publish the source: rebased branches with a <tag>.os tag each, then the manifest. Returns
@@ -116,7 +116,7 @@ $(echo "$out" | grep '^FAIL' | head -15)"; return 1; }
     packed="Flash archive: husky-flash.tar.gz."
     "$ENVS/scripts/pack-flash.sh" >> "$LOG" 2>&1 || packed="Packing the flash archive FAILED (track-upstream.log)."
     if [ -x "$ENVS/tests/gate.sh" ]; then gated="gate passed"; else gated="no test gate yet"; fi
-    notify "build $bn on GrapheneOS $tag is ready: built, $gated, source pushed. $packed Release with scripts/release.sh $bn after a phone check."
+    notify "build $bn on GrapheneOS $tag is ready: built, $gated, source pushed. $packed Release it after a phone check: scripts/release.sh builds and signs a fresh one (doc 08)."
 }
 
 # 3b-5 for the rebased forks of $tag: vendor modules, tree check, build, gate, then hold (strategic,

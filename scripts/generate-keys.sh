@@ -25,7 +25,7 @@ if [ "${1:-}" = --rotate ]; then
     keys=$WS/grapheneos-17/keys
     [ -s "$keys/$DEVICE/avb_pkmd.bin" ] || { echo "no current keys in $keys/$DEVICE, nothing done"; exit 1; }
     [ -s "$BACKUP/$DEVICE/avb_pkmd.bin" ] || { echo "no backup in $BACKUP/$DEVICE, nothing done"; exit 1; }
-    cmp -s "$keys/$DEVICE/avb_pkmd.bin" "$BACKUP/$DEVICE/avb_pkmd.bin" \
+    diff -rq "$keys/$DEVICE" "$BACKUP/$DEVICE" > /dev/null \
         || { echo "the tree's keys and the backup differ, nothing done"; exit 1; }
     label=$(date +%F)-$(sha256sum "$keys/$DEVICE/avb_pkmd.bin" | cut -c1-8)
     [ -e "$keys/archive/$label" ] || [ -e "$BACKUP/archive/$label" ] \
@@ -60,7 +60,8 @@ if [ "${1:-}" != --inside ]; then
     [ -e "$keys" ] && { echo "$keys already exists, nothing done"; exit 1; }
     [ -e "$BACKUP/$DEVICE" ] && { echo "$BACKUP/$DEVICE already exists, nothing done"; exit 1; }
     # the tools need the build container; this script is mounted there at the same path
-    "$ENVS/workspace/build-env/run.sh" exec-it "bash $ENVS/scripts/generate-keys.sh --inside" \
+    # KEYS=1: otherwise run.sh hides an existing keys/ (after --rotate it holds archive/)
+    KEYS=1 "$ENVS/workspace/build-env/run.sh" exec-it "bash $ENVS/scripts/generate-keys.sh --inside" \
         || { echo "key generation failed; remove $keys before trying again"; exit 1; }
     [ -s "$keys/avb_pkmd.bin" ] || { echo "no keys were made"; exit 1; }
     mkdir -p "$BACKUP" && chmod 700 "$BACKUP"
