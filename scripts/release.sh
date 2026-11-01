@@ -6,7 +6,8 @@
 # Steps:
 #   0. verify-tree.sh: the tree is exactly what was reviewed, or nothing is built (no way around it)
 #   1. build target files and OTA tools with a fresh build number, in an emptied out_release/ (a
-#      previous build's outputs don't get signed); verify-tree.sh again after it
+#      previous build's outputs don't get signed); verify-tree.sh again after it; for a user
+#      build the changes page (fork_report.py) -> releases/<bn>/changes/
 #   2. finalize + generate-release (signing; prompts)  -> releases/<bn>/release-<codename>-<bn>/
 #   3. upload: the OTA zip and channel metadata replace the rolling "updates" release; the
 #      install zip gets a release of its own (github.com/ee1os/releases)
@@ -46,6 +47,12 @@ cd "$WS"
 rc=$(awk -v m="=== $label " 'index($0, m) == 1 { f = 1; r = "" } f && r == "" && /^BUILD_EXIT=/ { r = $0 } END { print r }' build.log)
 [ "$rc" = BUILD_EXIT=0 ] || { echo "build failed ($rc)"; exit 1; }
 VENDOR=$DEVICE "$ENVS/scripts/verify-tree.sh" || { echo "tree check failed after the build; not signed"; exit 1; }
+# the changes page of a stable release: the forks against the GrapheneOS tag (fork_report.py);
+# publish-release.sh puts it on the site. Testing builds get none.
+if [ "$VARIANT" = user ]; then
+    python3 -I "$ENVS/scripts/fork_report.py" --release "$bn" --out "$TREE/releases/$bn/changes" \
+        || { echo "fork report failed; not signed"; exit 1; }
+fi
 
 # 2. finalize and sign. The key passphrase comes from $PWFILE when it exists (owner-only file
 #    on flash/scratch, kept out of the backups that hold the encrypted keys), else it is asked.

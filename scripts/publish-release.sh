@@ -3,11 +3,15 @@
 #   [DEVICE=shiba] [NOTE=text] publish-release.sh <build number> [user|userdebug]
 # NOTE, when set, goes under the model's heading in the release notes (e.g. that a model hasn't been tried on a phone yet).
 # Same upload as release.sh step 3 and 4: the OTA zip and channel file replace the rolling
-# "updates" release; a user build also gets its own release with the install zip and checksums.
+# "updates" release; a user build also gets its own release with the install zip and checksums,
+# tags ee1os-<bn> in the forks, the file list on the release and its changes page in the site
+# repo (site/changes/<bn>/, committed and deployed by hand after a look).
 set -euo pipefail
 
 WS=/mnt/flash/scratch/grapheneos
 TREE=$WS/grapheneos-17
+ENVS=/mnt/flash/home/faeton/work/ee1os/os
+SITE=/mnt/flash/home/faeton/work/ee1os/site
 DEVICE=${DEVICE:-husky}
 REPO=ee1os/releases
 bn=${1:?build number}
@@ -50,6 +54,31 @@ for p in build/make frameworks/base packages/apps/Settings packages/apps/SetupWi
     src+=$'\n'"$p $(git -C "$TREE/$p" rev-parse --short=12 HEAD)"
 done
 
+# A stable release's changes page (release.sh made it): tag the commits it describes in each
+# fork as ee1os-<bn>, never moved, so its links keep working; then the page goes to the site.
+changes=$TREE/releases/$bn/changes
+if [ "$VARIANT" = user ]; then
+    [ -s "$changes/report.json" ] || { echo "no $changes/report.json (release.sh makes it); not published"; exit 1; }
+    python3 -I -c 'import json, sys
+for f in json.load(open(sys.argv[1]))["forks"]: print(f["path"], f["name"], f["commit"])' \
+        "$changes/report.json" > "$changes/.forks"
+    while read -r p name c; do
+        g=(git -C "$TREE/$p")
+        if have=$("${g[@]}" rev-parse -q --verify "refs/tags/ee1os-$bn^{commit}"); then
+            [ "$have" = "$c" ] || { echo "$p: tag ee1os-$bn is at ${have:0:12}, the report has ${c:0:12}"; exit 1; }
+        else
+            "${g[@]}" tag "ee1os-$bn" "$c"
+        fi
+        remote=$("${g[@]}" ls-remote "https://github.com/ee1os/$name.git" "refs/tags/ee1os-$bn" | cut -f1)
+        if [ -z "$remote" ]; then
+            "${g[@]}" push -q "https://github.com/ee1os/$name.git" "refs/tags/ee1os-$bn:refs/tags/ee1os-$bn"
+        elif [ "$("${g[@]}" rev-parse "refs/tags/ee1os-$bn")" != "$remote" ]; then
+            echo "$p: github has another ee1os-$bn; not published"; exit 1
+        fi
+    done < "$changes/.forks"
+    rm -f "$changes/.forks"
+fi
+
 gh release view updates -R "$REPO" > /dev/null 2>&1 \
     || gh release create updates -R "$REPO" --title "Over-the-air updates" \
         --notes "Files the phone's Updater reads. Replaced on every release."
@@ -88,6 +117,8 @@ elif [ "$VARIANT" = user ]; then
     gh release create "$bn" -R "$REPO" --title "ee1os $bn" \
         --notes "Factory images. Based on GrapheneOS $base.
 
+What differs from GrapheneOS, file by file: https://ee1os.com/changes/$bn/
+
 Verified boot key fingerprint (SHA-256 of avb_pkmd.bin), the same for every model:
 \`70b98fe0d9925692af9afc29981d3a58ec076ca4a056d53ff4ca14d1f0d0669f\`
 
@@ -98,6 +129,16 @@ $src
 
 $section" \
         "${uploads[@]/#/$out/}" "$out/SHA256SUMS-$bn"
+fi
+
+if [ "$VARIANT" = user ]; then
+    tsv=$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["downloads"]["tsv"])' "$changes/report.json")
+    gh release upload "$bn" -R "$REPO" --clobber "$changes/$tsv"
+    mkdir -p "$SITE/changes/$bn"
+    cp "$changes/index.html" "$changes/report.json" "$SITE/changes/$bn/"
+    python3 -I "$ENVS/scripts/fork_report.py" --index "$SITE/changes"
+    echo "Changes page in $SITE/changes/$bn/. Look at it (cd $SITE && ./deploy.sh --local), then:"
+    echo "  cd $SITE && git add changes && git commit -m 'Add the changes page for $bn' && git push && ./deploy.sh"
 fi
 
 /mnt/tank/scripts/notify-telegram.sh "ee1os $bn $DEVICE ($VARIANT) published: https://github.com/$REPO/releases/tag/$bn" 890 \
