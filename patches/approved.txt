@@ -1,72 +1,72 @@
-platform_build e787795541bf96768de3f89e2042fe2682154457 0bbc26e44761 Leave out the GrapheneOS boot animation
-platform_frameworks_base 6acc82cd9b604ef3863f46f925a4cb573717a8a3 d05c9933532b AccountsDb: close the CE database on close()
-platform_frameworks_base 96e934f34551ede530d196b5b301e117b1186a09 660edb2a823d Backup: open user preferences without the CE check of user 0
-platform_frameworks_base 729cec3d391329a923e84c95ea26daa5929cdf3a 8b66d62aca8a Add reboot credential
-platform_frameworks_base 5e1de77a9b161a4f27d38ff895a97366642b66c0 e127f6444bfe Reboot credential: harden storage, lifecycle and dispatch
-platform_frameworks_base a461298f8302273274153856e0e044125557669c 8aefa079d543 Add alternate credential tests
-platform_frameworks_base 83878d22a198a602c4ce44861e7848b94cd41af7 ff0c5b15e217 Storage: start the storage service on the first unlocked user
-platform_frameworks_base 01d52d1e71f91d3e364513432421f37a6f9029b9 4a53134be834 Reboot credential: escrow, record and enrolment fixes
-platform_frameworks_base f2b7a0c5997d037e429035e4f3cf8836f9f6277e 2b7e1d879eea Add reboot escrow and alternate credential tests
-platform_frameworks_base 8e761dfe84ef47d45f33280d1dbe6cbafda3ee7e ba5fbf0dff73 Storage: resolve the storage service outside the session lock
-platform_frameworks_base ff31f9b539bccfe568db999e1c96508d15bb3b5b f1bf9b2c3b6f Let a chosen user manage the duress and reboot credentials
-platform_frameworks_base 18fc609805e00b8d5169842b046e727094aed9f9 edf3e93a180c Add lock screen PIN dispatch and protected space setup
-platform_frameworks_base 1ebaa381735dd4b96c8d8abd7fd0f1438ec0603c f88f7f5e5f0b Open the protected user from user 0's lock screen
-platform_frameworks_base 8f11531071b4cef1bd9880a7d89aa105b4441f83 c05d0abf98a5 Mark and polish the protected space
-platform_frameworks_base 62cb2647cc38b1f63845c728f850e52fb92f7790 e923d80f43a8 Keep the always-on display only when leaving the protected space
-platform_frameworks_base ab9b07f94c806f2e8f94d748a53720370bed0689 b3469385cc12 Make duress optional in protected space setup
-platform_frameworks_base 9ae192ef66c44d6ace388ccbe018ec4da295c930 ff84d38fac75 Show our logo only until the first setup is done
-platform_frameworks_base ba84fdc859c649a552d5a950df8411060936c210 ed0d4810c1e7 Allow calls from the protected space
-platform_frameworks_base d79748d0c0d60d41c28aacd0530bda886db7ea59 bf59cd9324d2 Block Android's private space beside the protected space
-platform_frameworks_base b4e1a26541468f64ac83e589399d8446f397f585 264eeb3ac0dd Keep one PIN length and PINs only with a protected space
-platform_frameworks_base 1dca742558aa25b0180b05a590a76e1068c9b9d4 f7c3cf4bce4c Wait for saved settings before picking the boot logo
-platform_frameworks_base 0574c4e0b11c219d9cf4d17cfd593ffec10e9dc2 e9a99ef40a42 Show the bundled browser as Browser in the owner's space
-platform_frameworks_base 43a990e7d1eca72d62e70079dbcecf662ac77c27 09fc7c568cb9 Use six-digit PINs in the lock settings tests and cover the layout rules
-platform_frameworks_base 094ae9f9ed4715fa4884187aad7da805c7548094 c67ef2f28bf9 Show the bundled browser as Browser in App info too
-platform_frameworks_base 74d2941ab40e1037fe43a559f3fdf01edf58b53b 70a9b4ba9899 Hide the private space entry when the profile can't be added
-platform_frameworks_base ef6c9d8203e4d41934049ffe7e2689dc0b1838d6 3ab5346f7516 Refuse PINs the two spaces would share and a reboot password
-platform_frameworks_base 3ffc101376c386319b1527321f787c0cc03b980e c36dc0f0c3d4 Refuse a shared PIN while the other space is rate-limited, also on token resets
-platform_frameworks_base 6660e91ff7cb499afd3756746a9511222183ab23 f81f4472bdac Keep duress and reboot PINs apart from both spaces' PINs
-platform_frameworks_base df300db164a013f91a92389f0ef9d5ee4e22fa1e 1d63ddd0d636 Refuse a shared PIN check only while the other space must wait
-platform_frameworks_base bc2ef523b23b4f02afb3d614d3979fae9987a5d7 a8e810324aeb Check shared PINs only for the protected user and refuse duress equal to it
-platform_frameworks_base 4e857b2b6b1ec73343d2e86f652c881ea11e3c0e dec5a73291a5 Compare a new PIN with the others only after the old one matched
-platform_frameworks_base 11418f83c7cfd79eacb5c339f2cf755dac6b203c b94c8eece22d Wipe the synthetic password when a shared PIN is refused
-platform_frameworks_base ef810823c03bfa08a9bac2240ab5de8b518417b4 fd70a88c85fa Count an opened protector as a match when comparing PINs
-platform_frameworks_base 9430266cabd4566ee169fe097c95f3f9bd4b3d60 0d66996ef0bd Give the setup logo its own shine
-platform_frameworks_base 08b7003826e4ea11021c40278c45a6ec2bb81da8 f31cc7fb235e Label system notifications os.ivan.gg
-platform_frameworks_base a5878ffff96e7a049e48e0440384216a0924d5e7 e6f87613b80c Refresh the private space entry after the protected space is set up
-platform_frameworks_base ac319f568764bd7be07adf71a3b58fd2fec50126 558830646454 Show the lockout countdown on user 0's pad for either user
-platform_packages_apps_Settings 2526b660d88ceaa6d1a8663b2670b1be377621ef 24ab97a983d7 Add reboot PIN screens
-platform_packages_apps_Settings 5465d35ffafea07cae2fd7f7a2b5144a9e4e98e7 24623b06201b Show duress and reboot settings to the alternates authority only
-platform_packages_apps_Settings de0c830d5028418b5c99e902afd891ac2ed8aeaa fd900ef808c5 Add protected space setup and hide other users from user 0
-platform_packages_apps_Settings a63ba8c25ff98cf78e29e9754c80525ef36fbb1a 48f88c5fe3d7 Step through protected space setup and allow it later
-platform_packages_apps_Settings be2b0fec5e14924184af611bb3890e5f8e1c7957 1bd57545113d Forget later choices when going back in protected space setup
-platform_packages_apps_Settings a66a7ea62faa80edf3e5cd91f2eafa11c6266612 7c32d3eeaa37 Reuse the owner's PIN from first setup and make duress optional
-platform_packages_apps_Settings 1ecfb9832cbee18c245a673ea74d1332e383d521 254c7edaa1fd List the duress entry in the summary only where it shows
-platform_packages_apps_Settings 67dc1afb82230f9e070d75afb01422100971b679 252afa073fc7 Harden the protected space setup steps
-platform_packages_apps_Settings 171ed45c3e14bec13a6bd99d98b0149a5756ced8 f4e2c16eb9e2 Ask for one PIN length and offer only PIN with a protected space
-platform_packages_apps_Settings cfd55d29bff1052b9ef69dc881b3553c71473aa7 d1a835986d4b Offer only PIN in the owner's screen lock chooser too
-platform_packages_apps_Settings 46ead911e39e772d142bb4288aab8a4d67d493a0 77f0c3038e13 Say how many digits a PIN needs with a protected space
-platform_packages_apps_Settings 5868deb1874f41a45d98ac341ba810870b7ae10f ab000a5b7164 Show reboot and duress PIN errors and drop the reboot password type
-platform_packages_apps_Settings f15d09a972d08019a7a3e21cfa86e65e4de962a5 e73c1d6bf861 Say when a new PIN is already used on this phone
-platform_packages_apps_Settings 35dd10cc39127d451f6deb3a5967c01377ed1d19 2f7511b311eb Say when a PIN can't be checked yet
-platform_packages_apps_Settings 52bc4da1589d52c14055711459dae98cf5d1cc87 ca4bc683a248 Say when a duress or reboot PIN equals another space's PIN
-platform_packages_apps_Settings 04c8c76d980ef046f9774ae9c73545bc3e1bb1eb f355d61ebdee Hide the private space entry, word the reboot PIN screens as PIN only
-platform_packages_apps_Settings faae4203ed130329faa77da3470ab50b59ca06d9 12051b4f6888 Name os.ivan.gg in the duress text and the reboot PIN as a PIN
-platform_packages_apps_SetupWizard2 998377d8fdc313358863efa993fe72002937b1e6 a44f589d190b Offer the protected space after the screen lock step
-platform_packages_apps_SetupWizard2 7cac0a683dbacd1c075b76ec264e81e9f31d3818 0fb1e9633b03 Show ivan.gg on the welcome and finish screens
-platform_packages_apps_SetupWizard2 0bc8cb7b899262fdcb09fb1370a185a196fe36aa 9738860c6d47 Give the protected space its own wallpaper and first-run text
-platform_packages_apps_SetupWizard2 b99aa7dce5a2ba75f4d2169b1a0bc5cb7acbe103 803118e85c05 Call it os.ivan.gg on the setup screens
-platform_packages_apps_SetupWizard2 0f783b5576e61e085a80b4e5b31041ba35dc8228 309639592cb4 Link the bootloader warning to os.ivan.gg/lock, name the protected space at the end
-platform_packages_apps_SetupWizard2 fbfa125a4cc5855b37670dceb04f36a17c12f075 4cfb073c4dc4 Mention os.ivan.gg backups in the restore step
-platform_packages_apps_Updater 97e9eabf6c035ec82e0686132c512d76b2bd0efa bc358cc1dddb Fetch updates from the os-ivan-gg releases
-platform_packages_apps_Updater a65150c575fc495a8bed6774c55ca62a27a24f8e 0ec3356b803e Drop the security preview opt-in and show the result of a manual check
-platform_system_sepolicy 4cb6c93baf617582897490c3c1bd14d5c446f0e5 9507623e2302 Let the boot animation wait for persistent properties
-platform_frameworks_base 69d1bf78a668ea3f4438ebee01f8b47c728353c8 d85243578faa Rename the setup logo and notification label to ee1os
-platform_packages_apps_Settings 242758b85c15e2020f8d73920da96caa6ef32744 389b087009da Name ee1os in the duress text
-platform_packages_apps_SetupWizard2 52a0ecb605e4b7a853ddf0687430c6b5a35bef19 56ab0e577257 Call it ee1os on the setup screens
-platform_packages_apps_Updater 010f779ff4da9bfcf902c5e24a46f3692e04fb33 b4f17ca36fe4 Fetch updates from the ee1os releases
-platform_build e7f7cbf46e8fc0d920e0ef03550a33709e7438d9 7e2b441f4dc0 Leave out Auditor and the Info app
-platform_frameworks_base 34c9f460629fad1e50e4ba536be066b908701b2f 257395168670 Use the Blue Marble as the default wallpaper
-platform_frameworks_base 243c017fce6b3c95079ba54e5b86fa51214c0bc6 9ac116e47028 Add the wallpaper collections
-platform_packages_apps_SetupWizard2 de3f3fe34be07368f1ca313969010462c2ce9243 ab2a850eabf8 Use Mars as the protected space wallpaper
-platform_build e99fdb9997f3e42222928709340a169fd64cab0c 063fa72e3c95 Add the wallpaper collections
+platform_build e787795541bf96768de3f89e2042fe2682154457 0bbc26e44761 branding Leave out the GrapheneOS boot animation
+platform_frameworks_base 6acc82cd9b604ef3863f46f925a4cb573717a8a3 d05c9933532b boot-order AccountsDb: close the CE database on close()
+platform_frameworks_base 96e934f34551ede530d196b5b301e117b1186a09 660edb2a823d boot-order Backup: open user preferences without the CE check of user 0
+platform_frameworks_base 729cec3d391329a923e84c95ea26daa5929cdf3a 8b66d62aca8a reboot-credential Add reboot credential
+platform_frameworks_base 5e1de77a9b161a4f27d38ff895a97366642b66c0 e127f6444bfe reboot-credential Reboot credential: harden storage, lifecycle and dispatch
+platform_frameworks_base a461298f8302273274153856e0e044125557669c 8aefa079d543 tests Add alternate credential tests
+platform_frameworks_base 83878d22a198a602c4ce44861e7848b94cd41af7 ff0c5b15e217 boot-order Storage: start the storage service on the first unlocked user
+platform_frameworks_base 01d52d1e71f91d3e364513432421f37a6f9029b9 4a53134be834 reboot-credential Reboot credential: escrow, record and enrolment fixes
+platform_frameworks_base f2b7a0c5997d037e429035e4f3cf8836f9f6277e 2b7e1d879eea tests Add reboot escrow and alternate credential tests
+platform_frameworks_base 8e761dfe84ef47d45f33280d1dbe6cbafda3ee7e ba5fbf0dff73 boot-order Storage: resolve the storage service outside the session lock
+platform_frameworks_base ff31f9b539bccfe568db999e1c96508d15bb3b5b f1bf9b2c3b6f duress Let a chosen user manage the duress and reboot credentials
+platform_frameworks_base 18fc609805e00b8d5169842b046e727094aed9f9 edf3e93a180c protected-space Add lock screen PIN dispatch and protected space setup
+platform_frameworks_base 1ebaa381735dd4b96c8d8abd7fd0f1438ec0603c f88f7f5e5f0b protected-space Open the protected user from user 0's lock screen
+platform_frameworks_base 8f11531071b4cef1bd9880a7d89aa105b4441f83 c05d0abf98a5 protected-space Mark and polish the protected space
+platform_frameworks_base 62cb2647cc38b1f63845c728f850e52fb92f7790 e923d80f43a8 protected-space Keep the always-on display only when leaving the protected space
+platform_frameworks_base ab9b07f94c806f2e8f94d748a53720370bed0689 b3469385cc12 duress Make duress optional in protected space setup
+platform_frameworks_base 9ae192ef66c44d6ace388ccbe018ec4da295c930 ff84d38fac75 branding Show our logo only until the first setup is done
+platform_frameworks_base ba84fdc859c649a552d5a950df8411060936c210 ed0d4810c1e7 protected-space Allow calls from the protected space
+platform_frameworks_base d79748d0c0d60d41c28aacd0530bda886db7ea59 bf59cd9324d2 private-space Block Android's private space beside the protected space
+platform_frameworks_base b4e1a26541468f64ac83e589399d8446f397f585 264eeb3ac0dd pin-rules Keep one PIN length and PINs only with a protected space
+platform_frameworks_base 1dca742558aa25b0180b05a590a76e1068c9b9d4 f7c3cf4bce4c branding Wait for saved settings before picking the boot logo
+platform_frameworks_base 0574c4e0b11c219d9cf4d17cfd593ffec10e9dc2 e9a99ef40a42 look Show the bundled browser as Browser in the owner's space
+platform_frameworks_base 43a990e7d1eca72d62e70079dbcecf662ac77c27 09fc7c568cb9 tests Use six-digit PINs in the lock settings tests and cover the layout rules
+platform_frameworks_base 094ae9f9ed4715fa4884187aad7da805c7548094 c67ef2f28bf9 look Show the bundled browser as Browser in App info too
+platform_frameworks_base 74d2941ab40e1037fe43a559f3fdf01edf58b53b 70a9b4ba9899 private-space Hide the private space entry when the profile can't be added
+platform_frameworks_base ef6c9d8203e4d41934049ffe7e2689dc0b1838d6 3ab5346f7516 pin-rules Refuse PINs the two spaces would share and a reboot password
+platform_frameworks_base 3ffc101376c386319b1527321f787c0cc03b980e c36dc0f0c3d4 pin-rules Refuse a shared PIN while the other space is rate-limited, also on token resets
+platform_frameworks_base 6660e91ff7cb499afd3756746a9511222183ab23 f81f4472bdac pin-rules Keep duress and reboot PINs apart from both spaces' PINs
+platform_frameworks_base df300db164a013f91a92389f0ef9d5ee4e22fa1e 1d63ddd0d636 pin-rules Refuse a shared PIN check only while the other space must wait
+platform_frameworks_base bc2ef523b23b4f02afb3d614d3979fae9987a5d7 a8e810324aeb pin-rules Check shared PINs only for the protected user and refuse duress equal to it
+platform_frameworks_base 4e857b2b6b1ec73343d2e86f652c881ea11e3c0e dec5a73291a5 pin-rules Compare a new PIN with the others only after the old one matched
+platform_frameworks_base 11418f83c7cfd79eacb5c339f2cf755dac6b203c b94c8eece22d pin-rules Wipe the synthetic password when a shared PIN is refused
+platform_frameworks_base ef810823c03bfa08a9bac2240ab5de8b518417b4 fd70a88c85fa pin-rules Count an opened protector as a match when comparing PINs
+platform_frameworks_base 9430266cabd4566ee169fe097c95f3f9bd4b3d60 0d66996ef0bd branding Give the setup logo its own shine
+platform_frameworks_base 08b7003826e4ea11021c40278c45a6ec2bb81da8 f31cc7fb235e branding Label system notifications os.ivan.gg
+platform_frameworks_base a5878ffff96e7a049e48e0440384216a0924d5e7 e6f87613b80c private-space Refresh the private space entry after the protected space is set up
+platform_frameworks_base ac319f568764bd7be07adf71a3b58fd2fec50126 558830646454 pin-rules Show the lockout countdown on user 0's pad for either user
+platform_packages_apps_Settings 2526b660d88ceaa6d1a8663b2670b1be377621ef 24ab97a983d7 reboot-credential Add reboot PIN screens
+platform_packages_apps_Settings 5465d35ffafea07cae2fd7f7a2b5144a9e4e98e7 24623b06201b duress Show duress and reboot settings to the alternates authority only
+platform_packages_apps_Settings de0c830d5028418b5c99e902afd891ac2ed8aeaa fd900ef808c5 protected-space Add protected space setup and hide other users from user 0
+platform_packages_apps_Settings a63ba8c25ff98cf78e29e9754c80525ef36fbb1a 48f88c5fe3d7 protected-space Step through protected space setup and allow it later
+platform_packages_apps_Settings be2b0fec5e14924184af611bb3890e5f8e1c7957 1bd57545113d protected-space Forget later choices when going back in protected space setup
+platform_packages_apps_Settings a66a7ea62faa80edf3e5cd91f2eafa11c6266612 7c32d3eeaa37 protected-space Reuse the owner's PIN from first setup and make duress optional
+platform_packages_apps_Settings 1ecfb9832cbee18c245a673ea74d1332e383d521 254c7edaa1fd duress List the duress entry in the summary only where it shows
+platform_packages_apps_Settings 67dc1afb82230f9e070d75afb01422100971b679 252afa073fc7 protected-space Harden the protected space setup steps
+platform_packages_apps_Settings 171ed45c3e14bec13a6bd99d98b0149a5756ced8 f4e2c16eb9e2 pin-rules Ask for one PIN length and offer only PIN with a protected space
+platform_packages_apps_Settings cfd55d29bff1052b9ef69dc881b3553c71473aa7 d1a835986d4b pin-rules Offer only PIN in the owner's screen lock chooser too
+platform_packages_apps_Settings 46ead911e39e772d142bb4288aab8a4d67d493a0 77f0c3038e13 pin-rules Say how many digits a PIN needs with a protected space
+platform_packages_apps_Settings 5868deb1874f41a45d98ac341ba810870b7ae10f ab000a5b7164 pin-rules Show reboot and duress PIN errors and drop the reboot password type
+platform_packages_apps_Settings f15d09a972d08019a7a3e21cfa86e65e4de962a5 e73c1d6bf861 pin-rules Say when a new PIN is already used on this phone
+platform_packages_apps_Settings 35dd10cc39127d451f6deb3a5967c01377ed1d19 2f7511b311eb pin-rules Say when a PIN can't be checked yet
+platform_packages_apps_Settings 52bc4da1589d52c14055711459dae98cf5d1cc87 ca4bc683a248 pin-rules Say when a duress or reboot PIN equals another space's PIN
+platform_packages_apps_Settings 04c8c76d980ef046f9774ae9c73545bc3e1bb1eb f355d61ebdee private-space Hide the private space entry, word the reboot PIN screens as PIN only
+platform_packages_apps_Settings faae4203ed130329faa77da3470ab50b59ca06d9 12051b4f6888 branding Name os.ivan.gg in the duress text and the reboot PIN as a PIN
+platform_packages_apps_SetupWizard2 998377d8fdc313358863efa993fe72002937b1e6 a44f589d190b protected-space Offer the protected space after the screen lock step
+platform_packages_apps_SetupWizard2 7cac0a683dbacd1c075b76ec264e81e9f31d3818 0fb1e9633b03 branding Show ivan.gg on the welcome and finish screens
+platform_packages_apps_SetupWizard2 0bc8cb7b899262fdcb09fb1370a185a196fe36aa 9738860c6d47 protected-space Give the protected space its own wallpaper and first-run text
+platform_packages_apps_SetupWizard2 b99aa7dce5a2ba75f4d2169b1a0bc5cb7acbe103 803118e85c05 branding Call it os.ivan.gg on the setup screens
+platform_packages_apps_SetupWizard2 0f783b5576e61e085a80b4e5b31041ba35dc8228 309639592cb4 branding Link the bootloader warning to os.ivan.gg/lock, name the protected space at the end
+platform_packages_apps_SetupWizard2 fbfa125a4cc5855b37670dceb04f36a17c12f075 4cfb073c4dc4 branding Mention os.ivan.gg backups in the restore step
+platform_packages_apps_Updater 97e9eabf6c035ec82e0686132c512d76b2bd0efa bc358cc1dddb updates Fetch updates from the os-ivan-gg releases
+platform_packages_apps_Updater a65150c575fc495a8bed6774c55ca62a27a24f8e 0ec3356b803e updates Drop the security preview opt-in and show the result of a manual check
+platform_system_sepolicy 4cb6c93baf617582897490c3c1bd14d5c446f0e5 9507623e2302 branding Let the boot animation wait for persistent properties
+platform_frameworks_base 69d1bf78a668ea3f4438ebee01f8b47c728353c8 d85243578faa branding Rename the setup logo and notification label to ee1os
+platform_packages_apps_Settings 242758b85c15e2020f8d73920da96caa6ef32744 389b087009da branding Name ee1os in the duress text
+platform_packages_apps_SetupWizard2 52a0ecb605e4b7a853ddf0687430c6b5a35bef19 56ab0e577257 branding Call it ee1os on the setup screens
+platform_packages_apps_Updater 010f779ff4da9bfcf902c5e24a46f3692e04fb33 b4f17ca36fe4 updates Fetch updates from the ee1os releases
+platform_build e7f7cbf46e8fc0d920e0ef03550a33709e7438d9 7e2b441f4dc0 apps Leave out Auditor and the Info app
+platform_frameworks_base 34c9f460629fad1e50e4ba536be066b908701b2f 257395168670 look Use the Blue Marble as the default wallpaper
+platform_frameworks_base 243c017fce6b3c95079ba54e5b86fa51214c0bc6 9ac116e47028 look Add the wallpaper collections
+platform_packages_apps_SetupWizard2 de3f3fe34be07368f1ca313969010462c2ce9243 ab2a850eabf8 look Use Mars as the protected space wallpaper
+platform_build e99fdb9997f3e42222928709340a169fd64cab0c 063fa72e3c95 look Add the wallpaper collections

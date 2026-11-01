@@ -345,7 +345,7 @@ $(echo "${other:-$vout}" | head -15)"
     RESTORE=0
     notify "GrapheneOS $tag: after the rebase some fork commits need approval; not built, not pushed.
 $(echo "$fails" | sed 's/^FAIL: //' | head -15)
-Approve: TAG=$tag scripts/approve.sh <repo> <commit>..., drop stale lines: TAG=$tag scripts/approve.sh --prune, commit approved.txt, then APPROVE=$tag scripts/track-upstream.sh (builds and pushes). Or SKIP=$tag.$([ "$wrc" = 0 ] || echo " It also has strategic changes: $(echo "$watch" | head -1)")"
+Approve: TAG=$tag scripts/approve.sh -g <group> <repo> <commit>... (a changed commit keeps the group of the line it replaces), drop stale lines: TAG=$tag scripts/approve.sh --prune, commit approved.txt, then APPROVE=$tag scripts/track-upstream.sh (builds and pushes). Or SKIP=$tag.$([ "$wrc" = 0 ] || echo " It also has strategic changes: $(echo "$watch" | head -1)")"
     exit 0
 fi
 

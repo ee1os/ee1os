@@ -1,0 +1,171 @@
+# What each group of fork commits changes, and why. approved.txt gives every approved commit a
+# group; scripts/fork_report.py builds each stable release's changes page from both files
+# (ee1os.com/changes/<build>/). Plain words for someone who doesn't know the code; the design
+# docs have the detail. docs = files under docs/; notes = "<project>:<file>" = text, for a file
+# whose group text doesn't say why it changed.
+
+[groups.reboot-credential]
+order = 10
+title = "Reboot credential"
+what = """
+A second PIN that can be set next to the normal one. Entered at the lock screen, it restarts
+the phone at once. After the restart the data is encrypted again and the phone asks for the
+PIN, as it does after being switched on.
+"""
+why = """
+A phone that has been unlocked once since it was switched on keeps the keys to its data in
+memory, even while it is locked. A restart removes them. The reboot PIN does that without
+reaching for the power button, and without erasing anything. GrapheneOS's duress PIN, which
+erases the phone, stays as it is.
+"""
+docs = ["04-alternate-credential-actions.md", "07-roadmap.md#stage-2--reboot_bfu-alternate-credential"]
+
+[groups.protected-space]
+order = 20
+title = "Protected space"
+what = """
+A second space on the phone: a separate Android user with its own apps, data and PIN, set up
+during first setup or later in Settings. Both spaces use the same lock screen. The owner's PIN
+opens the main space, the protected space's PIN opens the protected space. It has its own
+wallpaper and can take calls.
+"""
+why = """
+Each Android user has its own encryption key, so what is in the protected space stays
+encrypted while only the main space is in use. Opening it from the normal lock screen, by its
+PIN, means there is no separate login step to go through. The duress and reboot settings live
+in the protected space, so the main space doesn't show them.
+"""
+docs = ["00-overview.md", "04-alternate-credential-actions.md", "07-roadmap.md#stage-4--automatic-pin-dispatch"]
+
+[groups.pin-rules]
+order = 30
+title = "PIN rules"
+what = """
+With a protected space, the main space and the protected space both use PINs of the same
+length, and a PIN can't be used twice on the phone: not by both spaces, and not as the duress
+or reboot PIN. Settings says why a PIN was refused. Wrong-PIN waits work for both spaces from
+the same lock screen, and the countdown is shown there.
+"""
+why = """
+One lock screen checks the main space's PIN first and then the protected space's. If two of
+them were the same, one would hide the other. The same length keeps the lock screen the same
+for both. Wrong guesses stay limited for each space as in GrapheneOS, so trying PINs from one
+lock screen gets no extra attempts.
+"""
+docs = ["04-alternate-credential-actions.md"]
+
+[groups.duress]
+order = 40
+title = "Duress PIN"
+what = """
+The duress PIN, which erases the phone, is optional when the protected space is set up. Its
+settings, and the reboot PIN's, are shown only in the space chosen to manage them, the
+protected space.
+"""
+why = """
+The duress PIN is GrapheneOS's feature and works as it does there. ee1os only moves where it
+is managed, so that the main space shows no erase or reboot settings, and lets the owner leave
+it unset.
+"""
+docs = ["03-duress-implementation.md", "04-alternate-credential-actions.md"]
+
+[groups.boot-order]
+order = 50
+title = "Fixes for a second user"
+what = """
+Small fixes in Android's system services for a second user that is unlocked and locked on its
+own. After a restart the protected space can be unlocked first, while the main space is still
+locked: backup settings and shared storage no longer assume the main user unlocked first. When
+the protected space is locked again, its accounts database is closed, so no file stays open.
+"""
+why = """
+Android expects the first user to unlock before any other. Without these fixes, unlocking the
+protected space first crashed the system or left its storage unusable. The open database kept
+part of the protected space's data readable after its key was removed from memory.
+"""
+docs = ["07-roadmap.md#stage-3--environment-b-via-the-existing-lockscreen-user-switcher", "07-roadmap.md#stage-5--b-before-a-after-boot-experiment-may-be-dropped"]
+
+[groups.private-space]
+order = 60
+title = "Android's private space"
+what = """
+Android's own "private space" can't be added next to the protected space, and its entry in
+Settings is hidden when it can't be added.
+"""
+why = """
+The phone has one second space, the protected space. A private space inside the main space
+would be a third place behind its own lock, with rules that don't fit the shared lock screen.
+"""
+docs = ["04-alternate-credential-actions.md"]
+
+[groups.branding]
+order = 70
+title = "No GrapheneOS branding"
+what = """
+The GrapheneOS boot animation is left out. Until first setup is done, the phone shows the
+ee1os logo while it starts; after that, the standard Android animation. Setup screens, the
+duress text and system notifications say ee1os, and the bootloader warning in setup links to
+ee1os.com/lock.
+"""
+why = """
+ee1os is not GrapheneOS and shouldn't look like it: the GrapheneOS name and logo belong to the
+GrapheneOS project. One SELinux rule lets the boot animation read the saved setting that says
+whether setup is done. Some of these commits first named the project os.ivan.gg, its earlier
+name; later commits replace that with ee1os.
+"""
+docs = ["00-overview.md"]
+
+[groups.updates]
+order = 80
+title = "Updates from ee1os"
+what = """
+The system updater gets updates from ee1os's releases instead of GrapheneOS's update server.
+The opt-in for security previews is removed, and a manual check says what it found.
+"""
+why = """
+ee1os is signed with its own keys, so the phone only installs ee1os updates. GrapheneOS's
+server serves GrapheneOS builds, which this phone would refuse. ee1os doesn't publish security
+previews.
+"""
+docs = ["06-boot-ab-and-updates.md", "07-roadmap.md#release-and-distribution-planned-2026-10-12"]
+
+[groups.look]
+order = 90
+title = "Wallpapers and look"
+what = """
+The main space starts with the Blue Marble photo of Earth and the protected space with Mars.
+A set of wallpapers in four collections (Earth, Planets, Abstract, Dark) is added to the
+picker. The bundled browser is called Browser in the main space.
+"""
+why = """
+Pixel and Google wallpapers aren't ours to ship. The photos are NASA's, in the public domain;
+their sources are listed in the wallpaper package's NOTICE file. Two different defaults make
+it clear at a glance which space is open.
+"""
+docs = ["00-overview.md"]
+
+[groups.apps]
+order = 100
+title = "Apps not preinstalled"
+what = """
+Auditor and the Info app are not preinstalled. Both can still be installed from the Apps
+store.
+"""
+why = """
+Auditor checks a phone against GrapheneOS's and Google's verified boot keys, not ee1os's, so
+it can't vouch for this system. The Info app shows GrapheneOS's release notes and news, which
+aren't about ee1os.
+"""
+docs = ["00-overview.md"]
+
+[groups.tests]
+order = 110
+title = "Tests"
+what = """
+Automated tests for the reboot credential, the shared lock screen and the PIN rules, next to
+Android's own lock settings tests, which are adjusted to six-digit PINs.
+"""
+why = """
+They run with every build of the changes above. They don't go into the phone's system image.
+"""
+docs = ["08-development-and-testing.md"]

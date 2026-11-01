@@ -1,8 +1,10 @@
 # Patches
 
 `approved.txt` is the list of fork commits that may be built and signed: one line per commit,
-`<repo> <patch-id> <short-sha> <subject>`, checked by `scripts/verify-tree.sh` and extended with
-`scripts/approve.sh` (doc 08, *Tree check*). It covers all six forks (`platform_build`,
+`<repo> <patch-id> <short-sha> <group> <subject>`, checked by `scripts/verify-tree.sh` and
+extended with `scripts/approve.sh -g <group>` (doc 08, *Tree check*). `<group>` names a section of
+`changes.toml`, which says in plain words what the group's commits change and why; each stable
+release's changes page (`scripts/fork_report.py`) is built from the two files. It covers all six forks (`platform_build`,
 `platform_frameworks_base`, `platform_packages_apps_Settings`,
 `platform_packages_apps_SetupWizard2`, `platform_packages_apps_Updater`,
 `platform_system_sepolicy`), branch `envs-17` over the GrapheneOS release tag in

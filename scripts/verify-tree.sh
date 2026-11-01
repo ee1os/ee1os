@@ -4,6 +4,8 @@
 #   forks      commits over the upstream tag in each fork (HEAD, what the tree really has) are
 #              exactly the approved ones in patches/approved.txt (as committed, not the working
 #              copy): no extra, none missing, no merge or empty commits
+#   ledger     every approved.txt line has a group that patches/changes.toml explains (title,
+#              what, why), no commit is listed twice, no group is unused (scripts/ledger.py)
 #   base       each fork sits on the upstream tag: tag signed by GrapheneOS, its commit the one
 #              the tag's manifest pins, an ancestor of HEAD, and state/base/<repo>
 #   projects   every other project at the revision of the tag's signed default.xml, and the tree
@@ -47,6 +49,13 @@ tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
     || no "ee1os has uncommitted changes in scripts/, patches/ or workspace/build-env/"
 xgit -C "$ENVS" show HEAD:patches/approved.txt > "$tmp/approved" 2>/dev/null \
     || no "patches/approved.txt isn't committed in ee1os"
+# ledger: every line has a group that changes.toml explains, no commit twice (ledger.py)
+if xgit -C "$ENVS" show HEAD:patches/changes.toml > "$tmp/changes" 2>/dev/null; then
+    out=$(python3 -I "$ENVS/scripts/ledger.py" check "$tmp/approved" "$tmp/changes")
+    while IFS= read -r l; do [ -n "$l" ] && no "${l#FAIL: }"; done <<< "$out"
+else
+    no "patches/changes.toml isn't committed in ee1os"
+fi
 if [ -e "$SIGNERS" ]; then
     [ "$(stat -c %U "$SIGNERS")" = root ] || no "$SIGNERS isn't owned by root"
     c=$(xgit -C "$ENVS" log -1 --format=%H -- patches/approved.txt)
