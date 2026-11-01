@@ -185,3 +185,10 @@ What the design aims to provide:
   GrapheneOS's or Google's images; the NASA images are public domain, the rest are AOSP's or
   made for the project (`scripts/wallpaper-patterns.py` draws four of them). Pixel wallpapers
   are Google's and are not used.
+- **2026-11-01: a public page per stable release says what differs from GrapheneOS** (owner
+  decision). File by file for the six forks against the signed GrapheneOS tag, with hashes on
+  both sides, and in plain words why, grouped by feature (`patches/changes.toml`; doc 08, *Fork
+  report*). Source only: built images can't be compared, since signing, build numbers and times
+  differ everywhere. Stable releases only; testing builds are for closed tests and get nothing
+  public. Reason: anyone deciding whether to trust ee1os can check what it changes and that
+  everything else is GrapheneOS's, with git alone.

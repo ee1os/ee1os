@@ -156,6 +156,34 @@ and to this repo.
     signing off n5 is a separate task. Approvals are checked against SSH signatures once
     `/mnt/tank/scripts/ee1os/allowed_signers` (root's, outside the repo) exists; until
     then anyone who can commit to this repo's `HEAD` on n5 can approve.
+- **Fork report: what differs from GrapheneOS** (decided 2026-11-01, doc 00). Each stable
+  release gets a public page, `ee1os.com/changes/<bn>/`, that compares the six forks with the
+  signed GrapheneOS tag file by file and says why each change was made.
+  - Every `patches/approved.txt` line names a group: `<repo> <patch-id> <short-sha> <group>
+    <subject>`. `patches/changes.toml` explains each group in plain words (`title`, `what`,
+    `why`, `docs`, `notes` for a file the text doesn't cover). `scripts/ledger.py` checks the
+    two together; `verify-tree.sh` runs it (`scripts/verify-tree.sh:52-58`), so a release can't
+    be built with a commit whose group isn't explained. Approve with
+    `scripts/approve.sh -g <group> <repo> <commit>...`; after a rebase changes a patch-id, the
+    new line takes the group of the line `--prune` drops.
+  - `scripts/fork_report.py` reads the trees, not the commits, for what changed: path, mode and
+    git object id at the tag against the release commit (`ls-tree`, `diff --numstat
+    --no-renames`); commits only say which groups changed a file. A file changed and later
+    restored is "touched, no net change". Each file gets its git blob id and the SHA-256 of
+    its bytes (cached by blob id in `state/sha256/`), each project its git tree id. It stops
+    without writing anything if a commit isn't approved, a group has no text, a note names a
+    file its group didn't change, the tag isn't signed (`grapheneos-allowed-signers`), a fork
+    isn't on the tag, or, for `--release`, the ee1os commit isn't on `origin/main`.
+  - `release.sh` (user builds only) writes `releases/<bn>/changes/` after the post-build tree
+    check (`scripts/release.sh:50-55`): `report.json`, `index.html` (`fork_report_html.py`)
+    and `files-<bn>.tsv.gz` (every file of the six forks, ~6 MB). `publish-release.sh` tags the
+    reported commits `ee1os-<bn>` in each fork and pushes the tags (never moved; `<tag>.os`
+    is, so it can't anchor old pages), uploads the TSV to the GitHub release, copies the page
+    into the site repo's `changes/` and rebuilds `changes/index.html`. Committing and
+    deploying the site stays manual, after a look. Testing builds get no page or tags.
+  - A published page is never regenerated. `fork_report.py --check releases/<bn>/changes`
+    rebuilds its `report.json` from the commits it records and compares; `--preview --out
+    <dir>` shows the current tree. Tests: `tests/fork-report/run.sh`.
 - **Schedule** (TrueNAS cron, `sudo midclt call cronjob.query`): job 25 runs the preview at
   00:30, job 26 `track-upstream.sh` at 01:00 (n5 time, Europe/Lisbon). Logs:
   `upstream-watch.log` and `track-upstream.log` next to the tree.
@@ -419,8 +447,9 @@ Owner-run, in order:
    `adb shell getprop ro.boot.verifiedbootstate` = `yellow` once adb is on. Set up user 0, turn
    OEM unlocking off, rebuild B and the PINs, restore the backups. Don't test the duress PIN on
    this phone.
-9. **Publish**: `DEVICE=husky scripts/publish-release.sh <bn> user` (updates channel and the
-   install zip), then deploy the site (`./deploy.sh` in the site repo). OTAs work again from
+9. **Publish**: `DEVICE=husky scripts/publish-release.sh <bn> user` (updates channel, the
+   install zip and the changes page), then look at `changes/<bn>/`, commit and deploy the site
+   (`./deploy.sh` in the site repo). OTAs work again from
    here. Record the run in `tests/results/`.
 
 Going back before step 7: nothing on the phone changed; move `keys/<model>` aside and the
