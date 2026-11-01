@@ -89,6 +89,27 @@ class Release(unittest.TestCase):
         self.assertIn("in each of these projects", self.html)
         self.assertNotIn("in every project", self.html)
 
+    def test_section_order(self):
+        pos = [self.html.index(f'id="{i}"') for i in ("verify", "compared", "unchanged", "changes", "downloads")]
+        self.assertEqual(pos, sorted(pos))
+
+    def test_also_in_build_is_a_table(self):
+        part = self.html[self.html.index('id="also-in-build"'):]
+        part = part[:part.index("</table>")]
+        for v in ("1" * 40, "2" * 64, "3" * 64, "5" * 64, "6" * 64, "husky-factory.zip"):
+            self.assertIn(v, part)
+        # no hash buttons inside running text
+        for para in re.findall(r"<p[ >].*?</p>", self.html, flags=re.S):
+            self.assertNotIn('class="h"', para, para[:120])
+
+    def test_links_in_tables_look_like_links(self):
+        self.assertRegex(self.html, r"\.fr td a[^{]*\{[^}]*color: var\(--signal\)")
+
+    def test_verify_explains_no_build_needed(self):
+        verify = self.html[self.html.index('id="verify"'):self.html.index('id="compared"')]
+        self.assertIn("without building", verify)
+        self.assertIn("byte for byte", verify)
+
     def test_paragraphs_and_cross_links(self):
         self.assertIn("<p>Restarts.</p>", self.html)
         self.assertIn('href="#look"', self.html)
