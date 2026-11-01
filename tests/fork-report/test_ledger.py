@@ -111,6 +111,24 @@ class Cli(unittest.TestCase):
             self.assertEqual(self.run_cli("has-group", ch, "look").returncode, 0)
             self.assertEqual(self.run_cli("has-group", ch, "nope").returncode, 1)
 
+    def test_cli_crash_is_a_fail_line(self):
+        with tempfile.TemporaryDirectory() as d:
+            ap, ch = os.path.join(d, "approved.txt"), os.path.join(d, "changes.toml")
+            with open(ch, "wb") as f:
+                f.write(b'[groups]\nx = "str"\n')
+            with open(ap, "wb") as f:
+                f.write(b"platform_build bbbb 222222222222 look \xff\n")
+            r = self.run_cli("check", ap, ch)
+            self.assertEqual(r.returncode, 1)
+            self.assertTrue(r.stdout.startswith("FAIL: "), (r.stdout, r.stderr))
+
+    def test_verify_tree_checks_ledger_exit_code(self):
+        with open(os.path.join(SCRIPTS, "verify-tree.sh")) as f:
+            vt = f.read()
+        block = vt[vt.index("# ledger:"):vt.index("if [ -e \"$SIGNERS\" ]")]
+        self.assertIn("rc=$?", block)
+        self.assertIn("ledger.py failed", block)
+
 
 if __name__ == "__main__":
     unittest.main()

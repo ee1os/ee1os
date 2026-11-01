@@ -403,7 +403,8 @@ the layout is on; the rule is enforced in `LockSettingsService` for every creden
 (`ChooseBiometricSecondFactorPin.java`). The validation ceiling is 128
 (`F/core/java/android/app/admin/DevicePolicyManager.java:3950`).
 
-- Accepted: changing A's PIN inside A is checked against B and the alternates, and a refusal
+- Superseded 2026-10-13 (*Decisions*: A's own changes are not checked): changing A's PIN
+  inside A was to be checked against B and the alternates, and a refusal
   tells A's holder that the PIN is taken. Checking against B or the reboot credential is a
   Weaver read on their slot (costs a failure, throttled); checking against duress is a scrypt
   compare and not throttled. Refusals in A's change-PIN screen therefore count as wrong

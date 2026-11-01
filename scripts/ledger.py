@@ -66,7 +66,13 @@ def load_groups(data):
     except (tomllib.TOMLDecodeError, UnicodeDecodeError) as e:
         return {}, [f"changes.toml: {e}"]
     groups, errors = {}, []
-    for slug, t in doc.get("groups", {}).items():
+    tables = doc.get("groups", {})
+    if not isinstance(tables, dict):
+        return {}, ["changes.toml: [groups] must hold one table per group"]
+    for slug, t in tables.items():
+        if not isinstance(t, dict):
+            errors.append(f"changes.toml: groups.{slug} isn't a table")
+            continue
         if not SLUG.match(slug):
             errors.append(f"changes.toml: group {slug!r} isn't [a-z0-9-]+")
             continue
@@ -120,4 +126,8 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except Exception as e:   # a crash must read as a failure, never as a clean check
+        print(f"FAIL: ledger.py: {type(e).__name__}: {e}")
+        sys.exit(1)

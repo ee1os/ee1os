@@ -23,8 +23,10 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -151,6 +153,9 @@ class Blobs:
             feeder.start()
             for o in todo:
                 head = p.stdout.readline().split()
+                if len(head) != 3 or head[1] != b"blob":
+                    p.kill()
+                    raise ReportError(f"{self.d}: can't read object {o}")
                 size = int(head[2])
                 h, left = hashlib.sha256(), size
                 while left:
@@ -164,6 +169,7 @@ class Blobs:
                     f.write(res[o] + "\n")
                 os.replace(tmp, self._cache_path(o))
             feeder.join()
+            p.stdout.close()
             if p.wait():
                 raise ReportError(f"{self.d}: git cat-file --batch failed")
         return res
@@ -298,7 +304,7 @@ def build_report(*, forks, tag, release, approved_text, changes_toml, os_commit,
 
 
 def write_outputs(report, rows, out):
-    """report.json and files-<release>.tsv.gz into out; index.html when the renderer exists."""
+    """report.json, index.html and files-<release>.tsv.gz into out."""
     buf = io.StringIO()
     buf.write("repo\tpath\tmode\toid\tsha256\tstatus\tupstream_oid\tupstream_sha256\n")
     for r in sorted(rows, key=lambda r: (r[0], c_unquote(r[1]).encode("utf-8", "surrogateescape"))):
@@ -312,11 +318,8 @@ def write_outputs(report, rows, out):
     files = {report["downloads"]["tsv"]: tsv,
              "report.json": (json.dumps(report, sort_keys=True, indent=2, ensure_ascii=False)
                              + "\n").encode("utf-8", errors="surrogateescape")}
-    try:
-        import fork_report_html
-        files["index.html"] = fork_report_html.render_release(report).encode()
-    except ImportError:
-        pass
+    import fork_report_html
+    files["index.html"] = fork_report_html.render_release(report).encode("utf-8", errors="surrogateescape")
     for name, data in files.items():
         tmp = os.path.join(out, name + ".tmp")
         with open(tmp, "wb") as f:
@@ -331,14 +334,14 @@ def tree_forks(forks_sh):
     return [tuple(l.split(":", 1)) for l in out.decode().split()]
 
 
-def tree_inputs(tag):
-    """extras for the real tree: manifest, envs.xml, vendor modules, other projects."""
+def tree_inputs(tag, os_commit):
+    """extras for the real tree: manifest, envs.xml (as at os_commit), vendor modules, other
+    projects."""
     m = TREE + "/.repo/manifests"
     default = git(m, "show", f"refs/tags/{tag}:default.xml")
     import xml.etree.ElementTree as ET
     n_projects = sum(1 for _ in ET.fromstring(default).iter("project"))
-    with open(ENVS + "/scripts/envs-local-manifest.xml", "rb") as f:
-        envs = hashlib.sha256(f.read()).hexdigest()
+    envs = hashlib.sha256(git(ENVS, "show", f"{os_commit}:scripts/envs-local-manifest.xml")).hexdigest()
     vendor = []
     vd = WS + "/state/vendor"
     for model in sorted(os.listdir(TREE + "/vendor/google_devices")):
@@ -355,7 +358,10 @@ def tree_inputs(tag):
             "envs_xml_sha256": envs, "vendor": vendor, "n_projects": n_projects}
 
 
-def report_for(release, *, os_commit, commits=None, need_pushed=True, tag=None):
+def report_for(release, *, os_commit, commits=None, need_pushed=True, tag=None, record=None):
+    """record: a published report.json being checked. Its vendor lines are taken as recorded
+    (the modules aren't in git; they are regenerated for later tags), and every blob is hashed
+    afresh instead of read from the cache."""
     forks_sh = ENVS + "/scripts/forks.sh"
     tag = tag or open(WS + "/state/upstream-tag").read().strip()
     if need_pushed:
@@ -374,14 +380,22 @@ def report_for(release, *, os_commit, commits=None, need_pushed=True, tag=None):
                 raise ReportError(f"{path}: HEAD isn't the envs-17 branch")
             c = git(d, "rev-parse", "HEAD").decode().strip()
         forks.append(Fork(path, name, d, c))
-    extras = tree_inputs(tag)
+    extras = tree_inputs(tag, os_commit)
     extras["other_projects"] = extras.pop("n_projects") - len(forks)
-    return build_report(
-        forks=forks, tag=tag, release=release,
-        approved_text=git(ENVS, "show", f"{os_commit}:patches/approved.txt").decode(),
-        changes_toml=git(ENVS, "show", f"{os_commit}:patches/changes.toml"),
-        os_commit=os_commit, allowed_signers=ENVS + "/scripts/grapheneos-allowed-signers",
-        sha_cache=WS + "/state/sha256", forks_sh=forks_sh, extras=extras)
+    cache = WS + "/state/sha256"
+    if record is not None:
+        extras["vendor"] = record.get("vendor", [])
+        cache = tempfile.mkdtemp(prefix="fork-report-check-", dir=WS + "/state")
+    try:
+        return build_report(
+            forks=forks, tag=tag, release=release,
+            approved_text=git(ENVS, "show", f"{os_commit}:patches/approved.txt").decode(),
+            changes_toml=git(ENVS, "show", f"{os_commit}:patches/changes.toml"),
+            os_commit=os_commit, allowed_signers=ENVS + "/scripts/grapheneos-allowed-signers",
+            sha_cache=cache, forks_sh=forks_sh, extras=extras)
+    finally:
+        if record is not None:
+            shutil.rmtree(cache, ignore_errors=True)
 
 
 def main(argv):
@@ -413,7 +427,7 @@ def main(argv):
                 raise ReportError(f"made by generator {rec.get('generator')}, this is {GENERATOR}")
             report, rows = report_for(rec["release"], os_commit=rec["os_commit"], need_pushed=False,
                                       commits={f["name"]: f["commit"] for f in rec["forks"]},
-                                      tag=rec["upstream"]["tag"])
+                                      tag=rec["upstream"]["tag"], record=rec)
             tmp = os.path.join(a.check, ".check")
             write_outputs(report, rows, tmp)
             with open(os.path.join(tmp, "report.json"), "rb") as f:

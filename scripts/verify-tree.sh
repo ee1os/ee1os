@@ -51,8 +51,9 @@ xgit -C "$ENVS" show HEAD:patches/approved.txt > "$tmp/approved" 2>/dev/null \
     || no "patches/approved.txt isn't committed in ee1os"
 # ledger: every line has a group that changes.toml explains, no commit twice (ledger.py)
 if xgit -C "$ENVS" show HEAD:patches/changes.toml > "$tmp/changes" 2>/dev/null; then
-    out=$(python3 -I "$ENVS/scripts/ledger.py" check "$tmp/approved" "$tmp/changes")
+    out=$(python3 -I "$ENVS/scripts/ledger.py" check "$tmp/approved" "$tmp/changes" 2>&1); rc=$?
     while IFS= read -r l; do [ -n "$l" ] && no "${l#FAIL: }"; done <<< "$out"
+    [ "$rc" = 0 ] || [[ "$out" == *FAIL:* ]] || no "ledger.py failed (exit $rc)"
 else
     no "patches/changes.toml isn't committed in ee1os"
 fi

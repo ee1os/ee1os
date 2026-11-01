@@ -58,7 +58,10 @@ done
 # fork as ee1os-<bn>, never moved, so its links keep working; then the page goes to the site.
 changes=$TREE/releases/$bn/changes
 if [ "$VARIANT" = user ]; then
-    [ -s "$changes/report.json" ] || { echo "no $changes/report.json (release.sh makes it); not published"; exit 1; }
+    for f in report.json index.html "files-$bn.tsv.gz"; do
+        [ -s "$changes/$f" ] || { echo "no $changes/$f (release.sh makes it); not published"; exit 1; }
+    done
+    [ -d "$SITE/.git" ] || { echo "no site repo at $SITE; not published"; exit 1; }
     python3 -I -c 'import json, sys
 for f in json.load(open(sys.argv[1]))["forks"]: print(f["path"], f["name"], f["commit"])' \
         "$changes/report.json" > "$changes/.forks"

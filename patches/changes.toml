@@ -27,7 +27,8 @@ what = """
 A second space on the phone: a separate Android user with its own apps, data and PIN, set up
 during first setup or later in Settings. Both spaces use the same lock screen. The owner's PIN
 opens the main space, the protected space's PIN opens the protected space. It has its own
-wallpaper and can take calls.
+wallpaper and can take calls. The main space's Settings don't list the protected space or
+other users.
 """
 why = """
 Each Android user has its own encryption key, so what is in the protected space stays
@@ -41,16 +42,20 @@ docs = ["00-overview.md", "04-alternate-credential-actions.md", "07-roadmap.md#s
 order = 30
 title = "PIN rules"
 what = """
-With a protected space, the main space and the protected space both use PINs of the same
-length, and a PIN can't be used twice on the phone: not by both spaces, and not as the duress
-or reboot PIN. Settings says why a PIN was refused. Wrong-PIN waits work for both spaces from
-the same lock screen, and the countdown is shown there.
+With a protected space, the main space and the protected space both use PINs, of the same
+length. When the protected space sets or changes its PIN, or sets the duress or reboot PIN,
+the new PIN must differ from the main space's PIN and from the other PINs; Settings says why
+a PIN was refused. Wrong-PIN waits work for both spaces from the same lock screen, and the
+countdown is shown there.
 """
 why = """
-One lock screen checks the main space's PIN first and then the protected space's. If two of
-them were the same, one would hide the other. The same length keeps the lock screen the same
-for both. Wrong guesses stay limited for each space as in GrapheneOS, so trying PINs from one
-lock screen gets no extra attempts.
+One lock screen checks the main space's PIN first and then the protected space's, so two equal
+PINs would hide one of them. Changes made in the main space are not checked: a refusal there
+would tell whoever holds the main space's PIN that a guess is the protected space's PIN or the
+duress PIN. So if the main space picks a PIN the protected space already uses, the protected
+space can't be opened, or the duress or reboot PIN stops working, until one of them is
+changed. The protected space's owner should pick PINs the main space wouldn't choose. Wrong
+guesses stay limited for each space as in GrapheneOS.
 """
 docs = ["04-alternate-credential-actions.md"]
 

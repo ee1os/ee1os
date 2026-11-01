@@ -1,7 +1,9 @@
 """HTML for the changes pages (fork_report.py): one page per stable release and the list of
 them, in the site's look (site/style.css, site.js), readable without JS. Pages are static files
 in site/changes/; a published page is never regenerated."""
+import hashlib
 from html import escape
+from urllib.parse import quote
 
 ORG = "https://github.com/ee1os"
 UPSTREAM = "https://github.com/GrapheneOS"
@@ -150,21 +152,27 @@ def paras(text):
 
 
 def doc_link(os_commit, doc):
-    name = doc.split("#")[0]
-    label = name.removesuffix(".md").replace("-", " ")
-    label = label[:2] + " " + label[3:].capitalize() if label[:2].isdigit() else label
+    """'07-roadmap.md#stage-3--environment-b' -> '07 Roadmap, stage 3 environment b'"""
+    name, _, anchor = doc.partition("#")
+    words = name.removesuffix(".md").split("-")
+    label = (words[0] + " " + " ".join(words[1:]).capitalize()) if words[0].isdigit() else " ".join(words)
+    if anchor:
+        label += ", " + " ".join(w for w in anchor.split("-") if w)
     return f'<a href="{ORG}/ee1os/blob/{e(os_commit)}/docs/{e(doc)}">{e(label)}</a>'
 
 
 def file_row(r, f, titles):
     commit = next(x["commit"] for x in r["forks"] if x["name"] == f["repo"])
     base = next(x["upstream_commit"] for x in r["forks"] if x["name"] == f["repo"])
+    path_url = quote(f["path"].encode("utf-8", "surrogateescape"))
+    anchor = hashlib.sha256(f["path"].encode("utf-8", "surrogateescape")).hexdigest()
     if f["status"] == "deleted":
-        link = f'<a href="{ORG}/{e(f["repo"])}/blob/{e(base)}/{e(f["path"])}">file</a>'
+        link = f'<a href="{ORG}/{e(f["repo"])}/blob/{e(base)}/{e(path_url)}">file</a>'
     elif f["status"] == "added":
-        link = f'<a href="{ORG}/{e(f["repo"])}/blob/{e(commit)}/{e(f["path"])}">file</a>'
+        link = f'<a href="{ORG}/{e(f["repo"])}/blob/{e(commit)}/{e(path_url)}">file</a>'
     else:
-        link = f'<a href="{ORG}/{e(f["repo"])}/compare/{e(base)}...{e(commit)}">diff</a>'
+        link = (f'<a href="{ORG}/{e(f["repo"])}/compare/{e(base)}...{e(commit)}#diff-{anchor}">'
+                f'diff</a>')
     if f["added"] is None:
         lines = f'<span class="muted">binary, {n(f["size_old"] or 0)} → {n(f["size_new"] or 0)} bytes</span>'
     else:
@@ -249,7 +257,7 @@ with its own keys, and build numbers and times differ.</p>
 <section id="compared">
 <h2>What was compared</h2>
 <p>GrapheneOS release tag <code>{e(tag)}</code>; its signature was checked against GrapheneOS's
-signing key in every project. The ee1os side is tag <code>{e(tagname)}</code> in each fork on
+signing key in each of these projects and in the release manifest. The ee1os side is tag <code>{e(tagname)}</code> in each fork on
 <a href="{ORG}">github.com/ee1os</a>, which is never moved.</p>
 <div class="scroll"><table>
 <thead><tr><th>Project</th><th>Files</th><th>Changed</th><th>GrapheneOS commit · git tree id</th><th>ee1os commit · git tree id</th><th>Diff</th></tr></thead>
@@ -329,6 +337,6 @@ def render_index(reports):
 <p class="lead">For each stable release: every file ee1os changed in GrapheneOS's source, with
 hashes on both sides, and why. Newest first.</p>
 </header>
-<ol class="releases">{items}</ol>
+{f'<ol class="releases">{items}</ol>' if items else '<p>No stable release has a page yet.</p>'}
 """
     return HEAD.format(title="Changes", description="ee1os against GrapheneOS, file by file, per release.") + body + FOOT

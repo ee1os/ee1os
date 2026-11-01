@@ -69,6 +69,26 @@ class Release(unittest.TestCase):
         self.assertIn("https://github.com/ee1os/releases/releases/download/2026103010/"
                       "files-2026103010.tsv.gz", self.html)
 
+    def test_file_anchor_and_url_encoding(self):
+        import hashlib
+        anchor = hashlib.sha256(b"core/<x>.txt").hexdigest()
+        self.assertIn("#diff-" + anchor, self.html)
+        self.assertIn("/blob/", H.render_release(dict(REPORT, groups=[dict(REPORT["groups"][0], files=[
+            dict(F, status="added", path="a#b?c%.txt", also_in=[], notes=[])])])).replace("&amp;", "&"))
+        added = H.render_release(dict(REPORT, groups=[dict(REPORT["groups"][0], files=[
+            dict(F, status="added", path="a#b?c%.txt", also_in=[], notes=[])])]))
+        self.assertIn("a%23b%3Fc%25.txt", added)
+
+    def test_doc_labels_keep_section(self):
+        g = dict(REPORT["groups"][0], docs=["07-roadmap.md#stage-3--environment-b", "07-roadmap.md#stage-5--b-before-a"])
+        html = H.render_release(dict(REPORT, groups=[g]))
+        self.assertIn(">07 Roadmap, stage 3 environment b<", html)
+        self.assertIn(">07 Roadmap, stage 5 b before a<", html)
+
+    def test_signature_wording(self):
+        self.assertIn("in each of these projects", self.html)
+        self.assertNotIn("in every project", self.html)
+
     def test_paragraphs_and_cross_links(self):
         self.assertIn("<p>Restarts.</p>", self.html)
         self.assertIn('href="#look"', self.html)
@@ -86,6 +106,9 @@ class Release(unittest.TestCase):
 
 
 class Index(unittest.TestCase):
+    def test_index_empty(self):
+        self.assertIn("No stable release has a page yet", H.render_index([]))
+
     def test_index_order(self):
         older = copy.deepcopy(REPORT)
         older["release"] = "2026102112"
