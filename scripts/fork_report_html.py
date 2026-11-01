@@ -88,7 +88,7 @@ HEAD = """<!doctype html>
 <a class="skip" href="#main">Skip to content</a>
 <header class="site">
   <div class="wrap">
-    <a class="brand" href="/"><svg viewBox="0 0 48 48" aria-hidden="true"><rect class="frame" x="4" y="12" width="40" height="24" rx="12"/><circle class="dot" cx="16" cy="24" r="5.5"/><circle class="dot on" cx="32" cy="24" r="5.5"/></svg>ee1os</a>
+    <a class="brand" href="/"><svg viewBox="0 0 48 48" aria-hidden="true"><rect class="frame" x="4" y="12" width="40" height="24" rx="12"/><circle class="dot" cx="16" cy="24" r="5.5"/><circle class="dot on" cx="32" cy="24" r="5.5"/></svg>ee1os<abbr class="stage" title="Beta">β</abbr></a>
     <nav class="primary" aria-label="Site">
       <a href="/devices">Devices</a>
       <a href="/install">Install</a>
