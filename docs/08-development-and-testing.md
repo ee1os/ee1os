@@ -471,7 +471,10 @@ Owner-run, in order:
 9. **Publish**: `DEVICE=husky scripts/publish-release.sh <bn> user` (updates channel, the
    install zip and the changes page), then look at `changes/<bn>/`, commit and deploy the site
    (`./deploy.sh` in the site repo). OTAs work again from
-   here. Record the run in `tests/results/`.
+   here. Record the run in `tests/results/`. Then build and publish every other model in
+   `keys/` the same way (`DEVICE=<model> PUBLISH=0 scripts/release.sh user`, then
+   `DEVICE=<model> scripts/publish-release.sh <bn> user`): until then that model's channel
+   still offers an old-key build, and the installer refuses it.
 
 Going back before step 7: nothing on the phone changed; move `keys/<model>` aside and the
 archived ones back, and restore the old fingerprint with `git revert` of step 5's commits.
