@@ -3,6 +3,7 @@
 
   upstream-watch.py preview      our release tag -> upstream branch 17 (nightly: what's coming)
   upstream-watch.py check <tag>  our release tag -> <tag> (track-upstream.sh, before pushing)
+  upstream-watch.py classify <tag>  does <tag> have to be taken now, or can it wait (doc 08)
 
 Compares GrapheneOS's manifests and every GitHub-hosted GrapheneOS project between the two
 points and flags what is strategic: projects added or removed, a new AOSP base, upstream
@@ -14,6 +15,7 @@ Writes a report to $WS/upstream-watch/. If anything is flagged and the executabl
 $WS/state/review-hook exists, it is run with the report path and its output is saved next to
 the report as <report>-review.md. preview notifies klava hq (OS topic) only about flags not seen before.
 check exits 10 when anything is flagged, 0 when not, 1 on errors. DRY_RUN=1: no notification.
+classify prints why a release has to be taken and exits 0, exits 11 if it can wait, 1 on errors.
 """
 import json
 import os
@@ -62,6 +64,15 @@ KEYWORDS = re.compile(
 )
 ROUTINE = re.compile(r"security patch level|time ?zone|tzdb|gradle|vendor-specs|"
                      r"build-index|gservices", re.I)
+# classify: a security fix in the areas that decide who gets into the phone. Reverts and fixups don't count.
+URGENT_TOPIC = re.compile(r"lock.?screen|keyguard|bouncer|credential|locksettings|weaver|duress|usb",
+                          re.I)
+URGENT_FIX = re.compile(r"\bfix(es|ed)?\b|vulnerab|security|bypass|prevent|restrict|\bcve-|exploit",
+                        re.I)
+EXPLOITED = re.compile(r"exploited|exploitable|in the wild", re.I)
+# binaries: their commits list no fixes, so not being able to read them loses nothing
+KERNEL_BINARIES = re.compile(r"^kernel/prebuilts/|^device/google/[^/]*-kernels/")
+RELEASE_NOTES = "https://grapheneos.org/releases"
 MAX_PATCH = 4000        # characters of each flagged file's patch in the report
 MAX_REPORT = 250_000    # characters of patches in the whole report
 
@@ -110,10 +121,66 @@ def compare(name, frm, to):
     return c
 
 
+def patch_level(projects):
+    """The security patch level of the release config our builds use (lunch <device>-cur-...)."""
+    rev = projects["platform_build_release"][1]
+    flag = "RELEASE_PLATFORM_SECURITY_PATCH.textproto"
+    def read(path):
+        return gh_raw(f"repos/{GH_ORG}/platform_build_release/contents/{path}?ref={rev}")
+    if 'inherits: "aosp_current"' not in read("release_configs/cur.textproto"):
+        raise ValueError("cur no longer inherits aosp_current")
+    overrides = gh_json(f"repos/{GH_ORG}/platform_build_release/contents/flag_values/cur?ref={rev}")
+    if flag in [f["name"] for f in overrides]:
+        config = "cur"
+    else:
+        config = re.search(r'name:\s*"aosp_current"\s*target:\s*"(\w+)"',
+                           read("release_config_map.textproto")).group(1)
+    return re.search(r'string_value:\s*"([\d-]+)"', read(f"flag_values/{config}/{flag}")).group(1)
+
+
+def release_notes(base, target):
+    """The changelog entries after base, up to target; raises if target's isn't on the page."""
+    page = run("curl", "-fsS", "-m", "30", RELEASE_NOTES)
+    entries = dict(m.groups() for m in
+                   re.finditer(r'<article id="?(\d{10})"?>(.*?)(?=<article|\Z)', page, re.S))
+    if target not in entries:
+        raise ValueError(f"no release notes for {target}")
+    return "\n".join(text for tag, text in entries.items() if base < tag <= target)
+
+
+def urgent_reasons(base, target, old, old_aosp, new, new_aosp):
+    """Why a release can't wait for the next monthly one; nothing if it can."""
+    reasons = []
+    lo, hi = patch_level(old), patch_level(new)
+    if hi > lo:
+        reasons.append(f"security patch level {lo} -> {hi}")
+    if old_aosp != new_aosp:
+        reasons.append(f"new AOSP base {new_aosp}")
+    if EXPLOITED.search(release_notes(base, target)):
+        reasons.append("the release notes mention an exploited vulnerability")
+    # by path: a project moving from AOSP to a GrapheneOS copy changes name, not path
+    old_revs = {path: rev for path, rev, _ in old.values()}
+    for n, (path, rev, remote) in sorted(new.items()):
+        if remote != "grapheneos" or path not in old_revs or old_revs[path] == rev:
+            continue
+        c = compare(n, old_revs[path].removeprefix("refs/tags/"), rev)
+        if c is None or "commits" not in c or c.get("total_commits", 0) > len(c["commits"]):
+            if not KERNEL_BINARIES.search(path):
+                reasons.append(f"{short(path)}: commits can't all be read")
+            continue
+        for cm in c["commits"]:
+            message = cm["commit"]["message"]
+            subject = message.splitlines()[0]
+            if not subject.startswith(("Revert", "fixup!")) and URGENT_TOPIC.search(message) \
+                    and URGENT_FIX.search(message):
+                reasons.append(f"{short(path)} {cm['sha'][:10]}: {subject}")
+    return reasons
+
+
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("preview", "check") or \
-            (sys.argv[1] == "check" and len(sys.argv) != 3):
-        print("\n".join(__doc__.strip().splitlines()[2:4]), file=sys.stderr)
+    if len(sys.argv) < 2 or sys.argv[1] not in ("preview", "check", "classify") or \
+            (sys.argv[1] != "preview" and len(sys.argv) != 3):
+        print("\n".join(__doc__.strip().splitlines()[2:5]), file=sys.stderr)
         return 1
     mode = sys.argv[1]
     os.environ["PATH"] = "/mnt/flash/home/faeton/.local/bin:/usr/local/bin:/usr/bin:/bin:" \
@@ -136,6 +203,16 @@ def main():
 
     old, old_aosp = manifest(base)
     new, new_aosp = manifest(target)
+
+    if mode == "classify":
+        # any failure counts as urgent in the caller: a release is only left out on a clear answer
+        try:
+            reasons = urgent_reasons(base, target, old, old_aosp, new, new_aosp)
+        except Exception as e:
+            print(f"classify {target}: {e!r}", file=sys.stderr)
+            return 1
+        print("\n".join(reasons))
+        return 0 if reasons else 11
 
     flags = []      # (key, text, short) strategic findings; key identifies it across runs,
                     # short is the line for the notification

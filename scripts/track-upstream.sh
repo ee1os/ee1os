@@ -6,6 +6,8 @@
 #   3b. regenerate the vendor modules (adevtool generate-all) if the sync moved adevtool
 #   4. build husky userdebug, run the gate (tests/gate.sh, if present)
 #   5. push the rebased branches and the manifest, tag them <tag>.os
+# A release with no urgent reason to take it (scripts/upstream-watch.py classify: same patch level,
+# no exploited or lock screen, credential or USB fix) is left for the next one; doc 08.
 # A release with strategic changes (scripts/upstream-watch.py check: new projects, branding,
 # areas we depend on, files our forks change) stops after step 4, built but not pushed, until
 # the owner decides. Every outcome goes to klava hq (OS topic, 890). Signing and publishing
@@ -271,6 +273,21 @@ last=$(cat "$STATE/upstream-tag" 2>/dev/null || echo none)
 if [ -z "${FORCE_TAG:-}" ]; then
     if [ "$tag" = "$last" ]; then dry "no new release ($tag)"; log "no new release ($tag)"; exit 0; fi
     if [ "$tag" = "$(cat "$STATE/skipped-tag" 2>/dev/null)" ]; then log "$tag was skipped"; exit 0; fi
+    # 1b. only monthly and urgent releases; anything but a clear "can wait" (exit 11) is taken
+    if [ "$DRY" = 1 ]; then
+        urgent=$("$ENVS/scripts/upstream-watch.py" classify "$tag"); crc=$?
+    else
+        urgent=$("$ENVS/scripts/upstream-watch.py" classify "$tag" 2>> "$LOG"); crc=$?
+    fi
+    if [ "$crc" = 11 ]; then
+        dry "GrapheneOS $tag can wait for the next monthly release (ours: $last)"
+        echo "$tag" > "$STATE/skipped-tag"
+        notify "GrapheneOS $tag is out: same patch level, nothing urgent. Left for the next monthly release, which will include it. Ours stays on $last. To take it anyway: FORCE_TAG=$tag scripts/track-upstream.sh"
+        exit 0
+    fi
+    [ "$crc" = 0 ] || urgent="could not be classified (exit $crc), taken to be safe"
+    log "$tag is taken: $(echo $urgent)"
+    [ "$DRY" != 1 ] || echo "DRY_RUN: $tag is taken: $urgent"
 fi
 if [ "$DRY" = 1 ]; then
     # the adevtool the tag pins, from its manifest; the sync would move the tree to it

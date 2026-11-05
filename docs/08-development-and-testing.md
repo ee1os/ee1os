@@ -61,7 +61,7 @@ and to this repo.
 - One commit series per stage. When a stage is done, tag it in each fork (`stage2`) and export
   it here: `git format-patch fork/17..HEAD -o <this repo>/patches/02-reboot-bfu/`.
 - Commit style: short subject in the imperative, upstream style, no noise.
-- **Rebase routine** when GrapheneOS publishes a release (about weekly; tags like
+- **Rebase routine** when GrapheneOS publishes a release we take (see *Which releases we take*; tags like
   `2026100600` in every repo): `scripts/track-upstream.sh` does it nightly (doc 07 R5). Only
   release tags: never merge or rebase onto upstream branch `17` between releases, it is their
   development line and a merge breaks the next rebase (doc 00 decision 2026-10-15). By hand:
@@ -83,6 +83,27 @@ and to this repo.
   reminds about a held release with the `APPROVE=`/`SKIP=` commands (the hook is local to n5, not part of this repo; the report is untrusted upstream text, so
   the hook may only read files). Projects whose history went backwards or that are past
   GitHub's compare limits (250 commits, 300 files) are flagged as well.
+- **Which releases we take** (decided 2026-11-05: upstream tags about weekly, only some are
+  monthly security releases, and each one costs a build, a gate and a phone run). The monthly
+  release ships within about a week; so does any release that can't wait; the rest are left out and
+  arrive with the next one we take, since a rebase goes straight to the newest tag.
+  `upstream-watch.py classify <tag>` runs before anything is synced and compares with the tag
+  we are on, reading the release notes of every tag in between, so what a left-out release carried
+  still counts when the next tag appears.
+  Taken if any of: the security patch level of the `cur` release config rises; a new AOSP base; the
+  release notes say "exploited", "exploitable" or "in the wild"; a commit that isn't a revert or
+  fixup mentions both a topic (lock screen, keyguard, credentials, Weaver, duress, USB) and a fix
+  (fix, vulnerability, security, bypass, prevent, restrict, CVE). A failed check, or commits that
+  can't all be read, also means taken.
+  Otherwise `track-upstream.sh` records the tag in `state/skipped-tag` and says so once;
+  `FORCE_TAG=<tag>` takes it anyway, once no release is held. On the tags after `2026100600` that
+  takes `2026101600` (lock screen fix) and `2026110200`, and leaves out `2026102100` and `2026110100`.
+  Left to the monthly on purpose: kernel fixes (prebuilts list none; the release notes do, but
+  matching USB there would take tags for unrelated drivers), other security notes such as a removed
+  root certificate or a remote denial of service, and commits upstream dropped, which like reverts
+  aren't fixes and get the strategic check when a later tag is taken. Not read: projects on the
+  `grapheneos-gitlab` remote (Vanadium), and new paths with nothing to compare with.
+  Taking a release doesn't change what follows: strategic ones are still held for approval.
 - **Strategic releases wait for the owner:** `track-upstream.sh` runs `upstream-watch.py check
   <tag>` first. If it flags anything, the release is synced, rebased, built and gated as usual
   but not pushed; the message links the report. `APPROVE=<tag> scripts/track-upstream.sh`
