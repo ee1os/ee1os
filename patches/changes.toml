@@ -28,7 +28,7 @@ A second space on the phone: a separate Android user with its own apps, data and
 during first setup or later in Settings. Both spaces use the same lock screen. The owner's PIN
 opens the main space, the protected space's PIN opens the protected space. It has its own
 wallpaper and can take calls. The main space's Settings don't list the protected space or
-other users.
+other users. A USB stick moves to whichever space is open.
 """
 why = """
 Each Android user has its own encryption key, so what is in the protected space stays
@@ -46,7 +46,8 @@ With a protected space, the main space and the protected space both use PINs, of
 length. When the protected space sets or changes its PIN, or sets the duress or reboot PIN,
 the new PIN must differ from the main space's PIN and from the other PINs; Settings says why
 a PIN was refused. Wrong-PIN waits work for both spaces from the same lock screen, and the
-countdown is shown there.
+countdown is shown there. The first PIN screen of setup says the length stays. Setting up a
+protected space turns on auto-confirm, which the main space can turn off.
 """
 why = """
 One lock screen checks the main space's PIN first and then the protected space's, so two equal

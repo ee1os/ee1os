@@ -71,3 +71,6 @@ platform_frameworks_base 243c017fce6b3c95079ba54e5b86fa51214c0bc6 9ac116e47028 l
 platform_packages_apps_SetupWizard2 de3f3fe34be07368f1ca313969010462c2ce9243 ab2a850eabf8 look Use Mars as the protected space wallpaper
 platform_build e99fdb9997f3e42222928709340a169fd64cab0c 063fa72e3c95 look Add the wallpaper collections
 platform_frameworks_base 73ebfe5e86c31a524379816b10676eb6efc5afce 029b07c078da tests Keep the expected bytes in KeySyncTaskTest from being zeroized
+platform_frameworks_base fc02fbab6a27fa153937115636bcb17ae56b6276 dada21db9820 protected-space Storage: move USB sticks with the current user
+platform_packages_apps_Settings f709132f72ddee51f17239711c18e8eb25d35825 3d86d7ab0c29 pin-rules Turn on auto-confirm with a protected space
+platform_packages_apps_Settings 8617925b892816e81be806ad47e55134e7108a07 b5cdcbf9cceb pin-rules Say on the first PIN screen that its length stays
