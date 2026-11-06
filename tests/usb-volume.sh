@@ -88,7 +88,12 @@ log "### inserted in A"
 stick_in; sees 0 "A sees it"
 log "### A to B and back with the stick left in"
 go "$B_PIN" 10; sees 10 "it moves to B"
-[[ -z "$(roots 0)" ]] && pass "A no longer lists it" || fail "A still lists it"
+listing="$(sh_ content query --user 0 --uri content://com.android.externalstorage.documents/root \
+  --projection root_id 2>&1)"
+stick="$(sh_ sm list-volumes public | awk '{print $NF}')"
+if [[ "$listing" != *"root_id=primary"* ]]; then fail "couldn't read A's roots: ${listing:0:120}"
+elif [[ "$listing" == *"root_id=$stick"* ]]; then fail "A still lists it"
+else pass "A no longer lists it"; fi
 go "$A_PIN" 0; sees 0 "it moves back to A"
 stick_out
 
@@ -103,12 +108,31 @@ v="$(sh_ sm list-volumes public | awk '{print $1}')"
 sh_ sm unmount "$v"; sleep 3; sh_ sm mount "$v"
 sees 10 "B still sees it"
 
+log "### still mounting while B opens: it reaches B when the mount ends"
+go "$A_PIN" 0
+stick_out
+sh_ sm set-virtual-disk true; sleep 4
+disk="$(sh_ sm list-disks | head -1)"
+lock; pad
+for d in $(echo "$B_PIN" | grep -o .); do sh_ input keyevent "KEYCODE_$d"; sleep 0.3; done
+sh_ logcat -c
+sh_ sm partition "$disk" public &
+sleep 1
+sh_ input keyevent KEYCODE_ENTER
+wait
+for i in $(seq 25); do [[ "$(cur)" == 10 ]] && break; sleep 1; done
+sees 10 "B sees it"
+log "    $(sh_ logcat -d -s StorageManagerService:* | grep -c 'Remounting volume') remount(s) in the log; 0 means the mount ended before the switch and the race wasn't hit"
+
 log "### reboot with the stick in, B first while A stays locked"
 adb -s "$SERIAL" reboot; sleep 20; conn
 adb -s "$SERIAL" root >/dev/null 2>&1; sleep 3; conn
 sleep 10
 pad && enter "$B_PIN" 10
-sees 10 "B sees it"
+sleep 5
+# vold scans no disk before user 0 has started (doc 04, decision 2026-11-06)
+[[ -z "$(sh_ sm list-volumes public)" ]] && pass "no stick in B before A's first unlock (known limit)" \
+  || fail "the stick is there before A's first unlock: the limit in doc 04 is out of date"
 log "### then back to A, still before A's first unlock"
 lock
 for i in $(seq 20); do [[ "$(cur)" == 0 ]] && break; sleep 1; done

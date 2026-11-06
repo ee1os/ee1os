@@ -727,10 +727,12 @@ SetupWizard2 `9738860`); decisions below.
   `DiskInfo.isAdoptable()` is false, so it stayed with the user it was first mounted for: a stick
   from A never reached B, and one from B was lost to A after B stopped. The move unmounts the
   stick, so a copy in progress across a switch is cut off. Test: `tests/usb-volume.sh`, on a
-  virtual disk.
-  Still open: before A's first unlock of a boot, no removable disk is scanned, also in B, because
-  vold waits for user 0 to start (`system/vold/VolumeManager.cpp:262-270`). `system/vold` is not
-  one of our forks. Not checked on a real stick yet.
+  virtual disk. Not checked on a real stick yet.
+- **2026-11-06, no `system/vold` fork for USB before A's first unlock:** after a reboot, no
+  removable disk is scanned until A has been unlocked once, also while B is open, because vold
+  waits for user 0 to start (`system/vold/VolumeManager.cpp:262-270`). This stays. Reason: a
+  seventh fork to rebase on every release isn't worth it for this case. To use a stick in B after
+  a reboot, unlock A once first.
 - **2026-10-13, A and B stay PINs:** the 2026-10-11 rule is now enforced. With a protected
   space, a primary credential of user 0 or B that isn't a PIN (no lock, pattern, password) is
   refused for normal changes and token resets (`checkLayoutCredential`), and Settings offers

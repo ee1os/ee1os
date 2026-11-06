@@ -74,3 +74,4 @@ platform_frameworks_base 73ebfe5e86c31a524379816b10676eb6efc5afce 029b07c078da t
 platform_frameworks_base fc02fbab6a27fa153937115636bcb17ae56b6276 dada21db9820 protected-space Storage: move USB sticks with the current user
 platform_packages_apps_Settings f709132f72ddee51f17239711c18e8eb25d35825 3d86d7ab0c29 pin-rules Turn on auto-confirm with a protected space
 platform_packages_apps_Settings 8617925b892816e81be806ad47e55134e7108a07 b5cdcbf9cceb pin-rules Say on the first PIN screen that its length stays
+platform_frameworks_base a6af619c0634eebf07784f22ee00750d169ef49b 98b0f3d62849 protected-space Storage: move a USB stick that finished mounting for the last user
