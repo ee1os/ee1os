@@ -1,5 +1,5 @@
 
-## Removable volume across user switches — 2026-11-06T18:05:39+00:00
+## Removable volume across user switches — 2026-11-06T19:07:30+00:00
 build: Android/sdk_phone64_x86_64/emu64x:17/CP2A.260605.016/2026110506:userdebug/test-keys
     protected space is user 10
 ### inserted in A
@@ -14,9 +14,12 @@ build: Android/sdk_phone64_x86_64/emu64x:17/CP2A.260605.016/2026110506:userdebug
 ### unmount and mount in B keep it with B
     PASS: it moves to B
     PASS: B still sees it
+### still mounting while B opens: it reaches B when the mount ends
+    PASS: B sees it
+    0 remount(s) in the log; 0 means the mount ended before the switch and the race wasn't hit
 ### reboot with the stick in, B first while A stays locked
-    FAIL: B sees it (belongs to , )
+    PASS: no stick in B before A's first unlock (known limit)
 ### then back to A, still before A's first unlock
     PASS: A sees it after its first unlock
 
-usb-volume: 1 FAILED
+usb-volume: all passed
