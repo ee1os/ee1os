@@ -711,9 +711,26 @@ SetupWizard2 `9738860`); decisions below.
   the hardware (`F/services/core/java/com/android/server/locksettings/SoftwareRateLimiter.java:250`).
   Accepted: A's next unlock resets both. Only several boots in a row that open B without ever
   opening A would build up to the hardware's delays for A.
-- **2026-10-13, auto-confirm stays off by default:** as in stock Android, it's turned on in
-  A's Settings → Screen lock; with one PIN length it then submits B's PIN too. B's own setting
-  has no effect on the lock screen.
+- **2026-10-13, auto-confirm stays off by default (replaced 2026-11-06):** as in stock Android,
+  it's turned on in A's Settings → Screen lock; with one PIN length it then submits B's PIN too.
+  B's own setting has no effect on the lock screen.
+- **2026-11-06, auto-confirm on with a protected space:** setup turns it on for A once the space
+  exists (`S/security/ProtectedSpaceSetupActivity.java`, `enableAutoConfirm`); A can still turn
+  it off in Screen lock. Spaces set up earlier keep their setting. Shell provisioning leaves it
+  off, so `tests/keyguard.sh` still types at a pad with an OK key. The one-length rule stays, and
+  the wizard's first PIN screen now says it, because the length is chosen there, before the
+  protected space is offered (`S/password/SetupChooseLockPassword.java`). Reason: tester report,
+  a longer PIN was refused with no warning at the time the length was fixed.
+- **2026-11-06, a USB stick follows the current user:** public volumes now move on a user switch
+  and on mount (`followsCurrentUser` in `F/services/core/java/com/android/server/StorageManagerService.java`).
+  Upstream moves only visible volumes, and a stick is never visible because
+  `DiskInfo.isAdoptable()` is false, so it stayed with the user it was first mounted for: a stick
+  from A never reached B, and one from B was lost to A after B stopped. The move unmounts the
+  stick, so a copy in progress across a switch is cut off. Test: `tests/usb-volume.sh`, on a
+  virtual disk.
+  Still open: before A's first unlock of a boot, no removable disk is scanned, also in B, because
+  vold waits for user 0 to start (`system/vold/VolumeManager.cpp:262-270`). `system/vold` is not
+  one of our forks. Not checked on a real stick yet.
 - **2026-10-13, A and B stay PINs:** the 2026-10-11 rule is now enforced. With a protected
   space, a primary credential of user 0 or B that isn't a PIN (no lock, pattern, password) is
   refused for normal changes and token resets (`checkLayoutCredential`), and Settings offers
