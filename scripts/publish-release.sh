@@ -3,7 +3,7 @@
 #   [DEVICE=shiba] [NOTE=text] publish-release.sh <build number> [user|userdebug]
 # NOTE, when set, goes under the model's heading in the release notes (e.g. that a model hasn't been tried on a phone yet).
 # Same upload as release.sh step 3 and 4: the OTA zip and channel file replace the rolling
-# "updates" release; a user build also gets its own release with the install zip and checksums,
+# "updates" release, and that model's older OTA zips are removed; a user build also gets its own release with the install zip and checksums,
 # tags ee1os-<bn> in the forks, the file list on the release and its changes page in the site
 # repo (site/changes/<bn>/, committed and deployed by hand after a look).
 set -euo pipefail
@@ -97,6 +97,23 @@ for c in "${chans[@]}"; do
 done
 gh release upload updates -R "$REPO" --clobber \
     "$out/$DEVICE-ota_update-$bn.zip" "${chanfiles[@]}"
+# Only the OTA zips this model's channel files point at stay (stable and testing can differ);
+# the rest go. The release is already out, so a failed delete only warns.
+tmp=$(mktemp -d)
+gh release download updates -R "$REPO" -D "$tmp" \
+    -p "$DEVICE-stable*" -p "$DEVICE-beta*" -p "$DEVICE-alpha*" -p "$DEVICE-testing*"
+keep=$(cat "$tmp"/* | cut -d' ' -f1 | sort -u)
+rm -rf "$tmp"
+grep -qx "$bn" <<< "$keep" || { echo "the channel files don't name $bn; old OTA zips kept"; keep=; }
+if [ -n "$keep" ]; then
+    gh release view updates -R "$REPO" --json assets -q '.assets[].name' \
+        | grep -E "^$DEVICE-ota_update-[0-9]+\.zip\$" | while read -r z; do
+        b=${z#"$DEVICE-ota_update-"}; b=${b%.zip}
+        grep -qx "$b" <<< "$keep" && continue
+        gh release delete-asset updates "$z" -R "$REPO" -y > /dev/null && echo "removed old $z" \
+            || echo "couldn't remove $z from the updates release"
+    done || true
+fi
 # One release per build number holds every model built with it: the install script fetches
 # <codename>-install-<bn>.zip and one SHA256SUMS-<bn> from the release tagged <bn>.
 section="## $DEVICE
