@@ -11,17 +11,20 @@
 #   cleanup    delete reboot PIN and duress credentials
 # Checks print PASS, FAIL or SKIP (not checkable here); the script exits 1 if any check failed.
 # Setup steps printed with "$ cmd" are not checks: their output is recorded, not asserted.
+# Each item ends with "result: PASS" or "result: FAIL (n)". New PINs need 6 digits
+# (LockPatternUtils.MIN_NEW_PIN_SIZE); the owner is user 0, the alternates authority here.
 set -euo pipefail
 SERIAL="${SERIAL:-127.0.0.1:5555}"
-OWNER_PIN=1111 B_PIN=2222 DURESS_PIN=9999 DURESS_PW=duress-pw REBOOT_PIN=5555
+OWNER_PIN=111111 B_PIN=222222 DURESS_PIN=999999 DURESS_PW=duress-pw REBOOT_PIN=555555
+OTHER_PIN=432165
 BOOT_REASON=reboot,userrequested
 HERE="$(cd "$(dirname "$0")" && pwd)"
-RES="$HERE/results/$(date +%F)-stage2-T3.md"
-mkdir -p "$HERE/results"
+RES="${RES:-$HERE/results/$(date +%F)-stage2-T3.md}"
+mkdir -p "$(dirname "$RES")"
 FAILS=0
 
 a()   { adb -s "$SERIAL" "$@"; }
-sh_() { a shell "$@" | tr -d '\r'; }
+sh_() { timeout 60 adb -s "$SERIAL" shell "$@" | tr -d '\r'; }
 log() { echo "$*" | tee -a "$RES"; }
 run() { log "\$ $*"; { sh_ "$@" 2>&1 || true; } | sed 's/^/    /' | tee -a "$RES"; }
 pass() { log "    PASS: $*"; }
@@ -214,8 +217,8 @@ case "${1:-}" in
     log "### owner PIN changed to something else -> reboot PIN kept"
     check "reboot PIN enrolled" 'Reboot credential set' $(reboot_cmd) --reboot-pin "$REBOOT_PIN"
     sh_ logcat -c
-    check "owner PIN changed" 'set to' cmd lock_settings set-pin --old "$OWNER_PIN" 4321
-    check "owner PIN restored" 'set to' cmd lock_settings set-pin --old 4321 "$OWNER_PIN"
+    check "owner PIN changed" 'set to' cmd lock_settings set-pin --old "$OWNER_PIN" "$OTHER_PIN"
+    check "owner PIN restored" 'set to' cmd lock_settings set-pin --old "$OTHER_PIN" "$OWNER_PIN"
     log "\$ logcat: deleted reboot credential"
     [[ -z "$(sh_ logcat -d -b system -s DuressPasswordHelper | grep 'deleted reboot credential')" ]] \
       && pass "kept" || fail "deleted on an unrelated change"
@@ -233,7 +236,7 @@ case "${1:-}" in
     set_duress "''" "''"
     ;;
   *)
-    sed -n 2,12p "$0"; exit 2 ;;
+    sed -n 2,14p "$0"; exit 2 ;;
 esac
 log "result: $([[ $FAILS == 0 ]] && echo PASS || echo "FAIL ($FAILS)")"
 log "results: $RES"

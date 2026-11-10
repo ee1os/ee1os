@@ -106,10 +106,16 @@ lock; bouncer && key_pin "$A_PIN"; opened 0 "A opens (key events)"
 
 log "### B's PIN at A's lock screen: B opens without asking again"
 lock; bouncer && tap_pin "$B_PIN"
-screen="$(ui)"
+# the screen is read once it holds still: B's first start draws for a while and uiautomator
+# gives nothing until then
+screen=""
+for i in 1 2 3 4 5; do screen="$(ui)"; [[ "$screen" == *"<hierarchy"* ]] && break; sleep 2; done
+pad="no PIN pad"
+[[ "$screen" == *"<hierarchy"* ]] || pad="screen not read"
+[[ "$screen" != *id/key1* ]] || pad="PIN pad showing"
 if wait_user 10 && [[ "$(sh_ am get-started-user-state 10)" == RUNNING_UNLOCKED ]] \
-    && [[ "$screen" == *"<hierarchy"* && "$screen" != *id/key1* ]]; then pass "B opens"
-else fail "B opens (user $(cur), $(sh_ am get-started-user-state 10))"; fi
+    && [[ "$pad" == "no PIN pad" ]]; then pass "B opens"
+else fail "B opens (user $(cur), $(sh_ am get-started-user-state 10), $pad)"; fi
 
 log "### screen off in B with an app open: back on A's lock screen, nothing of B on top"
 sh_ am start --user 10 -W -a android.settings.SETTINGS >/dev/null; sleep 3

@@ -4,17 +4,18 @@
 # Run inside the build container:  run.sh exec /src/ee1os/tests/stage5.sh <item>
 #   storage    reboot, unlock envB first: shared storage, MediaStore, owner CE still locked,
 #              then the owner unlocks with both users' storage working
-# Every check prints PASS or FAIL; the script exits 1 if any check failed.
+# Every check prints PASS or FAIL, then "result: PASS" or "result: FAIL (n)"; the script exits 1
+# if any check failed. The PINs are those of stage1.sh setup.
 set -euo pipefail
 SERIAL="${SERIAL:-127.0.0.1:5555}"
-OWNER_PIN=1111 B_PIN=2222
+OWNER_PIN=111111 B_PIN=222222
 HERE="$(cd "$(dirname "$0")" && pwd)"
-RES="$HERE/results/$(date +%F)-stage5-T3.md"
-mkdir -p "$HERE/results"
+RES="${RES:-$HERE/results/$(date +%F)-stage5-T3.md}"
+mkdir -p "$(dirname "$RES")"
 FAILS=0
 
 a()   { adb -s "$SERIAL" "$@"; }
-sh_() { a shell "$@" | tr -d '\r'; }
+sh_() { timeout 60 adb -s "$SERIAL" shell "$@" | tr -d '\r'; }
 log() { echo "$*" | tee -a "$RES"; }
 run() { log "\$ $*"; { sh_ "$@" 2>&1 || true; } | sed 's/^/    /' | tee -a "$RES"; }
 pass() { log "    PASS: $*"; }
@@ -92,7 +93,7 @@ case "${1:-}" in
     run settings put global allow_user_switching_when_system_user_locked 0
     ;;
   *)
-    sed -n 2,7p "$0"; exit 2 ;;
+    sed -n 2,8p "$0"; exit 2 ;;
 esac
 log "result: $([[ $FAILS == 0 ]] && echo PASS || echo "FAIL ($FAILS)")"
 log "results: $RES"

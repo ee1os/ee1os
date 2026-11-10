@@ -3,6 +3,7 @@
 # virtual disk in place of a USB stick, so USB port control is not covered here.
 # Needs a freshly wiped emulator (EMU_ARGS=-wipe-data run.sh emulator); sets A's and B's PINs.
 # Run inside the build container:  run.sh exec /src/ee1os/tests/usb-volume.sh
+# Ends with "result: PASS" or "result: FAIL (n)" and exits 1 if any check failed.
 set -uo pipefail
 SERIAL="${SERIAL:-127.0.0.1:5555}"
 A_PIN=111111 B_PIN=222222
@@ -81,7 +82,7 @@ sh_ settings put system screen_off_timeout 600000
 sh_ cmd lock_settings set-pin "$A_PIN" >/dev/null
 out="$(sh_ cmd lock_settings provision-protected-space --owner-credential "$A_PIN" --protected-pin "$B_PIN" 2>&1)"
 log "    $out"
-[[ "$out" == "protected space is user 10" ]] || { fail "setup"; exit 1; }
+[[ "$out" == "protected space is user 10" ]] || { fail "setup"; log "result: FAIL ($FAILS)"; exit 1; }
 go "$A_PIN" 0
 
 log "### inserted in A"
@@ -142,4 +143,5 @@ stick_out
 
 log ""
 [[ "$FAILS" == 0 ]] && log "usb-volume: all passed" || log "usb-volume: $FAILS FAILED"
+log "result: $([[ $FAILS == 0 ]] && echo PASS || echo "FAIL ($FAILS)")"
 exit $(( FAILS > 0 ))

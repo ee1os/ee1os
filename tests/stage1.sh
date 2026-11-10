@@ -6,17 +6,31 @@
 #   bootorder  switch to envB before the owner unlocks after a reboot      (item 3)
 #   lockout    6 wrong owner PINs, record the throttling                   (item 5)
 #   duress     enrol duress and enter it -> WIPES the emulator             (item 4, needs --yes-wipe)
+#              (tests/duress.sh with LAYOUT=plain, after setup)
+# setup checks what it sets and prints PASS or FAIL; evict, bootorder and lockout record
+# observations only. Every item ends with "result: PASS" or "result: FAIL (n)" and exits 1 on a
+# failed check. New PINs need 6 digits (LockPatternUtils.MIN_NEW_PIN_SIZE).
 set -euo pipefail
 SERIAL="${SERIAL:-127.0.0.1:5555}"
-OWNER_PIN=1111 B_PIN=2222 DURESS_PIN=9999 DURESS_PW=duress-pw
+OWNER_PIN=111111 B_PIN=222222
 HERE="$(cd "$(dirname "$0")" && pwd)"
-RES="$HERE/results/$(date +%F)-stage1-T3.md"
-mkdir -p "$HERE/results"
+RES="${RES:-$HERE/results/$(date +%F)-stage1-T3.md}"
+mkdir -p "$(dirname "$RES")"
+FAILS=0
 
 a()   { adb -s "$SERIAL" "$@"; }
-sh_() { a shell "$@" | tr -d '\r'; }
+sh_() { timeout 60 adb -s "$SERIAL" shell "$@" | tr -d '\r'; }
 log() { echo "$*" | tee -a "$RES"; }
 run() { log "\$ $*"; { sh_ "$@" 2>&1 || true; } | sed 's/^/    /' | tee -a "$RES"; }
+pass() { log "    PASS: $*"; }
+fail() { log "    FAIL: $*"; FAILS=$((FAILS + 1)); }
+check() {
+  local what="$1" pat="$2" out; shift 2
+  log "\$ $*"
+  out="$(sh_ "$@" 2>&1 || true)"
+  echo "$out" | sed 's/^/    /' | tee -a "$RES"
+  if echo "$out" | grep -qE "$pat"; then pass "$what"; else fail "$what (expected /$pat/)"; fi
+}
 
 wait_boot() {
   a wait-for-device
@@ -54,8 +68,11 @@ wait_services() {
   done
 }
 unlock_ui() {  # type PIN $1 at whatever keyguard is showing
+  local d
   sh_ input keyevent KEYCODE_WAKEUP; sh_ wm dismiss-keyguard; sleep 1
-  sh_ input text "$1"; sh_ input keyevent KEYCODE_ENTER; sleep 3
+  # input text doesn't reach the bouncer on this build; single key events do (keyguard.sh)
+  for d in $(echo "$1" | grep -o .); do sh_ input keyevent "KEYCODE_$d"; sleep 0.3; done
+  sh_ input keyevent KEYCODE_ENTER; sleep 3
 }
 switch_and_unlock() { sh_ am switch-user "$1"; sleep 4; unlock_ui "$2"; }
 
@@ -69,11 +86,15 @@ header() {
 case "${1:-}" in
   setup)
     header "item 1: setup"
-    run cmd lock_settings set-pin "$OWNER_PIN"
+    check "owner PIN set" "Pin set to '$OWNER_PIN'" cmd lock_settings set-pin "$OWNER_PIN"
     [[ -n "$(user_id)" ]] || run pm create-user envB
     N="$(user_id)"; log "envB = user $N"
+    [[ -n "$N" ]] || { fail "envB not created"; log "result: FAIL ($FAILS)"; exit 1; }
     run am start-user -w "$N"
-    run cmd lock_settings set-pin --user "$N" "$B_PIN"
+    check "envB PIN set" "Pin set to '$B_PIN'" cmd lock_settings set-pin --user "$N" "$B_PIN"
+    check "owner PIN verifies" 'Lock credential verified' cmd lock_settings verify --old "$OWNER_PIN"
+    check "envB PIN verifies" 'Lock credential verified' \
+      cmd lock_settings verify --user "$N" --old "$B_PIN"
     run am stop-user -w "$N"
     ;;
   evict)
@@ -116,21 +137,12 @@ case "${1:-}" in
     ;;
   duress)
     [[ "${2:-}" == --yes-wipe ]] || { echo "destroys the emulator data; add --yes-wipe"; exit 2; }
-    header "item 4: duress"
-    run cmd lock_settings set-duress-credentials --owner-credential "$OWNER_PIN" \
-      --duress-pin "$DURESS_PIN" --duress-password "$DURESS_PW"
-    run cmd lock_settings check-non-ce-storage-keys
-    # the shell verify enters through checkCredential like the keyguard bouncer (doc 03, *Who
-    # reaches the hook*); typing at the keyguard is a T4 item, `input text` doesn't reach it
-    run cmd lock_settings verify --old "$DURESS_PIN"
-    sleep 1
-    # same check as DuressPasswordTest: no non-CE keys left once the wipe has run
-    run cmd lock_settings check-non-ce-storage-keys
-    for i in $(seq 60); do a get-state >/dev/null 2>&1 || { log "    device gone after ${i}s"; break; }; sleep 1; done
-    a get-state >/dev/null 2>&1 && log "    device still up after 60 s: duress did not fire"
-    log "    restart with: EMU_ARGS=-wipe-data run.sh emulator"
+    # the owner PIN of setup is duress.sh's A_PIN; it checks and logs on its own
+    SERIAL="$SERIAL" RES="$RES" LAYOUT=plain exec "$HERE/duress.sh" --yes-wipe
     ;;
   *)
-    sed -n 2,9p "$0"; exit 2 ;;
+    sed -n 2,12p "$0"; exit 2 ;;
 esac
 log "results: $RES"
+log "result: $([[ $FAILS == 0 ]] && echo PASS || echo "FAIL ($FAILS)")"
+[[ $FAILS == 0 ]]
