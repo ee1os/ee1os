@@ -24,7 +24,8 @@ work; storage keys, OTA/update, verified boot and session lifecycle are the othe
    with an existing upstream discussion.
 3. Evaluate **separate, cryptographically isolated environments** using what Android already
    supports (secondary users with their own synthetic password + CE key, session termination
-   that evicts keys). Not written up here — there is no doc 05.
+   that evicts keys). Not written up here — there is no doc 05. First version: doc 07,
+   *Isolation evaluation, first version* (Stage 3).
 4. Map the boot/update machinery (A/B slots, update_engine, AVB with `avb_custom_key`) and
    record why "slot A = OS 1, slot B = OS 2" is not a viable dual-boot (doc 06).
 5. Ship staged PoCs as patches against a pinned GrapheneOS revision (doc 07).
@@ -44,6 +45,15 @@ work; storage keys, OTA/update, verified boot and session lifecycle are the othe
   duress credentials (decision 2026-10-13).
 - Upstream-shaped: small, auditable diffs in the GrapheneOS style; no global behaviour change
   for users who don't opt in.
+  Known exceptions in our builds, each decided on its own (note of 2026-11-10; the requirement
+  itself is unchanged): new PINs need 6 digits for everyone, with or without a protected space
+  (`MIN_NEW_PIN_SIZE`, frameworks/base `core/java/android/app/admin/PasswordMetrics.java:574`;
+  doc 04 decision 2026-10-12, PIN length); Vanadium shown as "Browser" in user 0 (doc 04
+  decision 2026-10-13); no GrapheneOS boot animation
+  or branding (decision 2026-10-15); Auditor and Info left out (decision 2026-10-30); our
+  wallpapers (decision 2026-10-30); the update server and the security preview channel (doc 08,
+  *No security preview releases*); a USB stick follows the current user (doc 04 decision
+  2026-11-06).
 
 ## Non-goals
 
@@ -79,6 +89,17 @@ What the design aims to provide:
 | Owner can return device to BFU quickly | reboot / proposed BFU credential | existing + proposed |
 | Owner can destroy all keys | duress credential | exists |
 | Existence of second environment is hidden | — | **non-goal** |
+
+What the lock-screen dispatch adds (A/B/duress layout, doc 04; added 2026-11-10, taken from
+doc 04 only):
+
+| Property | Mechanism | Status |
+|---|---|---|
+| Guessing at the lock screen gets no more tries with two PINs than with one | every entry is tried against A, then B; a wrong guess counts a failure on A's and B's slots (and the reboot slot), so all are throttled together; a target in a lockout is skipped | built; the coupling is accepted: A's typos add up on B, and six wrong entries lock both (doc 04 *Lock screen*, *On the Pixel 8 Pro, 2026-10-12*) |
+| A's holder doesn't see B in everyday screens | switchers off, Users, duress and reboot screens hidden in A, refused server-side where they act | built (doc 04 *Kept out of A's screens*); not deniability |
+| What A's holder can still observe | storage and battery totals, shared app versions and updates, device-wide radios, networks and VPN, the delay of a user switch, the timing of a wrong PIN and lockouts after B entries, the OK key when auto-confirm is off, apps that count users | accepted (doc 04 *Still visible to A's holder*) |
+| A's choices can disable B's | A's PIN changes are not checked: if A picks B's PIN, B can't be opened; if A picks the duress or reboot PIN, that action stops working | accepted, so that A's change screen reveals nothing (doc 04 decision 2026-10-13) |
+| A's keys while B is used | user 0 can't be stopped; A's CE key stays in memory until reboot | accepted (decision 2026-10-06); the reboot PIN covers it |
 
 ## Decisions
 

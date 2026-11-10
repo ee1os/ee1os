@@ -7,8 +7,9 @@ extended with `scripts/approve.sh -g <group>` (doc 08, *Tree check*). `<group>` 
 release's changes page (`scripts/fork_report.py`) is built from the two files. It covers all six forks (`platform_build`,
 `platform_frameworks_base`, `platform_packages_apps_Settings`,
 `platform_packages_apps_SetupWizard2`, `platform_packages_apps_Updater`,
-`platform_system_sepolicy`), branch `envs-17` over the GrapheneOS release tag in
-`state/upstream-tag` (`2026102100` on 2026-10-30).
+`platform_system_sepolicy`), branch `envs-17` over the GrapheneOS release tag we are on, which
+`/mnt/flash/scratch/grapheneos/state/upstream-tag` names (`track-upstream.sh` updates it with
+each release we take).
 
 The directories are `git format-patch` exports of the early stage commits, kept as a record.
 They were made on the old base, `frameworks/base` `84183aff` and `packages/apps/Settings`

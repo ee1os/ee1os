@@ -3,8 +3,14 @@
 Design draft. Generalises the duress hook (doc 03) from "one alternate pair, one action"
 to "a small table of alternate credentials, each bound to an action".
 
-Status: **`REBOOT_BFU` implemented as a fork PoC** (roadmap Stage 2, see *Decisions*); the
-table and the other actions are still a proposal. Revision references: frameworks_base `84183aff`.
+Status (2026-11-10): built in the forks and shipped in our signed releases: the reboot
+credential (`REBOOT_BFU`, a second fixed slot, not a table; *Decisions* 2026-10-10) and the
+A/B/duress layout with the lock-screen dispatch and protected space setup (*A/B/duress
+layout*, *Built 2026-10-12*, *Status 2026-11-10*). The table, `END_SESSIONS` and the
+Weaver-backed alternates are not built (the last shelved, doc 00 decision 2026-10-13).
+Revision references: frameworks_base `84183aff` unless a section says otherwise; they are a
+snapshot (doc 01, top), and current locations of the hook and the dispatch are in doc 03 *In
+the fork today*.
 
 ## Motivation
 
@@ -12,7 +18,8 @@ Today there are exactly two outcomes besides "wrong": unlock, and wipe. Upstream
 discussion about a third: a credential that returns the device to the Before-First-Unlock
 state ([os-issue-tracker #8505](https://github.com/GrapheneOS/os-issue-tracker/issues/8505)
 "Feature: BFU PIN", open since 2026-08-11, verified 2026-10-08; no team reply yet).
-are in memory; today the owner reaches it with a reboot or the auto-reboot timer.
+BFU is the state in which no user's credential-encrypted storage keys are in memory; today
+the owner reaches it with a reboot or the auto-reboot timer.
 
 A dispatch table makes that a small addition instead of a second copy of the duress code.
 
@@ -373,7 +380,8 @@ that stays in memory is the everyday one. Nothing here is deniable (doc 00 *Non-
 it is refused (`F/services/core/java/com/android/server/pm/UserManagerService.java:2645`), so
 "any admin's credential" would let A set the alternates. The alternates don't need B to be
 an admin; managing users from B does (Settings gates it on the admin flag), so B is an admin
-too, and the protected user id, not the flag, decides who may touch the alternates.
+too, and the protected user id, not the flag, decides who may touch the alternates. (Built
+2026-10-12 without the admin flag; B gets it after the decision of 2026-11-10, *Decisions*.)
 
 - The alternate APIs (`LockSettingsService.java:4495`, `:4510`, `:4520`, `:4536`) check the
   caller's own credential against the protected user id, taken from the caller identity before
@@ -387,8 +395,11 @@ too, and the protected user id, not the flag, decides who may touch the alternat
   `no_remove_user` on user 0 (checked for the caller, `UserManagerService.java:7119`; the bypass
   paths at `:7191` audited), and B's `no_run_in_background` can't be cleared from A. Setting
   restrictions needs `MANAGE_USERS` (`:4070`), so they are written by a privileged component.
-  Uninstall for all users is hidden and refused in A (`S/applications/appinfo/AppInfoDashboardFragment.java:595`,
-  `F/services/core/java/com/android/server/pm/DeletePackageHelper.java:783`).
+  Uninstall for all users is hidden in A's Settings
+  (`S/applications/appinfo/AppInfoDashboardFragment.java:608-610`, built 2026-11-10). The
+  package manager doesn't refuse it from user 0
+  (`F/services/core/java/com/android/server/pm/DeletePackageHelper.java:783`): refusing there
+  would also stop a plain `adb uninstall`, so it stays.
 - Nothing in the layout provisions a token that could reset A's credential, so B can't reset
   A's PIN (token resets exist in general, `LockSettingsService.java:3932`). A forgotten A PIN
   is a reset, as today.
@@ -544,6 +555,33 @@ running services and the user-switch dialog's name and icon (table above); B is 
 admin; SystemUI unit tests for the keyguard classes are not updated. Observed: every wrong
 entry on user 0's pad counts for A and B, so six wrong PINs lock both (as designed under
 *Lock screen*), and the lockout survives a reboot.
+
+**Status 2026-11-10** (`F` at `98b0f3d62849`, fork tag `ee1os-2026110622`). Of the list
+above, the 6-digit rule now applies to later changes too (*Decisions* 2026-10-12 PIN length,
+2026-10-13 one PIN length) and the auto-confirm length is settled (2026-10-13 one PIN length,
+2026-11-06 auto-confirm on). Still open:
+
+- The reboot PIN is still the scrypt record; the Weaver design above is shelved (doc 00
+  decision 2026-10-13).
+- SystemUI unit tests for the keyguard classes are not updated (no fork commit touches
+  SystemUI's tests).
+- The user-switch dialog still shows B's name ("Switching to Protected",
+  `F/services/core/java/com/android/server/am/UserSwitchingDialog.java:197`, not changed in the
+  fork).
+- B as an admin: decided and built 2026-11-10 (*Decisions*); what the flag opens is listed
+  there.
+- "Uninstall for all users" in A: `shouldShowUninstallForAll`
+  (`S/applications/appinfo/AppInfoDashboardFragment.java:596-619`) had no protected-space
+  check, so the menu entry could show in A for an app B also has. Hidden in A since
+  2026-11-10; it stays in B. Not refused by the package manager (*Roles*).
+
+Moot: B's notifications forwarded to A and running services of other users (table *Kept out
+of A's screens*). B can't run in the background: setup sets `no_run_in_background` for B
+(`F/services/core/java/com/android/server/locksettings/LockSettingsService.java:4967`), every
+switch away from a user with it stops that user (`stopUserOnSwitchIfEnforced`,
+`F/services/core/java/com/android/server/am/UserController.java:2736-2748`), and screen off in
+B switches to user 0 (`U/com/android/systemui/keyguard/KeyguardViewMediator.java:1989-2001`).
+So while A is in front, B has no running apps or services to post or list.
 
 **On the Pixel 8 Pro, 2026-10-12** (build `2026101212`, `tests/results/2026-10-12-layout-T5.md`):
 setup by hand, B by its PIN, screen off in B with A unlocked and with A before first unlock,
@@ -714,25 +752,6 @@ SetupWizard2 `9738860`); decisions below.
 - **2026-10-13, auto-confirm stays off by default (replaced 2026-11-06):** as in stock Android,
   it's turned on in A's Settings → Screen lock; with one PIN length it then submits B's PIN too.
   B's own setting has no effect on the lock screen.
-- **2026-11-06, auto-confirm on with a protected space:** setup turns it on for A once the space
-  exists (`S/security/ProtectedSpaceSetupActivity.java`, `enableAutoConfirm`); A can still turn
-  it off in Screen lock. Spaces set up earlier keep their setting. Shell provisioning leaves it
-  off, so `tests/keyguard.sh` still types at a pad with an OK key. The one-length rule stays, and
-  the wizard's first PIN screen now says it, because the length is chosen there, before the
-  protected space is offered (`S/password/SetupChooseLockPassword.java`). Reason: tester report,
-  a longer PIN was refused with no warning at the time the length was fixed.
-- **2026-11-06, a USB stick follows the current user:** public volumes now move on a user switch
-  and on mount (`followsCurrentUser` in `F/services/core/java/com/android/server/StorageManagerService.java`).
-  Upstream moves only visible volumes, and a stick is never visible because
-  `DiskInfo.isAdoptable()` is false, so it stayed with the user it was first mounted for: a stick
-  from A never reached B, and one from B was lost to A after B stopped. The move unmounts the
-  stick, so a copy in progress across a switch is cut off. Test: `tests/usb-volume.sh`, on a
-  virtual disk. Not checked on a real stick yet.
-- **2026-11-06, no `system/vold` fork for USB before A's first unlock:** after a reboot, no
-  removable disk is scanned until A has been unlocked once, also while B is open, because vold
-  waits for user 0 to start (`system/vold/VolumeManager.cpp:262-270`). This stays. Reason: a
-  seventh fork to rebase on every release isn't worth it for this case. To use a stick in B after
-  a reboot, unlock A once first.
 - **2026-10-13, A and B stay PINs:** the 2026-10-11 rule is now enforced. With a protected
   space, a primary credential of user 0 or B that isn't a PIN (no lock, pattern, password) is
   refused for normal changes and token resets (`checkLayoutCredential`), and Settings offers
@@ -800,12 +819,72 @@ SetupWizard2 `9738860`); decisions below.
   lockout just before the check, so an entry in the same moment as A's lockout ending (or
   starting from another check) can be counted one way too many. Accepted: one attempt either
   way in that policy count; the service's own limiter is exact.
+- **2026-11-06, auto-confirm on with a protected space:** setup turns it on for A once the space
+  exists (`S/security/ProtectedSpaceSetupActivity.java`, `enableAutoConfirm`); A can still turn
+  it off in Screen lock. Spaces set up earlier keep their setting. Shell provisioning leaves it
+  off, so `tests/keyguard.sh` still types at a pad with an OK key. The one-length rule stays, and
+  the wizard's first PIN screen now says it, because the length is chosen there, before the
+  protected space is offered (`S/password/SetupChooseLockPassword.java`). Reason: tester report,
+  a longer PIN was refused with no warning at the time the length was fixed.
+- **2026-11-06, a USB stick follows the current user:** public volumes now move on a user switch
+  and on mount (`followsCurrentUser` in `F/services/core/java/com/android/server/StorageManagerService.java`).
+  Upstream moves only visible volumes, and a stick is never visible because
+  `DiskInfo.isAdoptable()` is false, so it stayed with the user it was first mounted for: a stick
+  from A never reached B, and one from B was lost to A after B stopped. The move unmounts the
+  stick, so a copy in progress across a switch is cut off. Test: `tests/usb-volume.sh`, on a
+  virtual disk (`tests/results/2026-11-06-usb-volume.md`). On a real stick: works, tried by the
+  owner and reported 2026-11-10; no result file.
+- **2026-11-06, no `system/vold` fork for USB before A's first unlock:** after a reboot, no
+  removable disk is scanned until A has been unlocked once, also while B is open, because vold
+  waits for user 0 to start (`system/vold/VolumeManager.cpp:262-270`). This stays. Reason: a
+  seventh fork to rebase on every release isn't worth it for this case. To use a stick in B after
+  a reboot, unlock A once first.
+- **2026-11-10, B is an admin** (owner decision; settles the *Roles* text against *Built
+  2026-10-12*, where B was created without the admin flag, as T13 shows:
+  `UserInfo{10:Protected:410}`). Setup creates B with `FLAG_ADMIN` (`createProtectedSpaceLocked`
+  in `F/services/core/java/com/android/server/locksettings/LockSettingsService.java`); a
+  protected space set up before this gets the flag once, at the next boot
+  (`makeProtectedUserAdmin`, same file). The protected user id, not the admin flag, still
+  decides who may touch the alternates. Reason: users can then be managed from B (Settings
+  gates that on the admin flag, *Roles*).
+  What the flag gives B besides the Users screen (read 2026-11-10, not decided further):
+  - B can add users and switch to them from Settings. A third user isn't in the dispatch, is
+    reachable only from B, and has no `no_run_in_background`, so it keeps running with its
+    storage unlocked after screen off returns to A. Open: refuse it, or set the restriction.
+  - In Users → Owner, B reaches user 0's app installs, app copying and run-in-background
+    toggles (`S/users/UserDetailsSettings.java:497-546`); calling and remove are not offered for
+    the main user. Open: hide them for user 0.
+  - B can factory-reset the phone (no more than duress does), approve USB debugging keys
+    (`F/services/core/java/com/android/server/adb/AdbDebuggingManager.java:1487`), adopt SD
+    cards and downgrade system app updates. User 0 can't be removed by anyone.
+  - B can delete itself, as before the flag: the authority goes back to user 0 and the reboot
+    PIN is deleted (`DuressPasswordHelper.onUserRemoved`), the duress record stays, and the
+    layout's settings on user 0 (`user_switcher_enabled=0`, `no_remove_user`,
+    `no_add_private_profile`) stay. Open: restore them when B goes.
+- **2026-11-10, B is told when A's PIN stops an alternate** (follows the 2026-10-13 decision
+  that A's changes are not checked). When user 0's PIN changes while a protected space
+  exists, the service compares the new PIN with the stored duress and reboot records and keeps
+  one flag per alternate (`DuressPasswordHelper.updateUnreachable`, reserved keys
+  `duress_credentials_unreachable` and `reboot_credential_unreachable`). Nothing is refused
+  and A sees nothing: the comparison runs on the helper's background thread after the change
+  has returned, stretches against every stored record and writes both flags whether or not one
+  matched, and logs nothing about the result. Only the protected user can read the flags
+  (`ILockSettings.getUnreachableAlternates`; every other caller, the shell in user 0 included,
+  gets 0). B's Settings then shows "Not working: the main space uses the same PIN. Choose
+  another." on that entry. The flag goes when the alternate is set again or deleted, or when
+  A's PIN changes to something else. Cost, accepted: the warning tells B's holder that A's
+  PIN is that alternate's PIN. Not covered: A's second-factor PIN; a space set up earlier
+  gets no flag until A's next PIN change; B's PIN equal to A's (B's storage can't be compared
+  without a Weaver read). The reboot credential's automatic deletion (decision 2026-10-11)
+  can't happen from a credential change with a protected space, so that notice stays unbuilt.
 
 ## Open questions
 
 - Q1. Does upstream want a table, or a second hard-coded pair? Ask before building the table.
 - Q2. Should `REBOOT_BFU` also fire for secondary users' prompts, as duress does?
+  **Answered:** yes, *Decisions* 2026-10-10, Q2.
 - Q3. `lowLevelReboot` vs orderly reboot: speed against clean unmount.
+  **Answered:** `lowLevelReboot`, *Decisions* 2026-10-10, Q3.
 - Q4. Interaction with the auto-reboot timer and with PIN scrambling / two-factor fingerprint
   unlock (the `Secondary` lock domain in `doVerifyCredentialInner`, `:2781`).
   **Partly answered (B5, 2026-10-08):**
@@ -833,3 +912,4 @@ SetupWizard2 `9738860`); decisions below.
     separate settings for the primary and second-factor PIN
     (`KeyguardPinBasedInputViewController.java:117-122`). No effect on alternates.
 - Q5. Should a matched reversible alternate count toward the failed-attempt counter?
+  **Answered:** yes, it keeps the normal accounting, *Decisions* 2026-10-10, Q5.

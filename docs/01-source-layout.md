@@ -1,7 +1,23 @@
 # 01 — Source layout
 
-All sources are **sparse, blobless, depth-1** clones of GrapheneOS GitHub repos, branch `17`,
-under `src/` (git-ignored). Recreate or refresh with:
+**Primary reference (since 2026-10-08): the full tree** on n5,
+`/mnt/flash/scratch/grapheneos/grapheneos-17` (repo checkout, doc 08 *Layout on n5*). The forks
+are on branch `envs-17` over the GrapheneOS release tag in `state/upstream-tag` next to the
+tree (`2026110200` on 2026-11-10); every other project is at that tag's manifest revision.
+
+**How to read the line references in docs 01–03 and 06.** They are a snapshot of upstream
+branch `17` at the SHAs in the table below (frameworks_base `84183aff`, 2026-10-06, re-checked
+2026-10-08). They are not updated with each rebase (doc 07 B1), so in the current tree the
+lines have moved, and in the forked projects our commits add code around them. To find one
+today, search for the named method or string in that project, or read the old line with
+`git show 84183aff:<path>` in the project (the SHA is in its history). Current locations of
+the duress hook and the dispatch: doc 03 *In the fork today*.
+
+The sparse clones are optional: `src/` doesn't exist on n5 any more. They were **sparse,
+blobless, depth-1** clones of GrapheneOS GitHub repos, branch `17`, under `src/`
+(git-ignored), and a path written `src/<dir>/…` maps to the full tree as in the table below
+(`frameworks_base` = `frameworks/base`, `system_vold` = `system/vold`, …). Recreate or
+refresh them with:
 
 ```sh
 scripts/sync-src.sh        # branch 17
@@ -11,6 +27,9 @@ scripts/sync-src.sh 16     # older branch, for comparison
 To pull in more paths, edit the `REPOS` table in `scripts/sync-src.sh` and re-run.
 
 ## Pinned revisions (2026-10-06)
+
+The snapshot the line references use. Every SHA here is still in its project's history in the
+full tree (checked 2026-11-10), so `git show <sha>:<path>` works.
 
 Upstream base per `src/platform_manifest/default.xml:8`: `android-17.0.0_r1`.
 
@@ -32,6 +51,8 @@ SystemUI outside `keyguard/`.
 
 ## Where to look for what
 
+Paths under `src/`; in the full tree, the dir names map as in the table above.
+
 | Topic | Path under `src/` |
 |---|---|
 | Credential verify / unlock | `frameworks_base/services/core/java/com/android/server/locksettings/LockSettingsService.java` |
@@ -49,6 +70,15 @@ SystemUI outside `keyguard/`.
 | GrapheneOS system_server hooks | `frameworks_base/services/core/java/com/android/server/ext/` |
 
 ## Grep recipes
+
+In the full tree, one project at a time (never the whole tree in one grep):
+
+```sh
+cd /mnt/flash/scratch/grapheneos/grapheneos-17/frameworks/base
+git grep -n 'doVerifyCredential\|dispatchCredential' -- services/core/java/com/android/server/locksettings/
+```
+
+In the sparse clones, if recreated:
 
 ```sh
 cd src

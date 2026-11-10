@@ -1,7 +1,15 @@
 # 03 — The existing duress feature, as implemented
 
 Revision: frameworks_base `84183aff`, Settings `e5c0d9d`. `LS/` below means
-`src/frameworks_base/services/core/java/com/android/server/locksettings/`.
+`src/frameworks_base/services/core/java/com/android/server/locksettings/`
+(`frameworks/base/services/core/java/com/android/server/locksettings/` in the full tree).
+
+The line numbers and line counts in this doc are a snapshot of upstream at those SHAs, before
+any of our patches: they describe GrapheneOS's own duress feature. Our forks add code in the
+same files, so in the current tree the lines have moved and some files are much longer (e.g.
+`DuressPasswordHelper.java` has 524 lines instead of 119). Read an old line with `git show
+84183aff:<path>` in `frameworks/base`, or see doc 01, top. Current locations: *In the fork
+today* at the end.
 
 This is the only "second credential" mechanism in GrapheneOS today. Everything in doc 04
 is a generalisation of it, so the details matter.
@@ -145,3 +153,18 @@ Reference clones are in `/mnt/flash/scratch/grapheneos/ref-16/` on n5.
   starts a moment after the "wrong PIN" UI. An extension must not make the *response* time
   depend on whether alternates are enrolled.
 - `DuressWipe.sleep5sBeforePoweroff` is a test hook guarded by the owner credential.
+
+## In the fork today (2026-11-10)
+
+frameworks/base `envs-17` at `98b0f3d62849` (= fork tag `ee1os-2026110622`, on GrapheneOS
+`2026110200`). `LS/` as above, in the full tree. Re-check these after each rebase (doc 07 B1).
+
+| What | Where |
+|---|---|
+| Hook, still the `finally` of `doVerifyCredential`; it now passes the user id | `LS/LockSettingsService.java:2807-2816` (was `:2769-2779`) |
+| Helper entry | `LS/DuressPasswordHelper.java:106` (`onVerifyCredentialResult(res, credential, userId)`); the file holds the reboot credential and the alternates authority too (524 lines) |
+| Actions behind the helper | `LS/DuressPasswordHelper.java:70-78` (`wipe` → `DuressWipe.run`, `reboot` → `RebootBfu.run`) |
+| Reboot credential | record `LS/RebootCredential.java:26` (key `reboot_credential`); action `LS/RebootBfu.java:11`; enrolment binder `LS/LockSettingsService.java:4571`, helper `LS/DuressPasswordHelper.java:394` |
+| Alternates authority (the protected user) | `LS/LockSettingsService.java:4624` (`setAlternatesAuthority`) |
+| Lock-screen dispatch | `LS/LockSettingsService.java:4662` (`dispatchCredential`; runs the hook for B at `:4700`, for user 0 at `:4714`); caller `frameworks/base/packages/SystemUI/src/com/android/keyguard/KeyguardAbsKeyInputViewController.java:380`, switch to the matched user `:289` |
+| Protected space setup | `LS/LockSettingsService.java:4727` (`provisionProtectedSpace`), `:4897` (`provisionProtectedSpaceInternal`), B created at `:4959` |

@@ -5,52 +5,58 @@ test levels, per-stage gates — is in `08-development-and-testing.md`.
 
 ## Status
 
+Status as of 2026-11-10 (forks on GrapheneOS tag `2026110200`, last release tag
+`ee1os-2026110622`).
+
 | Stage | What | Status |
 |---|---|---|
-| 0 | Groundwork: docs, source, dev environment | done except adb from m3max; baseline in `tests/results/2026-10-10-stage0-T1-T2.md` |
-| 1 | Baseline experiments on the unmodified emulator | done 2026-10-10 (`tests/results/2026-10-10-stage1-T3.md`); keyguard entry left for T4 |
-| 2 | `REBOOT_BFU` alternate credential | 2a implemented and tested on the emulator after three reviews (`stage2.sh` PASS, escrow SKIP; T1 819/0 incl. 22 new tests; `tests/results/2026-10-11-stage2-T3.md`); 2b screens built, `stage2b.sh` PASS (`2026-10-11-stage2b-T3.md`); open: owner decision on storage (doc 00), keyguard entry and screen states (T4), armed escrow and Weaver (Stage 6) |
-| 3 | Environment B via the lockscreen user switcher | eviction confirmed; 3c fixed, rerun with assertions PASS (`tests/results/2026-10-11-stage3-T3.md`); next 3b wording, End session check |
-| 4 | Automatic PIN dispatch | built as the A/B/duress layout (doc 04): one pad checks A, then B; emulator 2026-10-12 (`tests/results/2026-10-12-layout-T3.md`) |
-| 5 | B before A after boot | backup crash fixed; storage service started by the first unlocked user: B unlocks first with working shared storage and MediaStore, owner stays locked (`tests/results/2026-10-11-stage5-T3.md`); in/out still open |
-| 6 | Real device | Pixel 8 Pro on our userdebug build, test keys, bootloader unlocked; Weaver measured; layout passed twice (`2026-10-12-layout-T5.md`, `-T6.md`); release signing not started |
+| 0 | Groundwork: docs, source, dev environment | done except adb from m3max to the emulator; baseline in `tests/results/2026-10-10-stage0-T1-T2.md` |
+| 1 | Baseline experiments on the unmodified emulator | done 2026-10-10 (`tests/results/2026-10-10-stage1-T3.md`) |
+| 2 | `REBOOT_BFU` alternate credential | 2a and 2b built and tested on the emulator (`2026-10-11-stage2-T3.md`, `2026-10-11-stage2b-T3.md`); storage decided 2026-10-13: scrypt record, Weaver design shelved (doc 00); reboot PIN at the real lock screen works on the phone (T13 5.1, `2026-10-30-T13-2026102911.md`). Open: 2c `RebootBfuTest`, armed escrow on hardware |
+| 3 | Environment B | eviction confirmed, 3c fixed (`2026-10-11-stage3-T3.md`); now part of the layout: setup turns *Run in background* off for B and screen off returns to A (doc 04). End session not run |
+| 4 | Automatic PIN dispatch | built as the A/B/duress layout (doc 04): one pad checks A, then B; emulator 2026-10-12 (`2026-10-12-layout-T3.md`), on the phone in every run since (T5, T6, T7–T13) |
+| 5 | B before A after boot | required (doc 00 decision 2026-10-11); built; B first after a boot works on the phone (`2026-10-12-layout-T5.md`, T13 5.2) |
+| 6 | Real device | signed user releases published, 2026103010 to 2026110622 (changes pages on the site); the test Pixel is locked on our key (`yellow`, `flash.locked=1` since T9, `2026-10-14-T9-2026101318.md`; T13) and updates by OTA; Weaver measured. Open: armed escrow, duress wipe and host tests on a second device |
 
 All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*).
 
-**Next, in order (2026-10-12, after the second phone run).**
+**Next, in order (2026-11-10).**
 
-1. Layout gaps (built 2026-10-13, doc 04 decisions): one PIN length, A and B stay PINs, no
-   Private space, calls from B, boot logo after setup, "Browser" in user 0. Still open: show
-   where duress is managed (B's Settings).
-2. Release basics (*Release and distribution* R1–R2): the update app points at our server,
-   one script builds and signs a release. Needs the owner's keys for real signing. Hosting
-   (2026-10-13): GitHub organization `os-ivan-gg`, public; updates from one rolling
-   "updates" release in a releases repo, factory images in numbered releases; R2 only if
-   files outgrow GitHub's 2 GB per file.
-3. Upstream tracking (R5) and the update compatibility test (R6) before any tester gets a
-   build.
-4. ~~Weaver-backed alternates~~ shelved, doc 00 decision 2026-10-13.
-5. Remaining phone checks: reboot PIN, auto-confirm with the layout, duress wipe last.
-6. Rename to ee1os (R8, doc 00 decision 2026-10-30).
+1. A phone check recorded for every published build (doc 08 *Test levels*). Releases
+   2026110508 to 2026110622 have none.
+2. Duress in the automatic gate, as its last step on an emulator of its own (doc 08
+   *Regression gate*), and a duress wipe on hardware on a second device.
+3. Armed escrow with the reboot PIN on hardware (doc 08 Stage 6 checklist item 4), never run.
+4. Tell B when a duress or reboot PIN stopped working because A chose the same PIN: built
+   2026-11-10 in the fork, as a flag shown only in B's Settings; A's changes are still never
+   refused (doc 04 decision 2026-11-10). Awaits approval and a look on the phone. Open after
+   B became an admin (same day): users added from B, user 0's toggles in B's Users screen,
+   and what stays behind when B is deleted (doc 04). "Uninstall for all users" is hidden in A
+   since the same day.
+5. `RebootBfuTest` (2c) and `DuressPasswordTest` on hardware; both need the second device.
+6. SystemUI unit tests for the keyguard classes (doc 04, *Status 2026-11-10*).
+7. Signed approvals: deferred 2026-11-10 (doc 08, *Tree check*).
 
-The earlier list (2026-10-11) is done or folded in above: Stage 3 wording and Stage 5
-coverage stay open in their sections.
+Earlier lists, done or folded in: 2026-10-12 (layout gaps, built 2026-10-13; R1, R2, R5 and
+the rename R8 done; Weaver-backed alternates shelved 2026-10-13; reboot PIN and auto-confirm
+checked on the phone, duress wipe moved to item 2 above) and 2026-10-11.
 
 ## Release and distribution (planned 2026-10-12)
 
-Not started; done when the layout is stable enough for outside testers. Nothing is published
-before the owner says so.
+Planned 2026-10-12 as "not started; nothing is published before the owner says so". Signed
+builds are on the updates channel since October (the phone updated by OTA in T10,
+`2026-10-16-T10-2026101516.md`); the first with a changes page is 2026103010.
 
 | # | Task | Notes |
 |---|---|---|
 | R1 | Our own update server | Done 2026-10-13: `packages/apps/Updater/res/values/config.xml:3` (fork branch `envs-17`) points at `https://github.com/ee1os/releases/releases/download/updates/` (`os-ivan-gg` until 2026-10-30) (rolling "updates" release; the GrapheneOS-only TLS pin set doesn't apply to it). To check on the first release: update_engine streams the payload from that URL and has to follow GitHub's redirect to its download host |
-| R2 | Release script on n5 | first version 2026-10-13: `scripts/release.sh [user\|userdebug]` builds target files, signs (`script/generate-release.sh`, passphrase prompt), uploads the update zip and channel metadata to the rolling "updates" release and the install zip to a release of its own, notifies klava hq. Untested until the keys exist; old update zips aren't pruned yet |
-| R3 | Tester install | install zip plus a short script, later an adapted web installer page: unlock, flash, set `avb_custom_key`, lock |
-| R4 | ee1os.com page (was os.ivan.gg) | what it is, install steps, release notes; the site repo (github.com/ee1os/site, `~/work/ee1os/site`) |
-| R5 | Tracking GrapheneOS releases | first version 2026-10-13: `scripts/track-upstream.sh`, nightly. Detects a new husky stable tag, syncs, rebases each fork's `envs-17` (stops and notifies on a conflict), builds, runs `tests/gate.sh` if present, then force-pushes the branches with a `<tag>.os` tag, rebuilds the manifest on the tag and packs the flash archive. 2026-10-15: the manifest step rebased only its last commit, which a release tag's pinned `default.xml` doesn't take anyway; it now starts from the tag, copies our `envs.xml` and adds one include. Releases only, never upstream branch `17` (doc 00 decision 2026-10-15). 2026-10-15: `scripts/upstream-watch.py` previews branch `17` nightly and flags strategic changes; a release with flags is built but held until `APPROVE=<tag>` (doc 08). Phone check and release stay manual. Owner decision: GrapheneOS stable releases sync automatically. Open: `tests/gate.sh` (unit tests + emulator scenarios), scheduled 2026-10-15 as TrueNAS cron jobs 25 (`upstream-watch.py preview`, 00:30) and 26 (`track-upstream.sh`, 01:00), user faeton, n5 time |
-| R6 | Update compatibility test | install release N, set up the layout, update to N+1, check users, PINs, duress and reboot records still work |
+| R2 | Release script on n5 | first version 2026-10-13: `scripts/release.sh [user\|userdebug]` builds target files, signs (`script/generate-release.sh`, passphrase prompt), uploads the update zip and channel metadata to the rolling "updates" release and the install zip to a release of its own, notifies klava hq. In use since the first signed release; publishing is `scripts/publish-release.sh`. 2026-11-07: it removes a model's old OTA zips from the "updates" release once the channel files name the new build (commit `44d849e`) |
+| R3 | Tester install | install zip plus a short script, later an adapted web installer page: unlock, flash, set `avb_custom_key`, lock. Done as scripts: `install.sh` (macOS, Linux) and `install.ps1` (Windows) in the site repo (`scripts/`, with tests in `scripts/tests/`), steps on `install.html`. No web installer page |
+| R4 | ee1os.com page (was os.ivan.gg) | what it is, install steps, release notes; the site repo (github.com/ee1os/site, `~/work/ee1os/site`). Live: landing, install and devices pages, a changes page per stable release (`changes/<bn>/`, doc 08 *Fork report*) |
+| R5 | Tracking GrapheneOS releases | first version 2026-10-13: `scripts/track-upstream.sh`, nightly. Detects a new husky stable tag, syncs, rebases each fork's `envs-17` (stops and notifies on a conflict), builds, runs `tests/gate.sh` if present, then force-pushes the branches with a `<tag>.os` tag, rebuilds the manifest on the tag and packs the flash archive. 2026-10-15: the manifest step rebased only its last commit, which a release tag's pinned `default.xml` doesn't take anyway; it now starts from the tag, copies our `envs.xml` and adds one include. Releases only, never upstream branch `17` (doc 00 decision 2026-10-15). 2026-10-15: `scripts/upstream-watch.py` previews branch `17` nightly and flags strategic changes; a release with flags is built but held until `APPROVE=<tag>` (doc 08). Phone check and release stay manual. Owner decision: GrapheneOS stable releases sync automatically. `tests/gate.sh` exists (emulator checks, doc 08 *Regression gate*) and the tracker runs it after the build (`scripts/track-upstream.sh`, step 4 in its header). Scheduled 2026-10-15 as TrueNAS cron jobs 25 (`upstream-watch.py preview`, 00:30) and 26 (`track-upstream.sh`, 01:00), user faeton, n5 time |
+| R6 | Update compatibility test | install release N, set up the layout, update to N+1, check users, PINs, duress and reboot records still work. No script. Run by hand on the phone as T13 (`tests/results/2026-10-30-T13-2026102911.md`): OTA 2026102112 → 2026102911, users 0 and 10 kept, A's, B's and the reboot PIN work; duress not typed (the phone holds real data) |
 | R7 | Naming | "a fork of GrapheneOS" as description only; no GrapheneOS name, logo or boot animation as branding. 2026-10-15: GrapheneOS's new boot animation is kept out by the `platform_build` fork (doc 00 decision). 2026-10-30: the name is ee1os, "two environments, one OS" (doc 00 decision); the site leads with "A phone OS for your personal security." and doesn't expand the name (doc 00 decision) |
-| R8 | Rename to ee1os | In progress 2026-10-30. Done: repo renamed `ee1os`; site renamed and moved to Worker `ee1os` in the "ID AKM" Cloudflare account (ee1os.com, www); scripts, local manifest and docs point at `github.com/ee1os`; forks on `envs-17`: setup logo mask, notification label, duress text, setup screens, Updater URL (await approval and the next release). Keys: rotated to `CN=ee1os` by the owner (doc 08 *Key rotation*; the test phone is erased and reinstalled; the old keys are archived, never deleted). Local layout: one folder `~/work/ee1os` with `os/` (this repo), `site/`, `keys/` and `build/` (doc 08 *Layout on n5*); review hook in `/mnt/tank/scripts/ee1os`. Plan was: register/point ee1os.com (owner); rename the GitHub organization `os-ivan-gg` and this repo, then the Updater URL (R1), `scripts/envs-local-manifest.xml`, the release and tracking scripts, the boot logo and on-device strings that say os.ivan.gg (doc 04, boot logo), `site/` drafts (`NAME`), key CN in `scripts/generate-keys.sh` before the release keys exist. Installed test builds update from the old URL, so the old release location keeps redirecting or serving until every tester is on a build with the new one. fri4.com stays owned |
+| R8 | Rename to ee1os | **Done** (checked 2026-11-10): no `os.ivan.gg` or `os-ivan-gg` left in the six forks at `ee1os-2026110622` or in this repo's scripts, except the note on the first keys (`scripts/generate-keys.sh:18`) and old result files; the old GitHub URLs redirect. In progress 2026-10-30. Done then: repo renamed `ee1os`; site renamed and moved to Worker `ee1os` in the "ID AKM" Cloudflare account (ee1os.com, www); scripts, local manifest and docs point at `github.com/ee1os`; forks on `envs-17`: setup logo mask, notification label, duress text, setup screens, Updater URL (await approval and the next release). Keys: rotated to `CN=ee1os` by the owner (doc 08 *Key rotation*; the test phone is erased and reinstalled; the old keys are archived, never deleted). Local layout: one folder `~/work/ee1os` with `os/` (this repo), `site/`, `keys/` and `build/` (doc 08 *Layout on n5*); review hook in `/mnt/tank/scripts/ee1os`. Plan was: register/point ee1os.com (owner); rename the GitHub organization `os-ivan-gg` and this repo, then the Updater URL (R1), `scripts/envs-local-manifest.xml`, the release and tracking scripts, the boot logo and on-device strings that say os.ivan.gg (doc 04, boot logo), `site/` drafts (`NAME`), key CN in `scripts/generate-keys.sh` before the release keys exist. Installed test builds update from the old URL, so the old release location keeps redirecting or serving until every tester is on a build with the new one. fri4.com stays owned |
 
 ## Stages
 
@@ -238,9 +244,28 @@ Upstream has rejected switch-to-user PINs (#8675, #8409), so this is fork-only b
 - 4d. PIN A typed while B is foreground: switch to user 0, then stop N as in Stage 3.
 - 4e. Enrolment-time collision check of PIN B against duress / alternates / PIN A.
 
+**Status 2026-11-10.** The list above is the plan before the layout. What was built is the
+A/B/duress layout (doc 04, *Built 2026-10-12* and *Decisions*):
+
+- 4a built as one privileged call, `LockSettingsService.dispatchCredential`
+  (`frameworks/base/services/core/java/com/android/server/locksettings/LockSettingsService.java:4662`),
+  called from user 0's pad
+  (`frameworks/base/packages/SystemUI/src/com/android/keyguard/KeyguardAbsKeyInputViewController.java:380`);
+  in-app prompts don't dispatch.
+- 4b partly: lockouts are per target and show their countdown on user 0's pad (doc 04
+  decision 2026-10-21); the first B unlock after a boot still counts one failed attempt for A
+  (doc 04 decision 2026-10-13, accepted).
+- 4c not built: the order is always A, then B (doc 04 *Lock screen*).
+- 4d moot: B has no lock screen of its own; screen off in B switches to user 0
+  (`frameworks/base/packages/SystemUI/src/com/android/systemui/keyguard/KeyguardViewMediator.java:1989-2001`),
+  and B stops because it can't run in the background.
+- 4e built as the layout's collision rules: B's changes and alternate enrolments are checked
+  against A's PIN and the alternates, A's own changes are not (doc 04 decision 2026-10-13).
+
 ### Stage 5 — B before A after boot (experiment, may be dropped)
 
-Only if Stage 1 item 3 looked workable. Decide in/out and record it in doc 00.
+Only if Stage 1 item 3 looked workable. Decide in/out and record it in doc 00. Decided: in,
+required by the layout (doc 00 decision 2026-10-11).
 
 Stage 1 item 3 (2026-10-10): unlocking N while the owner is locked crashes system_server in
 `BackupManagerService` (Stage 1 results). Cause, read 2026-10-10:
@@ -287,7 +312,8 @@ throughout; after the owner unlocks, both users' storage works
 
 ### Stage 6 — real device
 
-Dedicated test Pixel, own signing keys, never a daily device. Purpose: Weaver/secure-element
+Dedicated test Pixel, own signing keys, never a daily device (since 2026-10-30 it holds real
+data in B, doc 08 *Test levels*). Purpose: Weaver/secure-element
 throttling, eSIM wipe and the real boot chain, none of which the emulator has. Manual steps
 in doc 08.
 
@@ -300,6 +326,9 @@ in doc 08.
   (renamed from `grapheneos-envs`), `manifest`, `releases`, `site`. Reason: several repos that
   belong together, clean URLs for releases, room for testers. The site goes live only on the
   owner's go.
+  *Added 2026-10-15:* a sixth fork, `platform_build` (build/make), keeps GrapheneOS's boot
+  animation out (doc 00 decision 2026-10-15) and, since 2026-10-30, Auditor and Info (doc 00).
+  The fork list is in doc 08 *Source control*.
 - If that changes: GrapheneOS takes code as GitHub PRs on the per-component repos and feature
   requests on `os-issue-tracker`; discussion belongs in their chat rooms or forum, not the
   tracker ([#29](https://github.com/GrapheneOS/os-issue-tracker/issues/29)). Style is upstream
@@ -317,7 +346,7 @@ in doc 08.
 
 | # | Task | Result |
 |---|---|---|
-| B1 | Re-verify line references after each tree update | recurring; last done 2026-10-08 |
+| B1 | Re-verify line references after each tree update | recurring; last full pass 2026-10-08 at frameworks/base `84183aff`. Not redone since: the tree is now on tag `2026110200` with our patches, so docs 01–03 and 06 read as a snapshot of upstream at their SHAs (stated at the top of each); doc 03 *In the fork today* has the current locations of the hook and the dispatch (2026-11-10) |
 | B2 | Callers of `doVerifyCredential`, UI surfaces | 7 call sites, doc 03 *Who reaches the hook* |
 | B3 | Duress code, branch `16` vs `17` | doc 03 *Changes since 16* |
 | B4 | Stretch cost per failed attempt with N alternates | ~1.4 ms per scrypt on n5, one per same-type alternate, off the response path; doc 04 D6 |
@@ -327,8 +356,8 @@ in doc 08.
 | B8 | Settings screen flow | duress enrolment has no collision check; doc 04 *Settings flow* |
 | B9 | Where can enrolment probe a candidate against the owner's Secondary PIN without the duress hook and without counting a failure? | nowhere: every path hits the rate limiter and Weaver; ask for the second-factor PIN at enrolment instead (doc 04 *Settings flow* 5) |
 | B10 | PIN scrambling vs alternates (doc 04 Q4) | layout only, credential unchanged, no effect |
-| B11 | Release provenance: `publish-release.sh` names the checkout's current SHAs, not what the signed build was made from | open (2026-10-15): record the manifest, fork SHAs and upstream tag next to the artifacts at build time and publish that record |
-| B12 | `state/base` and `upstream-watch` reports are on `flash/scratch` (not backed up) | open: losing `state/base` stops `track-upstream.sh` safely; reseed from the fork tags `<tag>.os` |
+| B11 | Release provenance: `publish-release.sh` names the checkout's current SHAs, not what the signed build was made from | opened 2026-10-15: record the manifest, fork SHAs and upstream tag next to the artifacts at build time and publish that record. Partly done 2026-11-01: a user build writes `report.json` at build time (`scripts/release.sh`, doc 08 *Fork report*) and `publish-release.sh` tags those commits `ee1os-<bn>` in each fork. Done 2026-11-10: a user build's release notes take the upstream tag, manifest and fork SHAs from `report.json` instead of reading them from the checkout at publish time; a userdebug build's come from `releases/<bn>/provenance-<model>`, which `release.sh` writes after the post-build tree check. Builds older than that fall back to the checkout, with a warning |
+| B12 | `state/base` and `upstream-watch` reports are on `flash/scratch` (not backed up) | done 2026-11-10 for the tracker's state: after each push `track-upstream.sh` copies `state/upstream-tag` and `state/base/*` to `~/work/ee1os/state-backup/` (flash/home); how to reseed is in the comment above `backup_state` in the script. The `upstream-watch` reports are still on scratch only |
 
 ## Design notes
 

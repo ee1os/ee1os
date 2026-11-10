@@ -1,7 +1,10 @@
 # 06 — Boot slots, updates, verified boot
 
 Why "slot A = one OS, slot B = another OS" is not a usable dual-boot on a Pixel, and what
-that leaves. Revisions: hardware_interfaces `10f50d7`, update_engine `79f478a`.
+that leaves. Revisions: hardware_interfaces `10f50d7`, update_engine `79f478a`. Line numbers
+are a snapshot of upstream at those SHAs, and `src/…` paths are the sparse clones
+(`src/hardware_interfaces` = `hardware/interfaces`, `src/system_update_engine` =
+`system/update_engine` in the full tree); how to read them today: doc 01, top.
 
 ## The slot API
 
@@ -62,7 +65,8 @@ update_engine owns the slots:
   flashed with our own key. Hard requirement from doc 00: no design may depend on leaving the
   bootloader unlocked.
 - Not in the sparse checkout: `external/avb`, device trees, the bootloader interface docs.
-  Add them before doing work in this area.
+  Add them before doing work in this area. The full tree has `external/avb`; it has no Pixel
+  device trees (*Open items*).
 
 ## Conclusion
 

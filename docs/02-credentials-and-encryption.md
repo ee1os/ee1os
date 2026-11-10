@@ -3,6 +3,9 @@
 This file is deliberately a reading list, not a walkthrough. The upstream material is
 authoritative and better maintained than a local paraphrase would be.
 
+Line numbers are a snapshot of upstream at frameworks_base `84183aff` (2026-10-06); `src/…`
+paths are the sparse clones. How to read both against the current full tree: doc 01, top.
+
 ## Read upstream
 
 - AOSP, file-based encryption: <https://source.android.com/docs/security/features/encryption/file-based>

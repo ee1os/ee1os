@@ -9,9 +9,9 @@ GrapheneOS builds only on x86_64 Linux (<https://grapheneos.org/build>).
 
 | Machine | Role |
 |---|---|
-| `n5` | Build host and emulator host. TrueNAS SCALE, so nothing is installed on the host: the build runs in a Docker container. 24 threads, 91 GB RAM shared with Immich, ollama etc. → `-j8`, 28 GB container cap, one highmem job. |
+| `n5` | Build host and emulator host. TrueNAS SCALE, so nothing is installed on the host: the build runs in a Docker container. 24 threads, 91 GB RAM shared with Immich, ollama etc. → `JOBS=12`, `MEM=44g`, `MEMSWAP=68g` (with the zram swap below), `HIGHMEM=2`. |
 | m3max | Editor (remote over SSH), `adb`, `scrcpy` for the emulator screen. |
-| test Pixel | Pixel 8 Pro (husky, Titan M2), set aside for this project; stock Android 16 as of 2026-10-11. Stage 6 only. Own signing keys, never a daily phone. |
+| test Pixel | Pixel 8 Pro (husky, Titan M2), set aside for this project. Runs our signed user builds, bootloader locked on our key, updated by OTA; real data in B since 2026-10-30 (rules under *Test levels*). |
 | `de1` | Fallback build host (8 threads, 62 GB RAM, Debian 13 → same container). |
 
 ## Layout on n5
@@ -176,7 +176,9 @@ and to this repo.
   - Not covered: root or the owner's shell on n5 (it can change the check itself); moving
     signing off n5 is a separate task. Approvals are checked against SSH signatures once
     `/mnt/tank/scripts/ee1os/allowed_signers` (root's, outside the repo) exists; until
-    then anyone who can commit to this repo's `HEAD` on n5 can approve.
+    then anyone who can commit to this repo's `HEAD` on n5 can approve. Deferred 2026-11-10
+    (owner): the file doesn't exist and isn't planned for now; approval may later be signed
+    through a Telegram button instead.
 - **Fork report: what differs from GrapheneOS** (decided 2026-11-01, doc 00). Each stable
   release gets a public page, `ee1os.com/changes/<bn>/`, that compares the six forks with the
   signed GrapheneOS tag file by file and says why each change was made.
@@ -195,8 +197,11 @@ and to this repo.
     without writing anything if a commit isn't approved, a group has no text, a note names a
     file its group didn't change, the tag isn't signed (`grapheneos-allowed-signers`), a fork
     isn't on the tag, or, for `--release`, the ee1os commit isn't on `origin/main`.
-  - `release.sh` (user builds only) writes `releases/<bn>/changes/` after the post-build tree
-    check (`scripts/release.sh:50-55`): `report.json`, `index.html` (`fork_report_html.py`)
+  - After the post-build tree check `release.sh` writes `releases/<bn>/provenance-<model>` for
+    every build (upstream tag, manifest and fork commits, `scripts/release.sh:52-66`;
+    `publish-release.sh` takes a userdebug build's source lines from it, a user build's from
+    `report.json`), and for user builds only `releases/<bn>/changes/`
+    (`scripts/release.sh:69-73`): `report.json`, `index.html` (`fork_report_html.py`)
     and `files-<bn>.tsv.gz` (every file of the six forks, ~6 MB). `publish-release.sh` tags the
     reported commits `ee1os-<bn>` in each fork and pushes the tags (never moved; `<tag>.os`
     is, so it can't anchor old pages), uploads the TSV to the GitHub release, copies the page
@@ -209,8 +214,8 @@ and to this repo.
   00:30, job 26 `track-upstream.sh` at 01:00 (n5 time, Europe/Lisbon). Logs:
   `upstream-watch.log` and `track-upstream.log` next to the tree.
 - **Scripts:** `scripts/track-upstream.sh` (follow GrapheneOS, `DRY_RUN=1` to only detect and
-  list the vendor modules it would regenerate), `scripts/vendor-module.sh` (adevtool, in the container), `tests/gate.sh` (atest and
-  `tests/keyguard.sh` on the emulator),
+  list the vendor modules it would regenerate), `scripts/vendor-module.sh` (adevtool, in the container), `tests/gate.sh` (the regression
+  gate on the emulator, *Test levels*),
   `scripts/release.sh` (sign and publish, run by the owner), `scripts/pack-flash.sh` (images
   for `fastboot flashall`). All report to klava hq, topic "OS" (890), through `/mnt/tank/scripts/notify-telegram.sh`.
 
@@ -227,8 +232,10 @@ owned by `faeton`) and `run.sh`:
 | `run.sh emulator` / `emulator-stop` | headless emulator in the background, adb on n5's `127.0.0.1:5555` |
 | `run.sh exec '<cmd>'` | one command with `lunch` done, e.g. `adb`, `atest`, `tests/*.sh` |
 
-Defaults: `LUNCH=sdk_phone64_x86_64-cur-userdebug`, `JOBS=8`, `MEM=28g`, `HIGHMEM=1`; all
-overridable by environment.
+Defaults: `LUNCH=sdk_phone64_x86_64-cur-userdebug`, `JOBS=12`, `MEM=44g`, `MEMSWAP=68g`,
+`HIGHMEM=2` (since 2026-11-10; before, `JOBS=8`, `MEM=28g`, `HIGHMEM=1`, and the long jobs
+passed the larger values themselves); all overridable by environment. `MEMSWAP=68g` needs the
+zram swap below; with only `MEM` given, `MEMSWAP` equals `MEM`.
 
 Phone builds also set `BUILD_NUMBER` and `BUILD_DATETIME`: `build/envsetup.sh` otherwise keeps
 the number from `out/soong/build_number.txt`, so a new image would show the old one. `OUT_DIR`
@@ -297,13 +304,17 @@ still work; the sandbox only guards against undeclared inputs.
 |---|---|---|---|
 | T0 | It builds, no new warnings in touched files | container | `run.sh build` |
 | T1 | Unit tests, locksettings | emulator (instrumentation) | `run.sh exec 'atest FrameworksServicesTests:com.android.server.locksettings'` |
-| T2 | Host tests: GrapheneOS `DuressPasswordTest`, later `RebootBfuTest` | a target with a Weaver HAL (test Pixel; goldfish has none) | `run.sh exec 'atest DuressPasswordTest'` |
+| T2 | Host tests: GrapheneOS `DuressPasswordTest`, later `RebootBfuTest` | a target with a Weaver HAL (goldfish has none); since 2026-10-30 a second device, not the test Pixel | `run.sh exec 'atest DuressPasswordTest'` |
 | T3 | Scripted scenarios over adb (`tests/*.sh`) | emulator | `run.sh exec /src/ee1os/tests/stage1.sh <item>` |
 | T4 | Manual matrix at the real keyguard and in Settings | emulator via `scrcpy` | checklist below |
 | T5 | Hardware behaviour | test Pixel | Stage 6 checklist |
 
 Results: one file per run in `tests/results/` (`YYYY-MM-DD-<stage>-<level>.md`, build
 fingerprint first line: `adb shell getprop ro.build.fingerprint`).
+
+Every published build gets a phone-check file in `tests/results/` (rule since 2026-11-10;
+releases 2026110508 to 2026110622 have none). Use the phone driver `tests/phone.sh` (added
+2026-11-10) for it; the rules under *The test Pixel* below apply.
 
 The emulator shares one adb server with every `run.sh exec` container (host network), so no
 `adb connect` is needed. atest keeps its logs in the container's `/tmp`, which is gone after the
@@ -314,20 +325,33 @@ front and unlocked: after a reboot test, run `cmd lock_settings verify --old <ow
 Otherwise TradeFed reports the device unresponsive and reboots it (`sys.boot.reason` =
 `reboot,shell`).
 
-**Regression gate** (every change, every rebase): T0, T1, and duress on the emulator
-(`tests/stage1.sh duress --yes-wipe`, then `EMU_ARGS=-wipe-data run.sh emulator`). Duress must
-still fire from every prompt it fires from today (doc 00 hard requirement). The script enters the
+**Regression gate** (every change, every rebase): `tests/gate.sh`, run by `track-upstream.sh`
+after the build and by hand after any fork change. Order (2026-11-10; the gate's own steps are
+listed in its header comment, which wins if this list differs): build the emulator target;
+on a wiped emulator the atest runs (`AlternateCredentialsTests`, then the whole locksettings
+suite); `tests/keyguard.sh` on a wiped emulator of its own; `tests/usb-volume.sh` on another;
+on a third `tests/stage1.sh setup` (owner PIN and a second user, no protected space), then the
+reboot PIN at both users' prompts (`tests/stage2.sh reboot`, `reboot-b`) and
+`tests/stage5.sh storage`; last, the duress wipe on a wiped emulator of its own
+(`tests/duress.sh --yes-wipe`: a protected space is set up, B enrols duress, the duress PIN is
+entered as user 0; pass when the non-CE storage keys are gone and the emulator is off within
+60 s). Any failure fails the gate. Duress must
+still fire from every prompt it fires from today (doc 00 hard requirement). Decided 2026-11-10
+(owner): duress is checked automatically on the emulator, as the last step because it destroys
+the emulator's data; the wipe on hardware stays manual, on a second device, never the test
+Pixel. Until 2026-11-10 the gate ran only the atest runs and `keyguard.sh`, and duress was a
+manual step after it (`tests/stage1.sh duress --yes-wipe`, which now runs `duress.sh` without
+a protected space; then `EMU_ARGS=-wipe-data run.sh emulator`). The duress script enters the
 duress PIN through `cmd lock_settings verify`; `adb shell input text` doesn't reach the keyguard
 bouncer on this build. Taps on the pad keys and single key events do: `tests/keyguard.sh`
 types A's and B's PINs at the real bouncer both ways, locks B with an app open and checks that
 A's lock screen comes back with nothing of B on top, and that the pad still sends every entry
 during a lockout. Screenshots of the bouncer come out black (secure window), so it reads the
-screen with uiautomator. `tests/gate.sh` runs it on a second wiped emulator after the atest
-runs. Decided 2026-10-21: release 2026101600 changed the PIN pad's focus and the keyguard's
+screen with uiautomator. Decided 2026-10-21: release 2026101600 changed the PIN pad's focus and the keyguard's
 occlusion right next to our dispatch, and no automatic check typed at the lock screen.
-Duress at the bouncer stays a T4/T5 check (it wipes).
+Duress typed at the bouncer stays a T4/T5 check; the gate enters it through the shell.
 `DuressPasswordTest` can't run on goldfish: it asserts Weaver reads after every verify
-(`DuressPasswordTest.java:59`), so it runs at T5 on the test Pixel.
+(`DuressPasswordTest.java:59`), so it runs at T5, on a second device (it wipes).
 
 Known baseline failures (stock GrapheneOS 17, `tests/results/2026-10-10-stage0-T1-T2.md`):
 
@@ -367,7 +391,7 @@ gate says when a stage is done.
 | 3 | `AccountsDb` close fix (3c); maybe wording in Settings | T3 eviction scenarios, `tests/stage3.sh openfiles`, T4 End session | eviction confirmed for restriction and End session; no CE file open after a stop |
 | 4 | keyguard dispatch (fork-only) | T1, T3 crossing script, T4 | design notes 1–7 in doc 07 each covered by a test |
 | 5 | experiment; backup fix; storage service on the first unlocked user | T3 `tests/stage5.sh storage` | every check PASS, then in/out decision recorded in doc 00 |
-| 6 | flash test Pixel (manual) | T5 | hardware throttling and wipe observed |
+| 6 | flash test Pixel (manual); since 2026-10-14 signed builds, bootloader locked, OTA | T5, a phone-check file per published build | hardware throttling observed (2026-10-12); wipe and armed escrow on hardware still open (second device) |
 
 ### T4 checklist for `REBOOT_BFU` (Stage 2)
 
@@ -389,14 +413,21 @@ gate says when a stage is done.
 
 ### Stage 6 (manual, human-run)
 
-First pass (decided 2026-10-11, owner): a `husky-cur-userdebug` build with test keys, flashed
+Current state (2026-11-10): the test Pixel runs our signed user builds with the bootloader
+locked on our key (`yellow`, `flash.locked=1`, first seen in T9,
+`tests/results/2026-10-14-T9-2026101318.md`; key rotated 2026-10-30, *Key rotation* below)
+and updates by OTA. The first and second pass below are history; the checklist at the end
+still applies, except that duress (item 5) never runs on this phone. Item 4 (armed escrow)
+has not been run.
+
+First pass (decided 2026-10-11, owner; done 2026-10-12): a `husky-cur-userdebug` build with test keys, flashed
 with the bootloader left unlocked (`verifiedbootstate` = `orange`), so root and `adb` are
 available for the Weaver measurements (doc 04, *Weaver-backed alternates*); nothing from
 official GrapheneOS goes on the device first. The vendor module comes from adevtool
 (`vendor/adevtool/bin/run generate-all -d husky`), with its helper tools from the main `out/`:
 `run.sh exec scripts/vendor-module.sh husky`, which the tracker also runs after a sync that
 moves adevtool.
-Second pass: build for the device target with release signing (GrapheneOS build guide, *Generating
+Second pass (done; locked since 2026-10-14): build for the device target with release signing (GrapheneOS build guide, *Generating
 release signing keys*), flash with the bootloader unlocked, set our AVB key, lock the
 bootloader again. In the tree: `script/generate-keys husky` (keys under `keys/husky/`, AVB key
 `avb.pem`, public part `avb_pkmd.bin`; owner-run, backed up offline), then `m
@@ -506,6 +537,6 @@ screens). Record each result in `tests/results/` like the emulator runs.
    must be `RUNNING_LOCKED`. Then once with a real resume-on-reboot update, to see that the
    normal path still works when the reboot PIN isn't used.
 5. Duress, last: duress PIN at the keyguard; device off, next boot can't decrypt, eSIM gone.
-   Reflash afterwards.
+   Reflash afterwards. Since 2026-10-30 on a second device only, not the test Pixel.
 6. Stage 5 on hardware, if still in: `stage5.sh storage`.
 
