@@ -79,3 +79,5 @@ platform_frameworks_base 104686218bc31bf195cbe93ab6bb26fb05a91a09 ed610124dbc5 p
 platform_packages_apps_Settings a1ab07353ea3701be6783a45fa0cf8fd5fdf105e 5988b28c27c6 protected-space Hide Uninstall for all users in the main space
 platform_packages_apps_Settings 6a133bc40a4b373f3f67eaeb09fdaad4381f76a3 156ba78d8d94 protected-space Keep other users' apps out of the main space's app list
 platform_frameworks_base d33cdc6c51fc065182356a3eed092913c2de4c78 270c1cb4d671 protected-space SettingsLib: keep other users' apps out of the main space's lists
+platform_frameworks_base 2a911558cd314cf058b79f5e142dab64cc415928 abe683e6f69e pin-rules Tell the protected space when the main PIN shadows an alternate
+platform_packages_apps_Settings 9ffc7f3ef11bf11d9a37d4b61c99240833ead0bb 09848508078b pin-rules Warn when the main space's PIN stops a duress or reboot PIN

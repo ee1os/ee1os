@@ -56,7 +56,9 @@ PINs would hide one of them. Changes made in the main space are not checked: a r
 would tell whoever holds the main space's PIN that a guess is the protected space's PIN or the
 duress PIN. So if the main space picks a PIN the protected space already uses, the protected
 space can't be opened, or the duress or reboot PIN stops working, until one of them is
-changed. The protected space's owner should pick PINs the main space wouldn't choose. Wrong
+changed. The protected space's Settings then says which of the duress and reboot PINs isn't
+working; the main space is told nothing. The protected space's owner should pick PINs the
+main space wouldn't choose. Wrong
 guesses stay limited for each space as in GrapheneOS.
 """
 docs = ["04-alternate-credential-actions.md"]
