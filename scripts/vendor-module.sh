@@ -15,7 +15,7 @@ rm -rf "$keep"
 [ -d "$mod" ] && cp -a "$mod" "$keep"
 trap 'rc=$?; if [ $rc != 0 ] && [ -d "$keep" ]; then rm -rf "$mod"; mv "$keep" "$mod"; echo "old $mod put back"; fi' EXIT
 
-m -j"${JOBS:-8}" aapt2 apksigner aprotoc arsclib debugfs dispol fsck.erofs lpdump lpunpack lz4 \
+m -j"${JOBS:-12}" aapt2 apksigner aprotoc arsclib debugfs dispol fsck.erofs lpdump lpunpack lz4 \
     ota_extractor simg2img sqlite3 toybox
 mkdir -p out_adevtool_deps/host
 ln -sfn /src/grapheneos-17/out/host/linux-x86 out_adevtool_deps/host/linux-x86

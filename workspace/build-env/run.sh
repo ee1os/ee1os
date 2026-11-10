@@ -12,11 +12,15 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC=/mnt/flash/scratch/grapheneos
 ENVS=/mnt/flash/home/faeton/work/ee1os/os   # ee1os symlinks here
 IMAGE=grapheneos-build:24.04
-JOBS="${JOBS:-8}"
-MEM="${MEM:-28g}"
-MEMSWAP="${MEMSWAP:-$MEM}"   # RAM + swap; e.g. 52g with the n5 zram swap on
+# Defaults are what builds and the gate use on n5. A full analysis needs more than 28g
+# (soong_build was OOM-killed at 29 GB, doc 08); 44g + 24g of the host's zram swap is what
+# worked. Without the zram swap on, the container just gets 44g.
+JOBS="${JOBS:-12}"
+# RAM + swap; with only MEM given it stays equal to MEM (no swap), as before
+MEMSWAP="${MEMSWAP:-${MEM:-68g}}"
+MEM="${MEM:-44g}"
 # soong sizes its highmem pool (metalava, R8, ...) from host RAM, not the container cap
-HIGHMEM="${HIGHMEM:-1}"
+HIGHMEM="${HIGHMEM:-2}"
 LUNCH="${LUNCH:-sdk_phone64_x86_64-cur-userdebug}"
 # goldfish super is 2800 MiB (?= in sdk_phone64_x86_64.mk); GrapheneOS 17 images need ~2850
 SUPER="${SUPER:-$((3584 * 1048576))}"
