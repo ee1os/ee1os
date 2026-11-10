@@ -27,8 +27,9 @@ what = """
 A second space on the phone: a separate Android user with its own apps, data and PIN, set up
 during first setup or later in Settings. Both spaces use the same lock screen. The owner's PIN
 opens the main space, the protected space's PIN opens the protected space. It has its own
-wallpaper and can take calls. The main space's Settings don't list the protected space or
-other users. A USB stick moves to whichever space is open.
+wallpaper and can take calls. It is an admin user, like the main space. The main space's
+Settings don't list the protected space, other users or apps only they have, and don't offer
+to uninstall an app for all users. A USB stick moves to whichever space is open.
 """
 why = """
 Each Android user has its own encryption key, so what is in the protected space stays
