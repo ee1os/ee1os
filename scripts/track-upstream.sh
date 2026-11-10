@@ -63,6 +63,19 @@ module_rev() { sed -n 's/.*rev-parse HEAD),\([0-9a-f]\{40\}\)).*/\1/p' \
 models() { { echo "$DEVICE"; command ls "$TREE/keys" "$TREE/vendor/google_devices"; } 2>/dev/null \
     | grep -E '^[a-z0-9]+$' | grep -vx archive | awk '!s[$0]++'; }
 dry() { if [ "$DRY" = 1 ]; then echo "DRY_RUN: $*"; exit 0; fi; }
+# $STATE is on flash/scratch (no snapshots, no backups): after a push, upstream-tag and base/
+# are copied to $STATE_BACKUP on flash/home (small, no secrets). A failed copy only logs.
+# To reseed after losing scratch: mkdir -p $STATE/base, cp -p $STATE_BACKUP/upstream-tag
+# $STATE/ and cp -p $STATE_BACKUP/base/* $STATE/base/; each base/<repo> must then equal
+# git -C <fork> rev-parse "refs/tags/$(cat $STATE/upstream-tag)^{commit}".
+STATE_BACKUP=/mnt/flash/home/faeton/work/ee1os/state-backup
+backup_state() {
+    mkdir -p "$STATE_BACKUP/base" \
+        && cp -p "$STATE/upstream-tag" "$STATE_BACKUP/" \
+        && cp -p "$STATE"/base/* "$STATE_BACKUP/base/" \
+        && log "state copied to $STATE_BACKUP" \
+        || log "copying state to $STATE_BACKUP failed"
+}
 
 # 5. publish the source: rebased branches with a <tag>.os tag each, then the manifest. Returns
 # non-zero if anything wasn't pushed; the release then counts as not done.
@@ -114,6 +127,7 @@ $(echo "$out" | grep '^FAIL' | head -15)"; return 1; }
     fi
 
     echo "$tag" > "$STATE/upstream-tag"
+    backup_state
     rm -rf "$STATE/pre"
     packed="Flash archive: husky-flash.tar.gz."
     "$ENVS/scripts/pack-flash.sh" >> "$LOG" 2>&1 || packed="Packing the flash archive FAILED (track-upstream.log)."
