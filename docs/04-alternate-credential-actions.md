@@ -396,7 +396,8 @@ too, and the protected user id, not the flag, decides who may touch the alternat
   paths at `:7191` audited), and B's `no_run_in_background` can't be cleared from A. Setting
   restrictions needs `MANAGE_USERS` (`:4070`), so they are written by a privileged component.
   Uninstall for all users is hidden in A's Settings
-  (`S/applications/appinfo/AppInfoDashboardFragment.java:608-610`, built 2026-11-10). The
+  (`S/spa/app/appinfo/AppInfoSettingsMoreOptions.kt:144`, the page in use, and
+  `S/applications/appinfo/AppInfoDashboardFragment.java:608-610`, built 2026-11-10). The
   package manager doesn't refuse it from user 0
   (`F/services/core/java/com/android/server/pm/DeletePackageHelper.java:783`): refusing there
   would also stop a plain `adb uninstall`, so it stays.
@@ -480,6 +481,8 @@ enrolment isn't enough (`U/com/android/keyguard/KeyguardUpdateMonitor.java:3238`
 | Storage breakdown | `S/deviceinfo/storage/NonCurrentUserController.java:74`, `StorageAsyncLoader.java:82`, `UserIconLoader.java:69` |
 | B's notifications forwarded to A | `F/services/core/java/com/android/server/notification/NotificationManagerService.java:11221`, `:11237` |
 | Running services of other users | `S/applications/RunningState.java:874`, `:1243` |
+| Apps only other users have, in the list of all apps ("Not installed for this user") | `S/spa/app/AllAppList.kt:81`, `F/packages/SettingsLib/src/com/android/settingslib/applications/ApplicationsState.java:812-830`; Settings only, the package manager still answers user 0 (2026-11-10, `tests/app-list.sh`) |
+| "Uninstall for all users" on an app's page | `S/spa/app/appinfo/AppInfoSettingsMoreOptions.kt:144`, `S/applications/appinfo/AppInfoDashboardFragment.java:608-610`; Settings only (*Roles*) |
 
 Accounts already stay per profile group (`S/accounts/AccountPreferenceController.java:201`,
 `:297`); battery entries of other users are filtered (`S/fuelgauge/batteryusage/DataProcessor.java:666`,
