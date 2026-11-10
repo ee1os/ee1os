@@ -43,17 +43,6 @@ fi
     $([ "${uploads[0]}" = "$inst" ] || echo "${uploads[@]}") "$inst" > SHA256SUMS-$bn)
 sums=$(cat "$out/SHA256SUMS-$bn")
 echo "$sums"
-# the tag the tracking script last synced to; before its first run, branch 17 after the
-# newest tag in the tree
-base=$(cat "$WS/state/upstream-tag" 2>/dev/null) \
-    || base="17 (branch, after $(git -C "$TREE/build/make" describe --tags --abbrev=0 2>/dev/null))"
-# what the build was made from: the manifest and each fork's commit
-src="manifest $(git -C "$TREE/.repo/manifests" rev-parse --short=12 HEAD)"
-for p in build/make frameworks/base packages/apps/Settings packages/apps/SetupWizard2 packages/apps/Updater \
-         system/sepolicy; do
-    src+=$'\n'"$p $(git -C "$TREE/$p" rev-parse --short=12 HEAD)"
-done
-
 # A stable release's changes page (release.sh made it): tag the commits it describes in each
 # fork as ee1os-<bn>, never moved, so its links keep working; then the page goes to the site.
 changes=$TREE/releases/$bn/changes
@@ -81,6 +70,35 @@ for f in json.load(open(sys.argv[1]))["forks"]: print(f["path"], f["name"], f["c
     done < "$changes/.forks"
     rm -f "$changes/.forks"
 fi
+
+# What the build was made from: the upstream tag, the manifest and each fork's commit, as
+# recorded at build time; the nightly rebase may have moved the tree since. A user build has
+# them in changes/report.json, any build of release.sh since 2026-11-10 in provenance-<model>.
+prov=$TREE/releases/$bn/provenance-$DEVICE
+if [ "$VARIANT" = user ]; then
+    rec=$(python3 -I -c 'import json, sys
+r = json.load(open(sys.argv[1]))
+print("upstream-tag", r["upstream"]["tag"])
+print("manifest", r["manifest"]["commit"])
+for f in r["forks"]: print(f["path"], f["commit"])' "$changes/report.json") \
+        || { echo "can't read the source from $changes/report.json; not published"; exit 1; }
+elif [ -s "$prov" ]; then
+    rec=$(cat "$prov")
+else
+    # an older build: the tree as it is now, which may not be what was built
+    echo "WARNING: no $prov (built before release.sh recorded it); the release notes' source lines come from the tree as it is now" >&2
+    rec="upstream-tag $(cat "$WS/state/upstream-tag" 2>/dev/null \
+        || echo "17 (branch, after $(git -C "$TREE/build/make" describe --tags --abbrev=0 2>/dev/null))")"
+    rec+=$'\n'"manifest $(git -C "$TREE/.repo/manifests" rev-parse HEAD)"
+    for p in build/make frameworks/base packages/apps/Settings packages/apps/SetupWizard2 packages/apps/Updater \
+             system/sepolicy; do
+        rec+=$'\n'"$p $(git -C "$TREE/$p" rev-parse HEAD)"
+    done
+fi
+base=$(sed -n 's/^upstream-tag //p' <<< "$rec")
+src=$(grep -v '^upstream-tag ' <<< "$rec" | awk '{ print $1, substr($2, 1, 12) }')
+[ -n "$base" ] && [ "$(wc -l <<< "$src")" -ge 2 ] || { echo "no source recorded for $bn; not published"; exit 1; }
+echo "source of $bn: GrapheneOS $base"$'\n'"$src"
 
 gh release view updates -R "$REPO" > /dev/null 2>&1 \
     || gh release create updates -R "$REPO" --title "Over-the-air updates" \

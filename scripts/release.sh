@@ -7,7 +7,9 @@
 #   0. verify-tree.sh: the tree is exactly what was reviewed, or nothing is built (no way around it)
 #   1. build target files and OTA tools with a fresh build number, in an emptied out_release/ (a
 #      previous build's outputs don't get signed); verify-tree.sh again after it; for a user
-#      build the changes page (fork_report.py) -> releases/<bn>/changes/
+#      build the changes page (fork_report.py) -> releases/<bn>/changes/; for every build the
+#      upstream tag, manifest and fork commits -> releases/<bn>/provenance-<codename>
+#      (publish-release.sh writes the release notes' source lines from these)
 #   2. finalize + generate-release (signing; prompts)  -> releases/<bn>/release-<codename>-<bn>/
 #   3. upload: the OTA zip and channel metadata replace the rolling "updates" release; the
 #      install zip gets a release of its own (github.com/ee1os/releases)
@@ -47,6 +49,21 @@ cd "$WS"
 rc=$(awk -v m="=== $label " 'index($0, m) == 1 { f = 1; r = "" } f && r == "" && /^BUILD_EXIT=/ { r = $0 } END { print r }' build.log)
 [ "$rc" = BUILD_EXIT=0 ] || { echo "build failed ($rc)"; exit 1; }
 VENDOR=$DEVICE "$ENVS/scripts/verify-tree.sh" || { echo "tree check failed after the build; not signed"; exit 1; }
+# what was built, for publish-release.sh: it may run days later, after the nightly rebase has
+# moved the tree. The tag is the one verify-tree.sh just checked against (state/upstream-tag).
+# A user build has the same in changes/report.json, which publish-release.sh prefers.
+source "$ENVS/scripts/forks.sh"
+utag=$(cat "$WS/state/upstream-tag") || { echo "no state/upstream-tag; not signed"; exit 1; }
+mrev=$(git -C "$TREE/.repo/manifests" rev-parse HEAD)
+mkdir -p "$TREE/releases/$bn"
+{ echo "upstream-tag $utag"
+  echo "manifest $mrev"
+  for e in "${FORKS[@]}"; do
+      echo "${e%%:*} $(git -C "$TREE/${e%%:*}" rev-parse HEAD)"
+  done; } > "$TREE/releases/$bn/provenance-$DEVICE"
+[ "$(wc -l < "$TREE/releases/$bn/provenance-$DEVICE")" = $((2 + ${#FORKS[@]})) ] \
+    && ! grep -qE ' $' "$TREE/releases/$bn/provenance-$DEVICE" \
+    || { echo "couldn't record the build's source; not signed"; exit 1; }
 # the changes page of a stable release: the forks against the GrapheneOS tag (fork_report.py);
 # publish-release.sh puts it on the site. Testing builds get none.
 if [ "$VARIANT" = user ]; then
