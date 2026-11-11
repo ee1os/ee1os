@@ -874,8 +874,29 @@ SetupWizard2 `9738860`); decisions below.
   screen off. When the protected user is removed, `no_remove_user` and
   `no_add_private_profile` on user 0 are cleared and the user switcher settings go back
   (`clearProtectedSpaceSettings` in `LockSettingsService.java`, also at boot when the removal
-  was lost). User 0's toggles in B's Users → Owner stay. Checked by `tests/other-users.sh`.
-  Built 2026-11-11, awaits approval.
+  was lost). Checked by `tests/other-users.sh`. Approved 2026-11-11.
+- **2026-11-11, B's Settings has no Users screen either; B is deleted from its own entry**
+  (owner decision, same day). The Users entry and pages are hidden in B as they are in A
+  (`ExtSettingControllerHelper.isUsersScreenHidden`, used by
+  `S/users/MultiUserPreferenceController.java`, `UserSettings.java` and
+  `UserDetailsSettings.java`), so user 0's toggles under Users → Owner are out of B's reach
+  too, and no screen adds users any more (adb still can; they are stopped when left, as
+  above). Since that screen was the only way to delete B, B's device unlock page gets
+  "Delete protected space" (`S/security/ProtectedSpaceDeleteActivity.java`): a screen that
+  says what goes, a Delete button, B's PIN, then `removeUserWhenPossible` and a switch to
+  user 0. The reboot PIN goes with B and the duress record stays, now managed by user 0, as
+  before (`DuressPasswordHelper.setAuthorityLocked`); the screen says so. Checked by
+  `tests/delete-space.sh` on the emulator (the Users check there only sees that the page
+  closes itself). Awaits approval. Left as is:
+  - A user added before the protected space, or over adb, has no screen that removes it
+    while B exists; it goes once B is deleted, or over adb.
+  - The Users pages of the newer Settings API (`S/users/UserSettingsScreenApi.kt`,
+    `UserDetailsSettingsScreenApi.kt`, behind `catalyst_migration_26q2`) don't check the
+    hiding; not looked at whether anything on this build can call them.
+  - If user 0's PIN equals the duress PIN when B is deleted, duress stays unreachable and
+    the warning flag goes with B (`DuressPasswordHelper.java:317`).
+  - The comment at `LockSettingsService.java:5008` still says B is an admin so that users
+    can be managed from its Settings.
 - **2026-11-10, B is told when A's PIN stops an alternate** (follows the 2026-10-13 decision
   that A's changes are not checked). When user 0's PIN changes while a protected space
   exists, the service compares the new PIN with the stored duress and reboot records and keeps

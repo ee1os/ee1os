@@ -5,8 +5,9 @@ test levels, per-stage gates — is in `08-development-and-testing.md`.
 
 ## Status
 
-Status as of 2026-11-10 (forks on GrapheneOS tag `2026110200`, last release tag
-`ee1os-2026110622`).
+Status as of 2026-11-11 (forks on GrapheneOS tag `2026110200`, last release tag
+`ee1os-2026110622`). The fork changes of 2026-11-10 and 2026-11-11 get no release of their
+own: they go out with the release for the next larger upstream update (owner, 2026-11-11).
 
 | Stage | What | Status |
 |---|---|---|
@@ -31,9 +32,10 @@ All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*
    2026-11-10 in the fork, as a flag shown only in B's Settings; A's changes are still never
    refused (doc 04 decision 2026-11-10). Awaits approval and a look on the phone. Open after
    B became an admin (same day): users added from B and what stays behind when B is deleted
-   were settled 2026-11-11 (doc 04 decision, built, awaits approval); user 0's toggles in B's
-   Users screen stay. "Uninstall for all users" is hidden in A
-   since the same day.
+   were settled 2026-11-11 (doc 04 decision, approved). The Users screen is hidden in B too
+   and B is deleted from "Delete protected space" on its device unlock page (doc 04, second
+   decision of 2026-11-11, awaits approval). "Uninstall for all users" is hidden in A since
+   2026-11-10.
 5. `RebootBfuTest` (2c) and `DuressPasswordTest` on hardware; both need the second device.
 6. SystemUI unit tests for the keyguard classes (doc 04, *Status 2026-11-10*).
 7. Signed approvals: deferred 2026-11-10 (doc 08, *Tree check*).
