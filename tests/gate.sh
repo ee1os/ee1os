@@ -5,7 +5,8 @@
 #   3. run the alternate credential tests and the whole locksettings suite (atest)
 #   4. on a fresh emulator, type the PINs at the real lock screen (tests/keyguard.sh)
 #   5. on a fresh emulator, a removable volume across user switches (tests/usb-volume.sh);
-#      on another, what A's Settings shows of an app B has (tests/app-list.sh)
+#      on another, what A's Settings shows of an app B has (tests/app-list.sh); on another,
+#      a third user and B's removal (tests/other-users.sh)
 #   6. on a fresh emulator, the Stage 1 layout (stage1.sh setup: owner PIN, envB), then the
 #      reboot PIN at the owner's and envB's prompt (stage2.sh reboot, reboot-b) and envB's
 #      storage before the owner unlocks (stage5.sh storage)
@@ -14,12 +15,12 @@
 #   8. stop the emulator; exit non-zero if anything failed
 # Each script that sets its own PINs gets a wiped emulator of its own.
 # Logs: /mnt/flash/scratch/grapheneos/gate-<name>.log, for auth, lss (atest), keyguard,
-# usb-volume, app-list, stage1, stage2, stage5 and duress; one summary line each.
+# usb-volume, app-list, other-users, stage1, stage2, stage5 and duress; one summary line each.
 set -uo pipefail
 WS=/mnt/flash/scratch/grapheneos
 RUN=/mnt/flash/home/faeton/work/ee1os/os/workspace/build-env/run.sh
 label="emu build for the gate, $(date +%F_%H%M)"
-NAMES=(auth lss keyguard usb-volume app-list stage1 stage2 stage5 duress)
+NAMES=(auth lss keyguard usb-volume app-list other-users stage1 stage2 stage5 duress)
 
 cd "$WS" || exit 1
 ./emu-build.sh "$label" droid > /dev/null 2>&1
@@ -75,6 +76,8 @@ if boot || boot; then t keyguard 1500 /src/ee1os/tests/keyguard.sh; fi
 if boot || boot; then t usb-volume 1500 /src/ee1os/tests/usb-volume.sh; fi
 # B's apps in A's Settings; the app it installs is the test module the atest step built
 if boot || boot; then t app-list 900 /src/ee1os/tests/app-list.sh; fi
+# a third user stops when left; removing B frees user 0
+if boot || boot; then t other-users 600 /src/ee1os/tests/other-users.sh; fi
 # the Stage 1 layout, shared by the reboot PIN and storage runs (they need its PINs and envB)
 if boot || boot; then
     t stage1 300 '/src/ee1os/tests/stage1.sh setup'
@@ -90,7 +93,7 @@ if boot || boot; then t duress 600 '/src/ee1os/tests/duress.sh --yes-wipe'; fi
 timeout 120 sudo docker stop grapheneos-emu > /dev/null 2>&1
 
 rc=0
-for n in keyguard usb-volume app-list stage1 stage2 stage5 duress; do
+for n in keyguard usb-volume app-list other-users stage1 stage2 stage5 duress; do
     want=1; [ "$n" = stage2 ] && want=2   # reboot and reboot-b
     r=$(grep -a '^result:' "$WS/gate-$n.log" 2>/dev/null)
     got=$(grep -c . <<< "$r") ok=$(grep -cx 'result: PASS' <<< "$r")

@@ -128,6 +128,8 @@ log "    $(sh_ logcat -d -s StorageManagerService:* | grep -c 'Remounting volume
 log "### reboot with the stick in, B first while A stays locked"
 adb -s "$SERIAL" reboot; sleep 20; conn
 adb -s "$SERIAL" root >/dev/null 2>&1; sleep 3; conn
+# the lock screen is there some time after adb is: wait for the end of the boot, not a fixed time
+for i in $(seq 90); do [[ "$(sh_ getprop sys.boot_completed)" == 1 ]] && break; sleep 2; done
 sleep 10
 pad && enter "$B_PIN" 10
 sleep 5

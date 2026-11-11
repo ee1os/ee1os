@@ -864,6 +864,18 @@ SetupWizard2 `9738860`); decisions below.
     PIN is deleted (`DuressPasswordHelper.onUserRemoved`), the duress record stays, and the
     layout's settings on user 0 (`user_switcher_enabled=0`, `no_remove_user`,
     `no_add_private_profile`) stay. Open: restore them when B goes.
+- **2026-11-11, other users are not refused, they are made safe** (owner decision: one
+  person's phone, so nothing is taken away from B). Settles two of the points open under
+  *B is an admin* above. B can still add users. With a protected space every user but user 0
+  is stopped and its storage locked when it is switched away from, whether or not it has
+  `no_run_in_background` (`stopUserOnSwitchIfEnforced` in
+  `F/services/core/java/com/android/server/am/UserController.java`, asking
+  `LockSettingsInternal.hasProtectedSpace`), so a third user no longer runs behind A after
+  screen off. When the protected user is removed, `no_remove_user` and
+  `no_add_private_profile` on user 0 are cleared and the user switcher settings go back
+  (`clearProtectedSpaceSettings` in `LockSettingsService.java`, also at boot when the removal
+  was lost). User 0's toggles in B's Users → Owner stay. Checked by `tests/other-users.sh`.
+  Built 2026-11-11, awaits approval.
 - **2026-11-10, B is told when A's PIN stops an alternate** (follows the 2026-10-13 decision
   that A's changes are not checked). When user 0's PIN changes while a protected space
   exists, the service compares the new PIN with the stored duress and reboot records and keeps

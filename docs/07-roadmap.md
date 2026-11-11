@@ -30,8 +30,9 @@ All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*
 4. Tell B when a duress or reboot PIN stopped working because A chose the same PIN: built
    2026-11-10 in the fork, as a flag shown only in B's Settings; A's changes are still never
    refused (doc 04 decision 2026-11-10). Awaits approval and a look on the phone. Open after
-   B became an admin (same day): users added from B, user 0's toggles in B's Users screen,
-   and what stays behind when B is deleted (doc 04). "Uninstall for all users" is hidden in A
+   B became an admin (same day): users added from B and what stays behind when B is deleted
+   were settled 2026-11-11 (doc 04 decision, built, awaits approval); user 0's toggles in B's
+   Users screen stay. "Uninstall for all users" is hidden in A
    since the same day.
 5. `RebootBfuTest` (2c) and `DuressPasswordTest` on hardware; both need the second device.
 6. SystemUI unit tests for the keyguard classes (doc 04, *Status 2026-11-10*).

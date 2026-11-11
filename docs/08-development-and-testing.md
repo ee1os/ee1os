@@ -332,6 +332,8 @@ on a wiped emulator the atest runs (`AlternateCredentialsTests`, then the whole 
 suite); `tests/keyguard.sh` on a wiped emulator of its own; `tests/usb-volume.sh` on another;
 `tests/app-list.sh` on another (an app installed for B only isn't named in A's list of all
 apps, and its page in A has no "Uninstall for all users");
+`tests/other-users.sh` on another (a third user is stopped when the screen goes off; removing
+B puts user 0's settings back);
 on a third `tests/stage1.sh setup` (owner PIN and a second user, no protected space), then the
 reboot PIN at both users' prompts (`tests/stage2.sh reboot`, `reboot-b`) and
 `tests/stage5.sh storage`; last, the duress wipe on a wiped emulator of its own
