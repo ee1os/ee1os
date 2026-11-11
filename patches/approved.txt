@@ -81,3 +81,4 @@ platform_packages_apps_Settings 6a133bc40a4b373f3f67eaeb09fdaad4381f76a3 156ba78
 platform_frameworks_base d33cdc6c51fc065182356a3eed092913c2de4c78 270c1cb4d671 protected-space SettingsLib: keep other users' apps out of the main space's lists
 platform_frameworks_base 2a911558cd314cf058b79f5e142dab64cc415928 abe683e6f69e pin-rules Tell the protected space when the main PIN shadows an alternate
 platform_packages_apps_Settings 9ffc7f3ef11bf11d9a37d4b61c99240833ead0bb 09848508078b pin-rules Warn when the main space's PIN stops a duress or reboot PIN
+platform_frameworks_base 9e773da33931529f47870281232a6c365c6d960d f4cb186780db protected-space Stop other users when left, free user 0 when the protected user goes
