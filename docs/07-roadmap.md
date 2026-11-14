@@ -8,6 +8,9 @@ test levels, per-stage gates — is in `08-development-and-testing.md`.
 Status as of 2026-11-11 (forks on GrapheneOS tag `2026110200`, last release tag
 `ee1os-2026110622`). The fork changes of 2026-11-10 and 2026-11-11 get no release of their
 own: they go out with the release for the next larger upstream update (owner, 2026-11-11).
+Settings `607be4b5b37` (Users hidden in B, "Delete protected space") stays local and
+unapproved until then (owner, 2026-11-14): `verify-tree.sh` fails meanwhile, and the tracker
+stops after the rebase onto that tag and asks for the approval.
 
 | Stage | What | Status |
 |---|---|---|
