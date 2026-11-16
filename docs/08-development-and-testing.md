@@ -178,7 +178,7 @@ and to this repo.
     `/mnt/tank/scripts/ee1os/allowed_signers` (root's, outside the repo) exists; until
     then anyone who can commit to this repo's `HEAD` on n5 can approve. Deferred 2026-11-10
     (owner): the file doesn't exist and isn't planned for now; approval may later be signed
-    through a Telegram button instead.
+    through a Telegram button instead (plan: doc 07 *Design notes*, 2026-11-16).
 - **Fork report: what differs from GrapheneOS** (decided 2026-11-01, doc 00). Each stable
   release gets a public page, `ee1os.com/changes/<bn>/`, that compares the six forks with the
   signed GrapheneOS tag file by file and says why each change was made.

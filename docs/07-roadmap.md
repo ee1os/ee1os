@@ -43,7 +43,8 @@ All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*
 6. SystemUI unit tests for the keyguard classes: added 2026-11-16 (doc 04, *Status
    2026-11-10*); not in the gate. Approved 2026-11-16 with `607be4b5b37`, Settings `a1686106155` and
    frameworks/base `caf13907cdb4`.
-7. Signed approvals: deferred 2026-11-10 (doc 08, *Tree check*).
+7. Signed approvals: deferred 2026-11-10 (doc 08, *Tree check*); plan for a Telegram button
+   under *Design notes* (2026-11-16).
 
 Earlier lists, done or folded in: 2026-10-12 (layout gaps, built 2026-10-13; R1, R2, R5 and
 the rename R8 done; Weaver-backed alternates shelved 2026-10-13; reboot PIN and auto-confirm
@@ -397,6 +398,55 @@ on them. Line numbers re-checked 2026-10-08.
   (`UserManagerService.java:3362-3367`); no cryptographic owner-first dependency found. Before
   owner unlock `getVolumeList` reports every volume unmounted, except to MediaStore
   (`StorageManagerService.java:3931-3934`, `:3995-4001`). Stage 1 item 3 tests what else breaks.
+
+### Signed approvals by a Telegram button (plan, 2026-11-16; not built)
+
+Owner, 2026-11-16: until the project releases to others, approvals stay unsigned and releases
+are signed on n5 as now. For that point the approval is to be one tap in the OS topic, signed
+by a key kept on de1. The same pattern already runs on de1 for another project's deploy
+approvals (a relay plugin in the chat gateway that polls the bot, and a press socket), so the
+parts below follow it.
+
+1. **Request (n5).** After the rebase the tracker already holds the tag when commits need
+   approval (`scripts/track-upstream.sh:359-380`). It then writes the proposed `approved.txt`
+   (a changed commit keeps the group of the line it replaces, a new one gets a proposed group),
+   pushes the commits to a `pending/<tag>` branch of each fork so they can be read on GitHub,
+   and posts one message in the OS topic through the Bot API: tag, the new lines, links, and
+   two buttons, Approve and Skip.
+2. **What the button carries.** `callback_data` is `ee1os:a:<22 chars>` (Skip: `ee1os:s:`),
+   the first 128 bits of SHA-256 over the tag, the SHA-256 of the proposed `approved.txt` and
+   a nonce. It names the list, so a press can't be moved to another list. Telegram allows 64
+   bytes there.
+3. **Press (de1).** A relay plugin claims the `ee1os` namespace, so the press never reaches
+   the chat assistant as text, and passes `{data, from_id, chat_id, message_id}` to a local
+   socket of a small signer. The signer runs as its own user, holds an ed25519 key nobody
+   else reads, accepts the socket only from the relay's user, checks the owner's Telegram id
+   and the chat and topic, and signs `ee1os-approve v1 <data> <from_id> <chat_id>
+   <message_id> <time>` (`ssh-keygen -Y sign`, namespace `ee1os-approve`).
+4. **Back to n5.** The statement and its signature reach n5 either by a forced-command ssh
+   user that can only drop that file, or by n5 asking de1 while a request is open (to decide;
+   the first is a host change on n5).
+5. **Check (n5).** The tracker stores tag, nonce, statement and signature next to
+   `approved.txt` and commits them. `verify-tree.sh` then requires: a valid signature by a
+   key in `/mnt/tank/scripts/ee1os/allowed_signers` (root's, doc 08 *Tree check*); `<data>`
+   equal to the value computed from the tag, the committed `approved.txt` and the nonce; the
+   owner's id in the statement. A request expires and is single use. Then `APPROVE=<tag>`
+   runs as today, and the message is edited to say what happened.
+
+What this adds: a process on n5 that isn't root (a build, a script, anything that can commit
+to this repo) can no longer approve code for itself.
+
+What it doesn't cover:
+- The signer trusts the relay to say who pressed, so anything running as the gateway's user
+  on de1 can forge a press. Fixed only by a receiver with its own bot token that the gateway
+  never sees.
+- Root on de1, a taken-over Telegram account, and root or the owner's shell on n5 (which can
+  also reach de1 over ssh and change the check itself).
+- The release keys are still on n5. The signature earns its keep together with moving release
+  signing off n5; both are one task.
+
+The command-line approval (`approve.sh`, then a signed commit from m3max) stays as the
+fallback.
 
 ## Review log
 
