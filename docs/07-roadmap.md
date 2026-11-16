@@ -37,7 +37,7 @@ All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*
    B became an admin (same day): users added from B and what stays behind when B is deleted
    were settled 2026-11-11 (doc 04 decision, approved). The Users screen is hidden in B too
    and B is deleted from "Delete protected space" on its device unlock page (doc 04, second
-   decision of 2026-11-11, awaits approval). "Uninstall for all users" is hidden in A since
+   decision of 2026-11-11, approved 2026-11-16). "Uninstall for all users" is hidden in A since
    2026-11-10.
 5. `RebootBfuTest` (2c) and `DuressPasswordTest` on hardware; both need the second device.
 6. SystemUI unit tests for the keyguard classes: added 2026-11-16 (doc 04, *Status
