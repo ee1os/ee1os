@@ -477,7 +477,7 @@ enrolment isn't enough (`U/com/android/keyguard/KeyguardUpdateMonitor.java:3238`
 | Duress and reboot screens | `S/safetycenter/ui/DuressPasswordPrefController.java:20`, `RebootCredentialPrefController.java:20`, the `S/security/*MainActivity`/`*SetupActivity` entries; not via the shared `S/ext/ExtSettingControllerHelper.java:28` |
 | User switcher on keyguard, QS, shade | `U/com/android/systemui/user/domain/interactor/UserSwitcherInteractor.kt:129`, `user/data/repository/UserSwitcherRepository.kt:144`, `qs/footer/ui/viewmodel/FooterActionsViewModel.kt:321`, `U/com/android/keyguard/KeyguardSecurityContainer.java` |
 | Power-menu users (End session stays for B) | `U/com/android/systemui/globalactions/GlobalActionsDialogLite.java:1568` |
-| B's name and icon in the switch transition | `F/services/core/java/com/android/server/am/UserSwitchingDialog.java:92` |
+| B's name and icon in the switch transition | `F/services/core/java/com/android/server/am/UserController.java:4718`: no switch dialog while the user switcher is off, which setup sets |
 | Storage breakdown | `S/deviceinfo/storage/NonCurrentUserController.java:74`, `StorageAsyncLoader.java:82`, `UserIconLoader.java:69` |
 | B's notifications forwarded to A | `F/services/core/java/com/android/server/notification/NotificationManagerService.java:11221`, `:11237` |
 | Running services of other users | `S/applications/RunningState.java:874`, `:1243` |
@@ -578,9 +578,13 @@ above, the 6-digit rule now applies to later changes too (*Decisions* 2026-10-12
   `authenticateFingerprint_onFaceLockout_detectFingerprint`); not run on the plain upstream
   tag to confirm. The 15 s lifetime of the mark is not tested. The expiry and these classes
   are not in the gate.
-- The user-switch dialog still shows B's name ("Switching to Protected",
-  `F/services/core/java/com/android/server/am/UserSwitchingDialog.java:197`, not changed in the
-  fork).
+- The user-switch dialog ("Switching to Protected",
+  `F/services/core/java/com/android/server/am/UserSwitchingDialog.java:197`) is not shown
+  while a protected space exists (`UserController.java:4718`). Checked on the emulator
+  2026-11-16: opening B from the lock screen logs no dialog; with `user_switcher_enabled` put
+  back to 1 by adb it shows again. The user's name stays "Protected"
+  (`F/services/core/java/com/android/server/locksettings/LockSettingsService.java:5010`) and
+  is seen through adb (`pm list users`).
 - B as an admin: decided and built 2026-11-10 (*Decisions*); what the flag opens is listed
   there.
 - "Uninstall for all users" in A: `shouldShowUninstallForAll`
