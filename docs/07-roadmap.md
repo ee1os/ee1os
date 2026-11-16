@@ -8,9 +8,9 @@ test levels, per-stage gates — is in `08-development-and-testing.md`.
 Status as of 2026-11-11 (forks on GrapheneOS tag `2026110200`, last release tag
 `ee1os-2026110622`). The fork changes of 2026-11-10 and 2026-11-11 get no release of their
 own: they go out with the release for the next larger upstream update (owner, 2026-11-11).
-Settings `607be4b5b37` (Users hidden in B, "Delete protected space") stays local and
-unapproved until then (owner, 2026-11-14): `verify-tree.sh` fails meanwhile, and the tracker
-stops after the rebase onto that tag and asks for the approval.
+Settings `607be4b5b37` (Users hidden in B, "Delete protected space") and `a1686106155`,
+frameworks/base `caf13907cdb4` and `84faa13c5b8c` were approved and pushed on 2026-11-16
+(owner); they go out with that release too.
 
 | Stage | What | Status |
 |---|---|---|
@@ -41,8 +41,8 @@ All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*
    2026-11-10.
 5. `RebootBfuTest` (2c) and `DuressPasswordTest` on hardware; both need the second device.
 6. SystemUI unit tests for the keyguard classes: added 2026-11-16 (doc 04, *Status
-   2026-11-10*); not in the gate. Local and unapproved with `607be4b5b37`: Settings
-   `a1686106155`, frameworks/base `caf13907cdb4` and the test commit.
+   2026-11-10*); not in the gate. Approved 2026-11-16 with `607be4b5b37`, Settings `a1686106155` and
+   frameworks/base `caf13907cdb4`.
 7. Signed approvals: deferred 2026-11-10 (doc 08, *Tree check*).
 
 Earlier lists, done or folded in: 2026-10-12 (layout gaps, built 2026-10-13; R1, R2, R5 and

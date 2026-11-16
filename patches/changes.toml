@@ -30,8 +30,10 @@ opens the main space, the protected space's PIN opens the protected space. It ha
 wallpaper and can take calls. It is an admin user, like the main space. The main space's
 Settings don't list the protected space, other users or apps only they have, and don't offer
 to uninstall an app for all users. A USB stick moves to whichever space is open. Any user
-other than the main space is stopped and locked when the phone leaves it. Removing the
-protected space gives the main space back the settings its setup changed.
+other than the main space is stopped and locked when the phone leaves it. The protected
+space's Settings have no Users screen either; it is deleted from "Delete protected space" on
+its device unlock page, after its PIN. Removing the protected space gives the main space back
+the settings its setup changed.
 """
 why = """
 Each Android user has its own encryption key, so what is in the protected space stays
