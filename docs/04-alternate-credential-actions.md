@@ -566,8 +566,18 @@ above, the 6-digit rule now applies to later changes too (*Decisions* 2026-10-12
 
 - The reboot PIN is still the scrypt record; the Weaver design above is shelved (doc 00
   decision 2026-10-13).
-- SystemUI unit tests for the keyguard classes are not updated (no fork commit touches
-  SystemUI's tests).
+- SystemUI unit tests for the keyguard classes: added 2026-11-16 for the mark that says a
+  user's PIN was verified on user 0's lock screen (`KeyguardUpdateMonitorTest`: single use,
+  only that user, cleared, dropped by a switch elsewhere; `KeyguardSecurityContainerControllerTest`:
+  that user's bouncer finishes on it and stays up without it). All six pass on the emulator
+  (`atest SystemUITests:com.android.keyguard.<class>`). The pad's dispatch in
+  `KeyguardAbsKeyInputViewController` calls `LockPatternChecker.dispatchCredential` and
+  `ActivityManager.getService` statically, so it has no unit test; `tests/keyguard.sh` covers
+  it at the real lock screen. Of the four classes' 349 cases two fail, neither in code the fork
+  changes (`KeyguardPinViewControllerTest` second-factor case, `KeyguardUpdateMonitorTest`
+  `authenticateFingerprint_onFaceLockout_detectFingerprint`); not run on the plain upstream
+  tag to confirm. The 15 s lifetime of the mark is not tested. The expiry and these classes
+  are not in the gate.
 - The user-switch dialog still shows B's name ("Switching to Protected",
   `F/services/core/java/com/android/server/am/UserSwitchingDialog.java:197`, not changed in the
   fork).
@@ -891,12 +901,15 @@ SetupWizard2 `9738860`); decisions below.
   - A user added before the protected space, or over adb, has no screen that removes it
     while B exists; it goes once B is deleted, or over adb.
   - The Users pages of the newer Settings API (`S/users/UserSettingsScreenApi.kt`,
-    `UserDetailsSettingsScreenApi.kt`, behind `catalyst_migration_26q2`) don't check the
-    hiding; not looked at whether anything on this build can call them.
+    `UserDetailsSettingsScreenApi.kt`) didn't check the hiding. The flag is on in this build
+    (`build/release/aconfig/cp2a/com.android.settings.flags/catalyst_migration_26q2_flag_values.textproto:4`)
+    and the service needs `READ_SYSTEM_PREFERENCES` (`S/AndroidManifest.xml:6146`). Fixed
+    2026-11-16: with a protected space both report unsupported and list no users. Compiles;
+    the API itself was not called in a test.
   - If user 0's PIN equals the duress PIN when B is deleted, duress stays unreachable and
     the warning flag goes with B (`DuressPasswordHelper.java:317`).
-  - The comment at `LockSettingsService.java:5008` still says B is an admin so that users
-    can be managed from its Settings.
+  - The comment at `LockSettingsService.java:5008` said B is an admin so that users can be
+    managed from its Settings; corrected 2026-11-16.
 - **2026-11-10, B is told when A's PIN stops an alternate** (follows the 2026-10-13 decision
   that A's changes are not checked). When user 0's PIN changes while a protected space
   exists, the service compares the new PIN with the stored duress and reboot records and keeps

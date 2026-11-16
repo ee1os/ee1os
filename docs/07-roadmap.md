@@ -40,7 +40,9 @@ All work stays in the fork for now (decision 2026-10-09, see *Fork and upstream*
    decision of 2026-11-11, awaits approval). "Uninstall for all users" is hidden in A since
    2026-11-10.
 5. `RebootBfuTest` (2c) and `DuressPasswordTest` on hardware; both need the second device.
-6. SystemUI unit tests for the keyguard classes (doc 04, *Status 2026-11-10*).
+6. SystemUI unit tests for the keyguard classes: added 2026-11-16 (doc 04, *Status
+   2026-11-10*); not in the gate. Local and unapproved with `607be4b5b37`: Settings
+   `a1686106155`, frameworks/base `caf13907cdb4` and the test commit.
 7. Signed approvals: deferred 2026-11-10 (doc 08, *Tree check*).
 
 Earlier lists, done or folded in: 2026-10-12 (layout gaps, built 2026-10-13; R1, R2, R5 and
