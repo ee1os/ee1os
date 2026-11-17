@@ -399,13 +399,19 @@ on them. Line numbers re-checked 2026-10-08.
   owner unlock `getVolumeList` reports every volume unmounted, except to MediaStore
   (`StorageManagerService.java:3931-3934`, `:3995-4001`). Stage 1 item 3 tests what else breaks.
 
-### Signed approvals by a Telegram button (plan, 2026-11-16; not built)
+### Signed approvals by a Telegram button (plan, 2026-11-16; the signature is not built)
 
 Owner, 2026-11-16: until the project releases to others, approvals stay unsigned and releases
 are signed on n5 as now. For that point the approval is to be one tap in the OS topic, signed
 by a key kept on de1. The same pattern already runs on de1 for another project's deploy
 approvals (a relay plugin in the chat gateway that polls the bot, and a press socket), so the
 parts below follow it.
+
+First step, built 2026-11-17 (owner: buttons now, without a signature, new accounts or new
+ssh access): the tracker's messages carry buttons and a press starts the action on n5
+(doc 08 *Buttons*). It has the request, the `pending/<tag>` branches and the relay of the
+plan below, with the press delivered to n5 by the relay itself; the signer and the check in
+`verify-tree.sh` are the next step.
 
 1. **Request (n5).** After the rebase the tracker already holds the tag when commits need
    approval (`scripts/track-upstream.sh:359-380`). It then writes the proposed `approved.txt`
@@ -417,8 +423,8 @@ parts below follow it.
    the first 128 bits of SHA-256 over the tag, the SHA-256 of the proposed `approved.txt` and
    a nonce. It names the list, so a press can't be moved to another list. Telegram allows 64
    bytes there.
-3. **Press (de1).** A relay plugin claims the `ee1os` namespace, so the press never reaches
-   the chat assistant as text, and passes `{data, from_id, chat_id, message_id}` to a local
+3. **Press (de1).** A relay plugin claims the `ee1os` namespace, so the press is never passed
+   on as chat text, and passes `{data, from_id, chat_id, message_id}` to a local
    socket of a small signer. The signer runs as its own user, holds an ed25519 key nobody
    else reads, accepts the socket only from the relay's user, checks the owner's Telegram id
    and the chat and topic, and signs `ee1os-approve v1 <data> <from_id> <chat_id>

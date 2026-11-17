@@ -40,6 +40,30 @@ notify() {
     log "$*"
     /mnt/tank/scripts/notify-telegram.sh "ee1os: $*" 890 || log "notify failed"
 }
+# notify with buttons under the text (scripts/press.py: <action>=<label>...); the text alone
+# when buttons aren't set up or the post fails, so it always names the command too
+ask() {
+    local text=${1:0:3800}; shift   # Telegram takes 4096 characters
+    if [ "$DRY" = 1 ]; then echo "$text"; return; fi
+    log "$text"
+    printf 'ee1os: %s\n' "$text" | "$ENVS/scripts/press.py" ask "$tag" "$@" >> "$LOG" 2>&1 && return
+    /mnt/tank/scripts/notify-telegram.sh "ee1os: $text" 890 || log "notify failed"
+}
+# pending/<tag> in each fork: the rebased, not yet approved commits, to read before approving
+pending() {   # pending push | pending drop <tag>
+    local e p name
+    for e in "${FORKS[@]}"; do
+        p=${e%%:*} name=${e##*:}
+        if [ "$1" = push ]; then
+            touch "$STATE/held/pending"
+            git -C "$TREE/$p" push -q -f "$ORG/$name.git" "envs-17:refs/heads/pending/$tag" \
+                >> "$LOG" 2>&1 || log "pending/$tag not pushed for $p"
+        elif [ -e "$STATE/held/pending" ]; then
+            git -C "$TREE/$p" push -q "$ORG/$name.git" ":refs/heads/pending/$2" >> "$LOG" 2>&1 \
+                || log "pending/$2 not removed from $p"
+        fi
+    done
+}
 # put every fork's envs-17 back where it was before this run's rebase
 restore() {
     for e in "${FORKS[@]}"; do
@@ -127,6 +151,7 @@ $(echo "$out" | grep '^FAIL' | head -15)"; return 1; }
     fi
 
     echo "$tag" > "$STATE/upstream-tag"
+    pending drop "$tag"
     backup_state
     rm -rf "$STATE/pre"
     packed="Flash archive: husky-flash.tar.gz."
@@ -207,10 +232,11 @@ $(echo "$vout" | grep '^FAIL' | head -15)"
         sum=""
         [ -n "$review" ] && sum=$(awk '/^#/{n++} n==2{exit} {print}' "$review" | head -c 2000)
         if [ "$wrc" = 10 ]; then why="has changes that need a decision"; else why="could not be checked (exit $wrc)"; fi
-        notify "build $bn on GrapheneOS $tag is built, but the release $why. Not pushed.
+        ask "build $bn on GrapheneOS $tag is built, but the release $why. Not pushed.
     $sum
     Report: $(echo "$watch" | head -1)
-    Push: APPROVE=$tag scripts/track-upstream.sh, or drop: SKIP=$tag scripts/track-upstream.sh"
+    Push: APPROVE=$tag scripts/track-upstream.sh, or drop: SKIP=$tag scripts/track-upstream.sh" \
+            "push=Push" "skip=Drop"
         exit 0
     fi
 
@@ -237,6 +263,7 @@ if [ -s "$STATE/held-tag" ]; then
     if [ "${SKIP:-}" = "$held" ]; then
         dry "would drop held $held and put the forks back"
         restore
+        pending drop "$held"
         echo "$held" > "$STATE/skipped-tag"
         rm -rf "$STATE/held-tag" "$STATE/held-bn" "$STATE/held"
         notify "$held skipped; forks are back on $(cat "$STATE/upstream-tag"). The next release will be picked up as usual."
@@ -296,7 +323,8 @@ if [ -z "${FORCE_TAG:-}" ]; then
     if [ "$crc" = 11 ]; then
         dry "GrapheneOS $tag can wait for the next monthly release (ours: $last)"
         echo "$tag" > "$STATE/skipped-tag"
-        notify "GrapheneOS $tag is out: same patch level, nothing urgent. Left for the next monthly release, which will include it. Ours stays on $last. To take it anyway: FORCE_TAG=$tag scripts/track-upstream.sh"
+        ask "GrapheneOS $tag is out: same patch level, nothing urgent. Left for the next monthly release, which will include it. Ours stays on $last. To take it anyway: FORCE_TAG=$tag scripts/track-upstream.sh" \
+            "take=Take it anyway"
         exit 0
     fi
     [ "$crc" = 0 ] || urgent="could not be classified (exit $crc), taken to be safe"
@@ -374,9 +402,25 @@ $(echo "${other:-$vout}" | head -15)"
     done
     [ "$wrc" = 0 ] || touch "$STATE/held/strategic"
     RESTORE=0
-    notify "GrapheneOS $tag: after the rebase some fork commits need approval; not built, not pushed.
-$(echo "$fails" | sed 's/^FAIL: //' | head -15)
-Approve: TAG=$tag scripts/approve.sh -g <group> <repo> <commit>... (a changed commit keeps the group of the line it replaces), drop stale lines: TAG=$tag scripts/approve.sh --prune, commit approved.txt, then APPROVE=$tag scripts/track-upstream.sh (builds and pushes). Or SKIP=$tag.$([ "$wrc" = 0 ] || echo " It also has strategic changes: $(echo "$watch" | head -1)")"
+    pending push
+    # the Approve button only when every commit takes the place of an approved one
+    # (approve-held.sh); otherwise by hand, and the button is only Drop
+    buttons=("skip=Drop")
+    if can=$("$ENVS/scripts/approve-held.sh" --list "$tag" 2>> "$LOG") && [ -n "$can" ]; then
+        buttons=("approve=Approve and build" "skip=Drop")
+        how="The Approve button approves these as the commits they replace, then builds and pushes:
+$(echo "$can" | head -8)$([ "$(echo "$can" | wc -l)" -le 8 ] || echo "
+and $(($(echo "$can" | wc -l) - 8)) more")"
+    else
+        how="There is no Approve button: not every one of them is the rebased form of an approved commit."
+    fi
+    ask "GrapheneOS $tag: after the rebase some fork commits need approval; not built, not pushed.
+$(echo "$fails" | sed 's/^FAIL: //' | head -8)$([ "$(echo "$fails" | wc -l)" -le 8 ] || echo "
+and $(($(echo "$fails" | wc -l) - 8)) more")
+To read them: the pending/$tag branch of each fork, $ORG/<repo>/commits/pending/$tag
+$how
+By hand: TAG=$tag scripts/approve.sh -g <group> <repo> <commit>... (a changed commit keeps the group of the line it replaces), drop stale lines: TAG=$tag scripts/approve.sh --prune, commit approved.txt, then APPROVE=$tag scripts/track-upstream.sh (builds and pushes). Or SKIP=$tag.$([ "$wrc" = 0 ] || echo " It also has strategic changes: $(echo "$watch" | head -1)")" \
+        "${buttons[@]}"
     exit 0
 fi
 

@@ -210,6 +210,36 @@ and to this repo.
   - A published page is never regenerated. `fork_report.py --check releases/<bn>/changes`
     rebuilds its `report.json` from the commits it records and compares; `--preview --out
     <dir>` shows the current tree. Tests: `tests/fork-report/run.sh`.
+- **Buttons** (decided 2026-11-17, owner: decisions on a release are taken in the OS topic by
+  a tap; unsigned for now, the signed step is planned in doc 07 *Design notes*). Three
+  messages of `track-upstream.sh` carry buttons, and still name the command:
+  a release left for the next monthly one ("Take it anyway" = `FORCE_TAG=`), a built release
+  held for strategic changes ("Push" = `APPROVE=`, "Drop" = `SKIP=`), and rebased commits
+  waiting for approval ("Approve and build", "Drop").
+  - `scripts/press.py ask` posts the message and keeps, per button, the SHA-256 of its
+    one-time string (`ee1os:<22 chars>`), the action and the tag in `state/press/open/`.
+    `press.py handle` (cron, every minute) takes presses from `state/press/inbox/`. A press
+    counts if the string is known and unused, the presser is the owner, and the chat and
+    message are the ones it was posted in; then the action must still fit the state (the tag is
+    still held, built or not as the action needs; a release left out is still newer than what
+    the forks are on). While the nightly run or a build is working the press is refused and
+    the button stays. A long action runs in its own tmux session,
+    logged in `press.log`. The message is edited to say what happened and loses its buttons.
+  - "Approve and build" is offered only when `scripts/approve-held.sh --list <tag>` can
+    approve every waiting commit: in each fork the commits before and after the rebase pair
+    up one to one, in order, with the same subject and author, and a changed commit is approved
+    if the one it is paired with was; it keeps that group. A commit added, dropped, reordered
+    or renamed is approved by hand as before. The rebased commits are pushed to `pending/<tag>` in each fork to be read
+    first; the branch is removed when the release is pushed or dropped.
+  - The bot's updates are received on de1, so a small relay there passes each `ee1os:` press
+    to the inbox over ssh, as n5's existing diagnostics user. Its source and the settings
+    (`press.conf`: owner id, chat, topic) are in `/mnt/tank/scripts/ee1os/`, outside this repo;
+    without `press.conf` the messages are plain text as before.
+  - Limit: n5 trusts the relay to say who pressed. Whoever can write the inbox, or runs as the
+    relay's user on de1, can press an open button. They can't make it do anything but that
+    button's action for that tag.
+  - Tests: `tests/press-test.py` (a local stand-in for the Bot API, nothing real is started)
+    and `tests/approve-held-test.sh` (a throwaway fork); neither is in the gate.
 - **Schedule** (TrueNAS cron, `sudo midclt call cronjob.query`): job 25 runs the preview at
   00:30, job 26 `track-upstream.sh` at 01:00 (n5 time, Europe/Lisbon). Logs:
   `upstream-watch.log` and `track-upstream.log` next to the tree.
