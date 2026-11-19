@@ -5,8 +5,10 @@
                                            button per action; exit 3 if buttons aren't set up
   press.py handle                          take the presses waiting in the inbox (does nothing
                                            when it is empty)
-  press.py watch                           handle every 2 seconds for most of a minute (cron,
-                                           every minute), so a press is answered in seconds
+  press.py watch                           while a button is open: handle every 2 seconds for
+                                           most of a minute, so a press is answered in seconds.
+                                           Started by ask, and by cron every minute to keep it
+                                           going; with no open button it handles once and exits
 
 Actions, each for one tag and nothing else:
   push     APPROVE=<tag> track-upstream.sh         (a release held after its build)
@@ -145,6 +147,14 @@ def ask(tag, pairs):
         return 1
     log("asked %s: %s (message %s)" % (tag, " ".join(r["action"] for r in records),
                                          msg["message_id"]))
+    if not os.environ.get("PRESS_NOWATCH"):
+        # answer the first press at once; cron keeps the watch going after this minute
+        try:
+            subprocess.Popen([sys.executable, os.path.abspath(__file__), "watch"],
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL, start_new_session=True)
+        except OSError:
+            pass
     return 0
 
 
@@ -360,6 +370,23 @@ def handle():
     return 0
 
 
+def armed():
+    """Is there a button that can still be pressed?"""
+    try:
+        names = os.listdir(OPEN)
+    except OSError:
+        return False
+    for n in names:
+        if not n.endswith(".json"):
+            continue
+        try:
+            if time.time() <= json.loads(read(os.path.join(OPEN, n)))["expires"]:
+                return True
+        except (ValueError, KeyError, TypeError):
+            pass
+    return False
+
+
 def main(argv):
     if len(argv) >= 4 and argv[1] == "ask":
         return ask(argv[2], argv[3:])
@@ -367,9 +394,10 @@ def main(argv):
         return handle()
     if len(argv) == 2 and argv[1] == "watch":
         end = time.monotonic() + 56
+        on = armed()
         while True:
             handle()
-            if time.monotonic() + 2 > end:
+            if not on or time.monotonic() + 2 > end:
                 return 0
             time.sleep(2)
     print(__doc__, file=sys.stderr)

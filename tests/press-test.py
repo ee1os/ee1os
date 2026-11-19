@@ -50,7 +50,7 @@ with tempfile.TemporaryDirectory() as tmp:
         f.write('#!/bin/sh\necho "$1 $2" >> %s\n[ ! -e %s/fail ]\n' % (ran, tmp))
     os.chmod(hook, 0o755)
     confp = os.path.join(tmp, "press.conf")
-    env = dict(os.environ, PRESS_WS=tmp, PRESS_CONF=confp, PRESS_TOKEN="t", PRESS_RUN=hook,
+    env = dict(os.environ, PRESS_WS=tmp, PRESS_CONF=confp, PRESS_TOKEN="t", PRESS_RUN=hook, PRESS_NOWATCH="1",
                PRESS_API="http://127.0.0.1:%d" % srv.server_address[1])
 
     def press(*args, text=None):
@@ -217,6 +217,16 @@ with tempfile.TemporaryDirectory() as tmp:
     n = len(runs())
     drop(b["take"], mid=mid)
     check(len(runs()) == n and "expired" in calls[-1][1]["text"], "an expired button does nothing")
+    t = time.time()
+    check(press("watch").returncode == 0 and time.time() - t < 10,
+          "with no button that can be pressed the watch looks once and ends")
+    ask("2026120300", "take=Take it anyway")
+    try:
+        subprocess.run([sys.executable, PRESS, "watch"], env=env, timeout=6)
+        going = False
+    except subprocess.TimeoutExpired:
+        going = True
+    check(going, "with an open button the watch keeps looking")
     check(press("ask", "2026120300", "rm=Remove", text="x").returncode == 2
           and press("ask", "nottag", "push=Push", text="x").returncode == 2,
           "ask refuses an unknown action and a malformed tag")
