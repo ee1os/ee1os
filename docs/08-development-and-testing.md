@@ -218,7 +218,8 @@ and to this repo.
   waiting for approval ("Approve and build", "Drop").
   - `scripts/press.py ask` posts the message and keeps, per button, the SHA-256 of its
     one-time string (`ee1os:<22 chars>`), the action and the tag in `state/press/open/`.
-    `press.py handle` (cron, every minute) takes presses from `state/press/inbox/`. A press
+    `press.py watch` (cron, every minute; looks every 2 seconds, so a tap is answered in a few
+    seconds) takes presses from `state/press/inbox/`. A press
     counts if the string is known and unused, the presser is the owner, and the chat and
     message are the ones it was posted in; then the action must still fit the state (the tag is
     still held, built or not as the action needs; a release left out is still newer than what

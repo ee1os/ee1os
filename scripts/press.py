@@ -3,8 +3,10 @@
 
   press.py ask <tag> <action>=<label>...   post the text on stdin in the OS topic with one
                                            button per action; exit 3 if buttons aren't set up
-  press.py handle                          take the presses waiting in the inbox (cron, every
-                                           minute; does nothing when the inbox is empty)
+  press.py handle                          take the presses waiting in the inbox (does nothing
+                                           when it is empty)
+  press.py watch                           handle every 2 seconds for most of a minute (cron,
+                                           every minute), so a press is answered in seconds
 
 Actions, each for one tag and nothing else:
   push     APPROVE=<tag> track-upstream.sh         (a release held after its build)
@@ -363,6 +365,13 @@ def main(argv):
         return ask(argv[2], argv[3:])
     if len(argv) == 2 and argv[1] == "handle":
         return handle()
+    if len(argv) == 2 and argv[1] == "watch":
+        end = time.monotonic() + 56
+        while True:
+            handle()
+            if time.monotonic() + 2 > end:
+                return 0
+            time.sleep(2)
     print(__doc__, file=sys.stderr)
     return 2
 
