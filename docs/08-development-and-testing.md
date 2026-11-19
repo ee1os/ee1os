@@ -234,7 +234,9 @@ and to this repo.
   - The bot's updates are received on de1, so a small relay there passes each `ee1os:` press
     to the inbox over ssh, as n5's existing diagnostics user. Its source and the settings
     (`press.conf`: owner id, chat, topic) are in `/mnt/tank/scripts/ee1os/`, outside this repo;
-    without `press.conf` the messages are plain text as before.
+    without `press.conf` the messages are plain text as before. Installed 2026-11-19: the
+    inbox is writable only by that user's group (mode 1730), `state/press/` is otherwise
+    closed to other users, and the handler is TrueNAS cron 35.
   - Limit: n5 trusts the relay to say who pressed. Whoever can write the inbox, or runs as the
     relay's user on de1, can press an open button. They can't make it do anything but that
     button's action for that tag.
