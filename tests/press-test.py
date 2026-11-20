@@ -62,6 +62,8 @@ with tempfile.TemporaryDirectory() as tmp:
         n = len(calls)
         r = press("ask", tag, *pairs, text="release %s" % tag)
         assert r.returncode == 0, r.stderr
+        # the message with the buttons; closing an older offer comes before it
+        n = next(i for i in range(n, len(calls)) if "reply_markup" in calls[i][1])
         kb = json.loads(calls[n][1]["reply_markup"])["inline_keyboard"][0]
         return 100 + n + 1, {p.split("=")[0]: b["callback_data"] for p, b in zip(pairs, kb)}
 
