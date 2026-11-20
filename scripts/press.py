@@ -15,6 +15,8 @@ Actions, each for one tag and nothing else:
   approve  approve-held.sh <tag>, then APPROVE=    (rebased commits waiting for approval)
   skip     SKIP=<tag> track-upstream.sh
   take     FORCE_TAG=<tag> track-upstream.sh       (a release left for the next monthly one)
+  publish  release-models.sh publish <tag>         (signed releases waiting to go out; 24 hours)
+  keep     release-models.sh drop <tag>            (leave them unpublished)
 
 A button carries a random one-time string, `ee1os:<22 chars>`; only its SHA-256 is kept here.
 A press arrives as one JSON file in the inbox: {"v":1,"data":..,"from_id":..,"chat_id":..,
@@ -47,10 +49,11 @@ STATE = os.path.join(WS, "state")
 DIR = os.path.join(STATE, "press")
 OPEN, DONE, INBOX, JUNK = (os.path.join(DIR, d) for d in ("open", "done", "inbox", "junk"))
 LOG = os.path.join(WS, "press.log")
-ACTIONS = ("push", "approve", "skip", "take")
+ACTIONS = ("push", "approve", "skip", "take", "publish", "keep")
 TAG = re.compile(r"^[0-9]{10}$")
 DATA = re.compile(r"^ee1os:[A-Za-z0-9_-]{22}$")
 LIFETIME = 30 * 86400      # a held release can wait; what a press may do is checked again then
+PUBLISH_LIFETIME = 86400   # signed releases go out within a day of being offered, or by hand
 MAX_PRESS = 1024           # bytes of one inbox file
 MAX_INBOX = 50             # presses taken in one run; the rest is thrown away
 MAX_TEXT = 3900            # Telegram takes 4096 characters
@@ -123,8 +126,9 @@ def ask(tag, pairs):
 
     def store(message_id):
         for r in records:
-            r.update(tag=tag, chat_id=c["chat_id"], message_id=message_id, text=text,
-                     created=now, expires=now + LIFETIME, siblings=[x["hash"] for x in records])
+            life = PUBLISH_LIFETIME if r["action"] in ("publish", "keep") else LIFETIME
+            r.update(tag=tag, expires=now + life, chat_id=c["chat_id"], message_id=message_id, text=text,
+                     created=now, siblings=[x["hash"] for x in records])
             tmp = os.path.join(OPEN, r["hash"] + ".tmp")
             with open(os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as f:
                 json.dump(r, f)
@@ -162,6 +166,10 @@ def still_wanted(action, tag):
     """Why this press can't do anything any more, or None."""
     held = read(os.path.join(STATE, "held-tag"))
     built = os.path.exists(os.path.join(STATE, "held-bn"))
+    if action in ("publish", "keep"):
+        if read(os.path.join(STATE, "ready")).split("\n")[0] != tag:
+            return "the releases on %s are no longer waiting" % tag
+        return None
     if action == "take":
         if held:
             return "%s is held, decide that first" % held
@@ -180,8 +188,10 @@ def still_wanted(action, tag):
     return None
 
 
-def busy():
+def busy(action):
     """Why track-upstream.sh would leave at once without a word, or None."""
+    if action in ("publish", "keep"):     # uploads signed files; needs neither tree nor lock
+        return None
     try:
         with open(os.path.join(STATE, "track.lock"), "a") as f:
             fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -206,7 +216,7 @@ def run(action, tag):
 
 
 def start(action, tag):
-    env = {"push": "APPROVE", "approve": "APPROVE", "skip": "SKIP", "take": "FORCE_TAG"}[action]
+    env = {"push": "APPROVE", "approve": "APPROVE", "skip": "SKIP", "take": "FORCE_TAG"}.get(action)
     hook = os.environ.get("PRESS_RUN")      # tests: record instead of running
     if hook:
         rc = subprocess.run([hook, action, tag]).returncode
@@ -226,6 +236,9 @@ def start(action, tag):
             return False, "not approved: " + " / ".join(out.strip().splitlines()[-3:])[:300]
     # a build takes hours: its own tmux session, logged
     cmd = "cd %s && %s=%s scripts/track-upstream.sh >> %s 2>&1" % (ENVS, env, tag, LOG)
+    if action in ("publish", "keep"):
+        cmd = "cd %s && scripts/release-models.sh %s %s >> %s 2>&1" % (
+            ENVS, "publish" if action == "publish" else "drop", tag, LOG)
     p = subprocess.run(["tmux", "new-session", "-d", "-s", "ee1os-press-%s-%d" % (tag, time.time()),
                         cmd], capture_output=True, text=True)
     if p.returncode != 0:
@@ -286,7 +299,7 @@ def one(path, c):
         return "not the message this button was posted in"
     why = None if time.time() > rec["expires"] else still_wanted(rec["action"], rec["tag"])
     if why is None and time.time() <= rec["expires"]:
-        wait = busy()
+        wait = busy(rec["action"])
         if wait:      # the button stays: the action would be lost, not queued
             say(c, "ee1os: %s can't start now, %s. Press again later." % (rec["label"], wait))
             return "busy: " + wait

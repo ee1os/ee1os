@@ -242,6 +242,16 @@ and to this repo.
   - Limit: n5 trusts the relay to say who pressed. Whoever can write the inbox, or runs as the
     relay's user on de1, can press an open button. They can't make it do anything but that
     button's action for that tag.
+  - Signed releases (decided 2026-11-20, owner: after a release is taken, the stable builds
+    for both models are made on n5 and go out on a tap, which may take up to a day).
+    `scripts/release-models.sh build` runs `PUBLISH=0 release.sh user` for every model with
+    keys, husky first, writes `state/ready` (the upstream tag, then `<model> <build number>`
+    per line) and posts "Publish" and "Not now", open for 24 hours. It uploads nothing.
+    "Publish" runs `release-models.sh publish <tag>`: `publish-release.sh` for each line whose
+    `report.json` names that tag. "Not now" (`drop`) forgets the list; the signed files stay
+    in `releases/`. After 24 hours the buttons do nothing and publishing is by hand. These
+    two don't wait for the nightly run: they only upload. The site's changes pages are still
+    committed and deployed by hand.
   - Tests: `tests/press-test.py` (a local stand-in for the Bot API, nothing real is started)
     and `tests/approve-held-test.sh` (a throwaway fork); neither is in the gate.
 - **Schedule** (TrueNAS cron, `sudo midclt call cronjob.query`): job 25 runs the preview at
@@ -250,7 +260,7 @@ and to this repo.
 - **Scripts:** `scripts/track-upstream.sh` (follow GrapheneOS, `DRY_RUN=1` to only detect and
   list the vendor modules it would regenerate), `scripts/vendor-module.sh` (adevtool, in the container), `tests/gate.sh` (the regression
   gate on the emulator, *Test levels*),
-  `scripts/release.sh` (sign and publish, run by the owner), `scripts/pack-flash.sh` (images
+  `scripts/release.sh` (sign and publish one model), `scripts/release-models.sh` (both models, published by button), `scripts/pack-flash.sh` (images
   for `fastboot flashall`). All report to klava hq, topic "OS" (890), through `/mnt/tank/scripts/notify-telegram.sh`.
 
 ## Build container

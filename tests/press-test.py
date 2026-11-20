@@ -227,6 +227,27 @@ with tempfile.TemporaryDirectory() as tmp:
     except subprocess.TimeoutExpired:
         going = True
     check(going, "with an open button the watch keeps looking")
+    put("ready", "2026120300\nhusky 2026120410\nstallion 2026120413\n")
+    mid, b = ask("2026120300", "publish=Publish", "keep=Not now")
+    lives = {r["action"]: r["expires"] - r["created"] for r in
+             (json.load(open(os.path.join(opend, n))) for n in os.listdir(opend))
+             if r["action"] in ("publish", "keep")}
+    check(lives == {"publish": 86400, "keep": 86400}, "the Publish buttons are open for 24 hours")
+    held_lock = open(os.path.join(state, "track.lock"))
+    fcntl.flock(held_lock, fcntl.LOCK_EX)
+    drop(b["publish"], mid=mid)
+    held_lock.close()
+    check(runs()[-1] == "publish 2026120300" and "Publish: started" in calls[-1][1]["text"],
+          "Publish starts for the releases that are waiting, also while the nightly run works")
+    n = len(runs())
+    drop(b["keep"], mid=mid)
+    check(len(runs()) == n, "Not now does nothing after Publish")
+    put("ready", "2026120400\nhusky 2026120510\n")
+    mid, b = ask("2026120300", "publish=Publish", "keep=Not now")
+    drop(b["publish"], mid=mid)
+    check(len(runs()) == n and "no longer waiting" in calls[-1][1]["text"],
+          "a Publish button for other releases than the ones waiting does nothing")
+    os.remove(os.path.join(state, "ready"))
     check(press("ask", "2026120300", "rm=Remove", text="x").returncode == 2
           and press("ask", "nottag", "push=Push", text="x").returncode == 2,
           "ask refuses an unknown action and a malformed tag")
