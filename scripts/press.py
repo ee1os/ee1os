@@ -123,6 +123,22 @@ def ask(tag, pairs):
     for d in (OPEN, DONE):
         os.makedirs(d, mode=0o700, exist_ok=True)
     now = int(time.time())
+    # one offer to publish at a time: an older message's buttons would otherwise act on the
+    # builds of this one (same tag, built again)
+    if any(r["action"] in ("publish", "keep") for r in records):
+        told = set()
+        for n in os.listdir(OPEN):
+            path = os.path.join(OPEN, n)
+            try:
+                old = json.loads(read(path))
+                if old["action"] not in ("publish", "keep"):
+                    continue
+                os.rename(path, os.path.join(DONE, n))
+            except (OSError, ValueError, KeyError, TypeError):
+                continue
+            if old.get("message_id") and old["message_id"] not in told:
+                told.add(old["message_id"])
+                settle(old, "Replaced by a newer message.")
 
     def store(message_id):
         for r in records:

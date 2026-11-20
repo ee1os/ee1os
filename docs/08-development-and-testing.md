@@ -249,9 +249,11 @@ and to this repo.
     per line) and posts "Publish" and "Not now", open for 24 hours. It uploads nothing.
     "Publish" runs `release-models.sh publish <tag>`: `publish-release.sh` for each line whose
     `report.json` names that tag. "Not now" (`drop`) forgets the list; the signed files stay
-    in `releases/`. After 24 hours the buttons do nothing and publishing is by hand. These
-    two don't wait for the nightly run: they only upload. The site's changes pages are still
-    committed and deployed by hand.
+    in `releases/`. After 24 hours the buttons do nothing; `release-models.sh publish <tag>`
+    by hand still works. A new offer closes the one before, so a button only ever stands for
+    the builds its message names. The build holds the tracker's lock; the two buttons don't
+    wait for it (publishing uploads, tags `ee1os-<bn>` in the forks and copies the changes
+    pages into the site repo). The site is still committed and deployed by hand.
   - Tests: `tests/press-test.py` (a local stand-in for the Bot API, nothing real is started)
     and `tests/approve-held-test.sh` (a throwaway fork); neither is in the gate.
 - **Schedule** (TrueNAS cron, `sudo midclt call cronjob.query`): job 25 runs the preview at

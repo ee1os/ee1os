@@ -23,8 +23,9 @@ models() { { echo husky; command ls "$TREE/keys"; } | grep -E '^[a-z0-9]+$' | gr
 
 case "${1:-}" in
 build)
-    exec 9> "$STATE/release-models.lock"
-    flock -n 9 || { echo "release-models.sh is already running"; exit 1; }
+    # the tracker's lock: the nightly run must not move the tree between two models
+    exec 9> "$STATE/track.lock"
+    flock -n 9 || { echo "the tracker or release-models.sh is running"; exit 1; }
     tag=$(cat "$STATE/upstream-tag") && [[ $tag =~ ^[0-9]{10}$ ]] || die "release builds: no state/upstream-tag."
     [ ! -s "$STATE/held-tag" ] || die "release builds: $(cat "$STATE/held-tag") is held; decide that first."
     # without the saved passphrase release.sh asks in a terminal, which nobody is at
@@ -50,10 +51,10 @@ build)
     [ -n "$built" ] || { rm -f "$READY.tmp"; die "release builds on GrapheneOS $tag failed for: $failed(release-<model>-*.log). Nothing to publish."; }
     mv "$READY.tmp" "$READY"
     text="signed releases on GrapheneOS $tag are built, not published: ${built%, }.${failed:+ FAILED: $failed(release-<model>-*.log).}
-Not tried on a phone. Publish puts them on the stable channel: phones on it update over the air.
-The buttons are open for 24 hours. By hand: scripts/release-models.sh publish $tag"
+Not tried on a phone. Publishing puts them on the stable channel: phones on it update over the air.
+By hand: scripts/release-models.sh publish $tag"
     log "$text"
-    printf 'ee1os: %s\n' "$text" | "$ENVS/scripts/press.py" ask "$tag" "publish=Publish" "keep=Not now" >> "$LOG" 2>&1 \
+    printf 'ee1os: %s\nThe buttons are open for 24 hours.\n' "$text" | "$ENVS/scripts/press.py" ask "$tag" "publish=Publish" "keep=Not now" >> "$LOG" 2>&1 \
         || /mnt/tank/scripts/notify-telegram.sh "ee1os: $text" 890 || log "notify failed"
     ;;
 publish|drop)
@@ -81,7 +82,8 @@ publish|drop)
             || { log "publishing $d $bn failed"; bad+="$d "; }
     done < <(tail -n +2 "$work")
     rm -f "$work"
-    [ -z "$bad" ] || die "publishing on GrapheneOS $tag failed for: $bad(release-models.log). The rest is out."
+    # publish-release.sh uploads the OTA files first: a model named here may be partly out
+    [ -z "$bad" ] || die "publishing on GrapheneOS $tag didn't finish for: $bad(release-models.log); its OTA files may already be out. Check, then DEVICE=<model> scripts/publish-release.sh <build number>. The rest is out."
     notify "releases on GrapheneOS $tag are published. The changes pages are copied into the site repo; committing and deploying the site is by hand."
     ;;
 *)
