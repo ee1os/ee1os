@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Signed stable releases for every model with keys, published by a button (doc 08 *Buttons*).
 #   release-models.sh build           build and sign each model (release.sh, PUBLISH=0), then ask
-#                                     in the OS topic: Publish / Not now, open for 24 hours
+#                                     in the OS topic: Publish / Not now, open for 24 hours.
+#                                     track-upstream.sh ends in this once the source is pushed
 #   release-models.sh publish <tag>   publish what build left ready (the Publish button)
 #   release-models.sh drop <tag>      forget it (Not now); the signed files stay in releases/
 # State: $STATE/ready = the upstream tag, then one "<model> <build number>" per line.
@@ -24,8 +25,11 @@ models() { { echo husky; command ls "$TREE/keys"; } | grep -E '^[a-z0-9]+$' | gr
 case "${1:-}" in
 build)
     # the tracker's lock: the nightly run must not move the tree between two models
-    exec 9> "$STATE/track.lock"
-    flock -n 9 || { echo "the tracker or release-models.sh is running"; exit 1; }
+    # (track-upstream.sh hands its own over: TRACK_LOCKED=1, fd 9)
+    if [ "${TRACK_LOCKED:-}" != 1 ]; then
+        exec 9> "$STATE/track.lock"
+        flock -n 9 || { echo "the tracker or release-models.sh is running"; exit 1; }
+    fi
     tag=$(cat "$STATE/upstream-tag") && [[ $tag =~ ^[0-9]{10}$ ]] || die "release builds: no state/upstream-tag."
     [ ! -s "$STATE/held-tag" ] || die "release builds: $(cat "$STATE/held-tag") is held; decide that first."
     # without the saved passphrase release.sh asks in a terminal, which nobody is at

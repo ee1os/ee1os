@@ -244,6 +244,9 @@ and to this repo.
     button's action for that tag.
   - Signed releases (decided 2026-11-20, owner: after a release is taken, the stable builds
     for both models are made on n5 and go out on a tap, which may take up to a day).
+    Since 2026-11-21 (owner) `track-upstream.sh` ends in this by itself once the source is
+    pushed, on the nightly path and after "Push" or "Approve and build" alike, keeping its
+    lock (`RELEASES=0` leaves it out).
     `scripts/release-models.sh build` runs `PUBLISH=0 release.sh user` for every model with
     keys, husky first, writes `state/ready` (the upstream tag, then `<model> <build number>`
     per line) and posts "Publish" and "Not now", open for 24 hours. It uploads nothing.

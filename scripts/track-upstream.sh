@@ -6,12 +6,14 @@
 #   3b. regenerate the vendor modules (adevtool generate-all) if the sync moved adevtool
 #   4. build husky userdebug, run the gate (tests/gate.sh, if present)
 #   5. push the rebased branches and the manifest, tag them <tag>.os
+#   6. build and sign the stable release of every model, ask before publishing
+#      (scripts/release-models.sh build; RELEASES=0 leaves this out)
 # A release with no urgent reason to take it (scripts/upstream-watch.py classify: same patch level,
 # no exploited or lock screen, credential or USB fix) is left for the next one; doc 08.
 # A release with strategic changes (scripts/upstream-watch.py check: new projects, branding,
 # areas we depend on, files our forks change) stops after step 4, built but not pushed, until
-# the owner decides. Every outcome goes to klava hq (OS topic, 890). Signing and publishing
-# stay manual: release.sh.
+# the owner decides. Every outcome goes to klava hq (OS topic, 890). Nothing is published
+# without the owner: step 6 ends with a Publish button.
 #   DRY_RUN=1 track-upstream.sh   only say what would happen; changes nothing
 #   FORCE_TAG=<tag>               process this tag even if it was done or skipped before
 #   APPROVE=<tag>                 push a release held for approval
@@ -157,7 +159,16 @@ $(echo "$out" | grep '^FAIL' | head -15)"; return 1; }
     packed="Flash archive: husky-flash.tar.gz."
     "$ENVS/scripts/pack-flash.sh" >> "$LOG" 2>&1 || packed="Packing the flash archive FAILED (track-upstream.log)."
     if [ -x "$ENVS/tests/gate.sh" ]; then gated="gate passed"; else gated="no test gate yet"; fi
-    notify "build $bn on GrapheneOS $tag is ready: built, $gated, source pushed. $packed Release it after a phone check: scripts/release.sh builds and signs a fresh one (doc 08)."
+    if [ "${RELEASES:-1}" = 1 ]; then next="Now building and signing the stable releases; a Publish button follows."
+    else next="Signed releases: scripts/release-models.sh build (doc 08)."; fi
+    notify "build $bn on GrapheneOS $tag is ready: built, $gated, source pushed. $packed $next"
+}
+# 6. the signed releases, in place of this script: fd 9 stays open, so the lock is kept for
+# the builds and no nightly run moves the tree under them
+releases() {
+    [ "${RELEASES:-1}" = 1 ] || return 0
+    trap - INT TERM HUP EXIT
+    TRACK_LOCKED=1 exec "$ENVS/scripts/release-models.sh" build
 }
 
 # 3b-5 for the rebased forks of $tag: vendor modules, tree check, build, gate, then hold (strategic,
@@ -244,6 +255,7 @@ $(echo "$vout" | grep '^FAIL' | head -15)"
     RESTORE=0
     publish || fail "publishing $tag failed; see track-upstream.log."
     rm -rf "$STATE/held-tag" "$STATE/held-bn" "$STATE/held"
+    releases
 }
 
 if [ "$DRY" != 1 ]; then
@@ -293,6 +305,7 @@ if [ -s "$STATE/held-tag" ]; then
         notify "$tag approved, pushing."
         publish || exit 1
         rm -rf "$STATE/held-tag" "$STATE/held-bn" "$STATE/held"
+        releases
         exit 0
     fi
     # say once when a newer release arrives while one is held
