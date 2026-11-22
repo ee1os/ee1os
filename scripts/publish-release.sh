@@ -100,6 +100,8 @@ src=$(grep -v '^upstream-tag ' <<< "$rec" | awk '{ print $1, substr($2, 1, 12) }
 [ -n "$base" ] && [ "$(wc -l <<< "$src")" -ge 2 ] || { echo "no source recorded for $bn; not published"; exit 1; }
 echo "source of $bn: GrapheneOS $base"$'\n'"$src"
 
+# the download counts so far: replacing the OTA and channel files below resets them
+"$ENVS/scripts/download-counts.py" || echo "download counts not saved"
 gh release view updates -R "$REPO" > /dev/null 2>&1 \
     || gh release create updates -R "$REPO" --title "Over-the-air updates" \
         --notes "Files the phone's Updater reads. Replaced on every release."

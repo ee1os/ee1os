@@ -263,6 +263,9 @@ if [ "$DRY" != 1 ]; then
     exec 9> "$STATE/track.lock"
     flock -n 9 || exit 0
 fi
+# every night: the download counts of the release files, which GitHub forgets when a file is
+# replaced (scripts/download-counts.py)
+[ "$DRY" = 1 ] || "$ENVS/scripts/download-counts.py" >> "$LOG" 2>&1 || log "download counts not saved"
 # never start next to a running build
 if sudo docker ps --format '{{.Names}}' | grep -qx grapheneos-build; then
     log "a build is running, skipped"

@@ -259,6 +259,14 @@ and to this repo.
     pages into the site repo). The site is still committed and deployed by hand.
   - Tests: `tests/press-test.py` (a local stand-in for the Bot API, nothing real is started)
     and `tests/approve-held-test.sh` (a throwaway fork); neither is in the gate.
+- **Download counts** (decided 2026-11-22, owner). GitHub counts downloads per uploaded
+  file and drops the count when the file is replaced, which every release does to the channel
+  files and the old OTA zips. `scripts/download-counts.py` appends each file's count, when it
+  changed, to `~/work/ee1os/state-backup/downloads.tsv` (time, release tag, asset id, name,
+  downloads); `--show` prints the latest per file. The tracker runs it every night and
+  `publish-release.sh` before it replaces anything. It is the only usage figure there is:
+  nothing on the phone reports anything (the site's terms: the project collects no data), a
+  download is not an install, and our own checks of a release are counted too.
 - **Schedule** (TrueNAS cron, `sudo midclt call cronjob.query`): job 25 runs the preview at
   00:30, job 26 `track-upstream.sh` at 01:00 (n5 time, Europe/Lisbon). Logs:
   `upstream-watch.log` and `track-upstream.log` next to the tree.
