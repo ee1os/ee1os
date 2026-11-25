@@ -15,7 +15,7 @@
 # keys (doc 08 Stage 6). Keep one more copy offline, old and new.
 set -euo pipefail
 DEVICE=husky
-# The first keys (2026-10-13, 65894abf...) said CN=os.ivan.gg, the project's earlier name
+# The first keys (2026-10-13, 65894abf...) had the project's earlier name as CN
 CN=ee1os
 WS=/mnt/flash/scratch/grapheneos
 ENVS=/mnt/flash/home/faeton/work/ee1os/os

@@ -123,8 +123,8 @@ ee1os.com/lock.
 why = """
 ee1os is not GrapheneOS and shouldn't look like it: the GrapheneOS name and logo belong to the
 GrapheneOS project. One SELinux rule lets the boot animation read the saved setting that says
-whether setup is done. Some of these commits first named the project os.ivan.gg, its earlier
-name; later commits replace that with ee1os.
+whether setup is done. Some of these commits first used the project's earlier name; later
+commits replace it with ee1os.
 """
 docs = ["00-overview.md"]
 

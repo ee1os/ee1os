@@ -779,7 +779,7 @@ SetupWizard2 `9738860`); decisions below.
   Weaver slots and a second lock.
 - **2026-10-13, calls from B:** setup clears `no_outgoing_calls` for B (Android's default for
   secondary users). SMS stays off: incoming SMS goes to user 0 only.
-- **2026-10-13, boot logo:** the boot animation shows "os.ivan.gg" until user 0's first setup
+- **2026-10-13, boot logo:** the boot animation shows the project name until user 0's first setup
   is done, then the plain AOSP "android" logo; system_server sets
   `persist.bootanim.setup_done` (`bootanim_system_prop`, so only system_server and the
   animation can write it). On husky the animation starts before `/data` is mounted, so it waits
@@ -801,7 +801,7 @@ SetupWizard2 `9738860`); decisions below.
   that edited `android-logo-mask.png` on the way no longer touch it. Reason: no GrapheneOS
   branding (doc 00), and no binary conflict on every rebase.
 - **2026-10-30, setup logo says ee1os:** `setup-logo-mask.png` now reads "ee1os" (same 448×605
-  canvas, text centred where "os.ivan.gg" was, Archivo as on the site; the `1` has a flag and a
+  canvas, text centred where the earlier name was, Archivo as on the site; the `1` has a flag and a
   foot so it doesn't read as `l`). The shine is unchanged. Reason: the rename (doc 00 decision
   2026-10-30).
 - **2026-10-13, "Browser" in user 0:** Vanadium's launcher entry

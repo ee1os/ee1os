@@ -513,7 +513,7 @@ Moving a model to its own keys later means a wipe and reinstall on its phones.
 
 #### Key rotation
 
-Decided 2026-10-30 (owner): the first keys (2026-10-13, `CN=os.ivan.gg`, fingerprint `65894abf`) are
+Decided 2026-10-30 (owner): the first keys (2026-10-13, CN of the earlier name, fingerprint `65894abf`) are
 replaced by a new set with `CN=ee1os`. Only one phone runs our builds, the test Pixel, locked
 on the old key. The old keys are never deleted: they move to an archive and stay in the
 backups. Reason: the rename (doc 00 decision 2026-10-30); a later rotation costs a wipe on every
