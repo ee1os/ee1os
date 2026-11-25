@@ -368,6 +368,7 @@ in doc 08.
 | B11 | Release provenance: `publish-release.sh` names the checkout's current SHAs, not what the signed build was made from | opened 2026-10-15: record the manifest, fork SHAs and upstream tag next to the artifacts at build time and publish that record. Partly done 2026-11-01: a user build writes `report.json` at build time (`scripts/release.sh`, doc 08 *Fork report*) and `publish-release.sh` tags those commits `ee1os-<bn>` in each fork. Done 2026-11-10: a user build's release notes take the upstream tag, manifest and fork SHAs from `report.json` instead of reading them from the checkout at publish time; a userdebug build's come from `releases/<bn>/provenance-<model>`, which `release.sh` writes after the post-build tree check. Builds older than that fall back to the checkout, with a warning |
 | B12 | `state/base` and `upstream-watch` reports are on `flash/scratch` (not backed up) | done 2026-11-10 for the tracker's state: after each push `track-upstream.sh` copies `state/upstream-tag` and `state/base/*` to `~/work/ee1os/state-backup/` (flash/home); how to reseed is in the comment above `backup_state` in the script. The `upstream-watch` reports are still on scratch only |
 | B13 | Post-quantum migration (ML-KEM key exchange, ML-DSA signatures) | opened 2026-11-25, waiting; details under *Design notes* → *Post-quantum migration* |
+| B14 | Mobile-data SIM of its own for the protected space | opened 2026-11-25, an idea, not scheduled; details under *Design notes* → *SIM for the protected space* |
 
 ## Design notes
 
@@ -479,6 +480,99 @@ Plan:
   device.
 - TLS groups: first see what the phone offers. A patch means a new fork (boringssl or Conscrypt)
   and may break servers; wait for upstream unless there is a reason.
+
+### SIM for the protected space (B14, 2026-11-25; idea, not scheduled)
+
+Wish: while B is in front, mobile data uses the SIM chosen in B; when B is left, A's SIM comes
+back. Read in the code on tag `2026111800`; nothing was built or tried on a phone.
+
+`T` = `frameworks/opt/telephony/src/java/com/android/internal/telephony` @ `f861adfc4c39`,
+`C` = `packages/modules/Connectivity` @ `6ab5be47d49a`, `F` = `frameworks/base` @ `7fdfbe8063cb`,
+`S` = `packages/apps/Settings` @ `a1686106155f`.
+
+What the code allows:
+
+- The SIM for data is one device-wide value, `Settings.Global.MULTI_SIM_DATA_CALL_SUBSCRIPTION`
+  (`T/subscription/SubscriptionManagerService.java:863-872`). No code was found that changes it
+  on a user switch, so a choice made by hand in B stays after B is left.
+- Two SIMs can't carry internet for two users at once: an unrestricted internet request for
+  the other SIM is refused, apart from network validation (`T/data/PhoneSwitcher.java:1320-1331`).
+  Only switching is left, which fits B, since B runs in front only.
+- `setDefaultDataSubId` needs `MODIFY_PHONE_STATE` and has no user check (`:3610-3618` in the
+  same service), so system_server can call it with no change in telephony.
+- Changing the default turns user data off on the other active SIMs
+  (`T/MultiSimSettingController.java:541-543`, `:997-1017`), so putting A's SIM back is not enough:
+  A's "mobile data on/off" has to be restored too.
+- Turning user data on for a SIM that isn't the default makes it the default and writes
+  `user_preferred_data_sub` (`:383-398`). Such an event can still be queued when B is left.
+- With one active SIM left the platform picks it (`:653-657`), so "B's SIM is missing, so no
+  data" doesn't hold by itself.
+- Each user has its own VPN (`F/services/core/java/com/android/server/VpnManagerService.java:103`,
+  UID ranges `connectivity/Vpn.java:1650`), and A's may stay up while B is in front. It doesn't
+  choose the SIM. VPNs need nothing from this work.
+
+Design:
+
+1. Settings: one entry "SIM for mobile data" on B's device unlock page
+   (`S/res/xml/safety_center_device_unlock_subpage.xml:85`), shown in B only
+   (`S/src/com/android/settings/ext/ExtSettingControllerHelper.java:69`). Default "Same as main
+   space". It only stores the choice, in B's `Settings.Secure`.
+2. A new class in `F/services/core/java/com/android/server/ext`, started from
+   `SystemServerExt.initBgThread`. It listens with `IUserSwitchObserver`, answers at once and
+   works on one handler thread. It watches B's choice, SIM changes and the default as well.
+3. Before the first change it saves A's state to a file in `/data/system`: default SIM, user
+   data on/off, `user_preferred_data_sub`, B's serial number. The file isn't overwritten until
+   the restore is finished, so a quick second entry can't save a half-switched state.
+4. Entering B: set the default, then turn data on for that SIM, in that order. SIM not active:
+   turn data off on A's SIM until B is left.
+5. Leaving B, and at boot when the file exists: put all three values back, again after the
+   subscriptions have loaded, and delete the file only when they match and stay so. Telephony
+   handles these calls from a queue, so a read right after the call proves nothing. A's data
+   stays off if A had it off. B deleted: the same.
+6. If the default moves away while B is in front: set it again, a few times per entry at most.
+
+Limits: a preference, not isolation. Either space may use the other's SIM for a moment around a
+switch, with no known upper bound, and after a reboot in B until the restore. A's background apps
+use B's SIM while B is in front. Auto data switch has to be off by hand on both SIMs. Both SIMs
+stay registered from one phone. A still sees the second SIM. Wi-Fi, calls and SMS are not
+touched (SMS stays off in B, doc 04 decision 2026-10-13).
+
+Not chosen:
+
+- Remembering the stock picker's choice per user: Settings writes it in several places and the
+  platform changes it too.
+- Per-user routing in Connectivity: the one-internet limit above, and
+  `setProfileNetworkPreferences` takes only work profiles or a device owner
+  (`C/service/src/com/android/server/ConnectivityService.java:15515-15527`).
+- Turning the other SIM off with `setUiccApplicationsEnabled`: no calls on A's SIM while B is open.
+- A firewall (`FIREWALL_CHAIN_OEM_DENY_*`) that keeps A's apps offline while B is in front and B's
+  offline until its SIM carries data: the next step if strict separation is wanted, about
+  as much work again. System UIDs stay exempt (`C/bpf/progs/netd.c:827`).
+- Hiding the second SIM from A (`setSubscriptionUserHandle`,
+  `T/subscription/SubscriptionManagerService.java:4704`): a filter for apps, depends on a flag
+  whose value here is unknown (`:4842`).
+
+Size: about 250-350 lines and tests, an estimate. Rebase: two upstream files get a line or an
+entry each (`SystemServerExt.java`, the device unlock XML); the rest is new files and
+`strings_protected_space.xml`. No new fork. The risk is a silent change of behaviour in
+`MultiSimSettingController` or of the `user_preferred_data_sub` name, which no conflict shows.
+
+Plan, if it is taken up (each step needs the owner's go-ahead):
+
+1. By hand, no code: two active SIMs in the test Pixel, switch the SIM for data 5-10 times and
+   time the gap without internet. A few seconds: go on. Much longer or unstable: drop the idea.
+2. Decide whether B may use Wi-Fi, and whether a preference is enough or strict separation
+   is needed.
+3. The class in `F` with unit tests: entry and leaving, quick re-entry, late enable event, boot
+   with the file, B deleted, SIM inactive, A's data off.
+4. The entry in Settings.
+5. On the Pixel with two SIMs: the same cases, screen off, reboot in B, a call on A's SIM; then
+   the unit tests into the gate and the phone check repeated for each release.
+6. Decision in doc 04, approval, changes page.
+
+Open: how long a switch takes on husky and stallion; whether the models' overlays set
+`config_voice_data_sms_auto_fallback` (default false, `F/core/res/res/values/config.xml:6845`),
+which makes the platform go back to `user_preferred_data_sub`; what a call does to the data SIM.
 
 ## Review log
 
