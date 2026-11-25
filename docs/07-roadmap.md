@@ -367,6 +367,7 @@ in doc 08.
 | B10 | PIN scrambling vs alternates (doc 04 Q4) | layout only, credential unchanged, no effect |
 | B11 | Release provenance: `publish-release.sh` names the checkout's current SHAs, not what the signed build was made from | opened 2026-10-15: record the manifest, fork SHAs and upstream tag next to the artifacts at build time and publish that record. Partly done 2026-11-01: a user build writes `report.json` at build time (`scripts/release.sh`, doc 08 *Fork report*) and `publish-release.sh` tags those commits `ee1os-<bn>` in each fork. Done 2026-11-10: a user build's release notes take the upstream tag, manifest and fork SHAs from `report.json` instead of reading them from the checkout at publish time; a userdebug build's come from `releases/<bn>/provenance-<model>`, which `release.sh` writes after the post-build tree check. Builds older than that fall back to the checkout, with a warning |
 | B12 | `state/base` and `upstream-watch` reports are on `flash/scratch` (not backed up) | done 2026-11-10 for the tracker's state: after each push `track-upstream.sh` copies `state/upstream-tag` and `state/base/*` to `~/work/ee1os/state-backup/` (flash/home); how to reseed is in the comment above `backup_state` in the script. The `upstream-watch` reports are still on scratch only |
+| B13 | Post-quantum migration (ML-KEM key exchange, ML-DSA signatures) | opened 2026-11-25, waiting; details under *Design notes* → *Post-quantum migration* |
 
 ## Design notes
 
@@ -453,6 +454,31 @@ What it doesn't cover:
 
 The command-line approval (`approve.sh`, then a signed commit from m3max) stays as the
 fallback.
+
+### Post-quantum migration (B13, 2026-11-25; waiting)
+
+Read in the tree on tag `2026111800`; nothing was tested on a phone. Not urgent for signatures:
+forging one needs a working quantum computer at that time. Traffic recorded today is exposed
+later, so key exchange comes first.
+
+| Part | Today | State of the code |
+|---|---|---|
+| Verified boot | RSA-4096 (`script/generate-release.sh:78` @ `01b6eac`) | `libavb` and `avbtool` know ML-DSA-65/87 (`external/avb/libavb/avb_crypto.h:104` @ `f957210`). Open: whether the husky and stallion bootloaders take an ML-DSA `avb_custom_key` |
+| OTA payload | RSA-4096 releasekey | RSA and EC only: `system/update_engine/payload_consumer/payload_verifier.cc:154`, `:174` @ `79f478a4`; recovery the same, `bootable/recovery/otautil/verifier.cpp:279`, `:288` @ `42012428` |
+| APK signatures | RSA-4096, husky and stallion | ML-DSA verified by the platform (`ApkSigningBlockUtils.java:446`, frameworks/base @ `7fdfbe8063cb`) and signed by `tools/apksig` (`SignatureAlgorithm.java:156` @ `54c5f4f`) |
+| Keystore | — | ML-DSA behind `android.security.keystore2.mldsa_support`, enabled in `build/release/aconfig/cp2a`; StrongBox is declared KeyMint v3 on both models (`vintf/vendor/manifest/android.hardware.security.keymint-service-v3.citadel.xml`). Open: TEE KeyMint version, so hardware ML-DSA is unconfirmed |
+| TLS | X25519, P-256, P-384 by default (`external/boringssl/src/ssl/ssl_key_share.cc:456` @ `0cd1f6a9`) | Conscrypt knows `X25519MLKEM768` (`NativeSsl.java:295`, external/conscrypt @ `73f37d85c`), no default found. Open: what the phone offers |
+| Keystore super key | ECDH P-521, for `UnlockedDeviceRequired` keys created while locked (`system/security/keystore2/src/super_key.rs:81`, `:116` @ `cbb2ef16`) | no replacement in this code |
+
+Plan:
+
+- No ML-DSA for AVB or OTA now. Start when upstream GrapheneOS supports it, update_engine and
+  recovery verify it, and a model's bootloader takes such a key.
+- A new AVB key needs an unlocked bootloader, which erases the phone (doc 08 *Key rotation*), so
+  the change goes with a planned rotation. The test phone holds real data and is not the first
+  device.
+- TLS groups: first see what the phone offers. A patch means a new fork (boringssl or Conscrypt)
+  and may break servers; wait for upstream unless there is a reason.
 
 ## Review log
 
