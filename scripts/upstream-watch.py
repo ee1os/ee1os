@@ -3,7 +3,8 @@
 
   upstream-watch.py preview      our release tag -> upstream branch 17 (nightly: what's coming)
   upstream-watch.py check <tag>  our release tag -> <tag> (track-upstream.sh, before pushing)
-  upstream-watch.py classify <tag>  does <tag> have to be taken now, or can it wait (doc 08)
+  upstream-watch.py classify <tag> [<facts.json>]  does <tag> have to be taken now, or can it
+                                  wait (doc 08); the file gets what update_level.py needs
 
 Compares GrapheneOS's manifests and every GitHub-hosted GrapheneOS project between the two
 points and flags what is strategic: projects added or removed, a new AOSP base, upstream
@@ -24,6 +25,8 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from datetime import date
+
+import update_level
 
 WS = "/mnt/flash/scratch/grapheneos"
 TREE = f"{WS}/grapheneos-17"
@@ -148,15 +151,27 @@ def release_notes(base, target):
     return "\n".join(text for tag, text in entries.items() if base < tag <= target)
 
 
-def urgent_reasons(base, target, old, old_aosp, new, new_aosp):
-    """Why a release can't wait for the next monthly one; nothing if it can."""
+def without_previews(notes):
+    """The notes without what they say of the security preview releases, which we don't get."""
+    return re.sub(r"(?s)All of the Android \d+ security patches from the (current )?.*?(?=</article|\Z)", "",
+                  notes)
+
+
+def urgent_reasons(base, target, old, old_aosp, new, new_aosp, facts=None):
+    """Why a release can't wait for the next monthly one; nothing if it can. facts gets the
+    evidence of how important it is for the phone (update_level.py)."""
     reasons = []
+    facts = {} if facts is None else facts
+    facts.update(base=base, target=target, strong=[], unread=[])
     lo, hi = patch_level(old), patch_level(new)
+    facts["patch_level"] = [lo, hi]
     if hi > lo:
         reasons.append(f"security patch level {lo} -> {hi}")
     if old_aosp != new_aosp:
         reasons.append(f"new AOSP base {new_aosp}")
-    if EXPLOITED.search(release_notes(base, target)):
+    notes = release_notes(base, target)
+    facts["exploited"] = update_level.exploited(update_level._text(without_previews(notes)))
+    if EXPLOITED.search(notes):
         reasons.append("the release notes mention an exploited vulnerability")
     # by path: a project moving from AOSP to a GrapheneOS copy changes name, not path
     old_revs = {path: rev for path, rev, _ in old.values()}
@@ -167,10 +182,14 @@ def urgent_reasons(base, target, old, old_aosp, new, new_aosp):
         if c is None or "commits" not in c or c.get("total_commits", 0) > len(c["commits"]):
             if not KERNEL_BINARIES.search(path):
                 reasons.append(f"{short(path)}: commits can't all be read")
+                facts["unread"].append(f"{short(path)} commits")
             continue
         for cm in c["commits"]:
             message = cm["commit"]["message"]
             subject = message.splitlines()[0]
+            for code in update_level.title_codes(subject):
+                facts["strong"].append({"code": code,
+                                        "where": f"{short(path)} {cm['sha'][:10]}: {subject}"})
             if not subject.startswith(("Revert", "fixup!")) and URGENT_TOPIC.search(message) \
                     and URGENT_FIX.search(message):
                 reasons.append(f"{short(path)} {cm['sha'][:10]}: {subject}")
@@ -179,7 +198,8 @@ def urgent_reasons(base, target, old, old_aosp, new, new_aosp):
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in ("preview", "check", "classify") or \
-            (sys.argv[1] != "preview" and len(sys.argv) != 3):
+            (sys.argv[1] != "preview" and len(sys.argv) != 3
+             and not (sys.argv[1] == "classify" and len(sys.argv) == 4)):
         print("\n".join(__doc__.strip().splitlines()[2:5]), file=sys.stderr)
         return 1
     mode = sys.argv[1]
@@ -206,8 +226,11 @@ def main():
 
     if mode == "classify":
         # any failure counts as urgent in the caller: a release is only left out on a clear answer
+        facts = {}
         try:
-            reasons = urgent_reasons(base, target, old, old_aosp, new, new_aosp)
+            reasons = urgent_reasons(base, target, old, old_aosp, new, new_aosp, facts)
+            if len(sys.argv) == 4:
+                update_level.save(sys.argv[3], facts)
         except Exception as e:
             print(f"classify {target}: {e!r}", file=sys.stderr)
             return 1
@@ -326,6 +349,8 @@ def main():
     if unchecked:
         report.append("\n## Not checked (not on GitHub or not comparable)\n")
         report += [f"- `{p}`" for p in unchecked]
+    if mode == "check":
+        report += importance_sections(base, target, old, new)
     report.append("\n## Patches of flagged files\n")
     size = 0
     for head, patch in patches:
@@ -339,7 +364,8 @@ def main():
 
     review = None
     hook = f"{STATE}/review-hook"
-    if flags and os.access(hook, os.X_OK) and (fresh or mode == "check"):
+    # check: also with nothing flagged, for the review's verdict on how important the release is
+    if os.access(hook, os.X_OK) and (mode == "check" or (flags and fresh)):
         try:
             out = subprocess.run([hook, rpath], capture_output=True, text=True, timeout=1800).stdout
             if out.strip():
@@ -363,6 +389,33 @@ def main():
                     f.writelines(k + "\n" for k, _, _ in fresh)
         return 0
     return 10 if flags else 0
+
+
+def importance_sections(base, target, old, new):
+    """More for the review of a release we take: the notes, the bulletins and our own changes."""
+    out = []
+
+    def part(title, lines):
+        out.append(f"\n## {title}\n")
+        try:
+            out.extend(lines() or ["- none"])
+        except Exception as e:
+            out.append(f"(could not be read: {type(e).__name__})")
+
+    def notes():
+        text = re.sub(r"<li>", "\n- ", without_previews(release_notes(base, target)))
+        lines = [re.sub(r"<[^>]+>", "", l).strip() for l in text.splitlines()]
+        return [l[:600] for l in lines if l][:300]
+
+    def bulletin_lines():
+        _, unread, lines = update_level.bulletins(patch_level(old), patch_level(new))
+        return [f"- {l[:200]}" for l in lines] + [f"- could not be read: {u}" for u in unread]
+
+    part("Release notes", notes)
+    part("Critical entries of Google's bulletins for this patch level", bulletin_lines)
+    part("Our own changes not published yet",
+         lambda: [update_level.own_line(*c) for c in update_level.own_waiting()])
+    return out
 
 
 def short(path):

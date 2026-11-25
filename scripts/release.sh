@@ -9,7 +9,8 @@
 #      previous build's outputs don't get signed); verify-tree.sh again after it; for a user
 #      build the changes page (fork_report.py) -> releases/<bn>/changes/; for every build the
 #      upstream tag, manifest and fork commits -> releases/<bn>/provenance-<codename>
-#      (publish-release.sh writes the release notes' source lines from these)
+#      (publish-release.sh writes the release notes' source lines from these); a user build's
+#      update level -> releases/<bn>/update-<codename>.json (update_level.py)
 #   2. finalize + generate-release (signing; prompts)  -> releases/<bn>/release-<codename>-<bn>/
 #   3. upload: the OTA zip and channel metadata replace the rolling "updates" release; the
 #      install zip gets a release of its own (github.com/ee1os/releases)
@@ -69,6 +70,9 @@ mkdir -p "$TREE/releases/$bn"
 if [ "$VARIANT" = user ]; then
     python3 -I "$ENVS/scripts/fork_report.py" --release "$bn" --out "$TREE/releases/$bn/changes" \
         || { echo "fork report failed; not signed"; exit 1; }
+    # is it important for a phone kept switched off (update_level.py): stays with this build,
+    # whatever is taken later. Without it the update counts as undecided.
+    python3 -I "$ENVS/scripts/update_level.py" build "$bn" "$DEVICE" || echo "no update level for $bn"
 fi
 
 # 2. finalize and sign. The key passphrase comes from $PWFILE when it exists (owner-only file

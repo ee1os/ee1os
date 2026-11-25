@@ -99,6 +99,7 @@ backup_state() {
     mkdir -p "$STATE_BACKUP/base" \
         && cp -p "$STATE/upstream-tag" "$STATE_BACKUP/" \
         && cp -p "$STATE"/base/* "$STATE_BACKUP/base/" \
+        && { [ ! -d "$STATE/levels" ] || cp -rp "$STATE/levels" "$STATE_BACKUP/"; } \
         && log "state copied to $STATE_BACKUP" \
         || log "copying state to $STATE_BACKUP failed"
 }
@@ -327,6 +328,8 @@ fi
 tag=${FORCE_TAG:-$(curl -fsS -m 30 "https://releases.grapheneos.org/$DEVICE-stable" | awk '{print $1}')}
 [[ $tag =~ ^[0-9]{10}$ ]] || fail "upstream check failed (got '$tag')"
 last=$(cat "$STATE/upstream-tag" 2>/dev/null || echo none)
+facts=$STATE/levels/facts-$tag.json   # for update_level.py record, below
+[ "$DRY" = 1 ] || rm -f "$facts"
 if [ -z "${FORCE_TAG:-}" ]; then
     if [ "$tag" = "$last" ]; then dry "no new release ($tag)"; log "no new release ($tag)"; exit 0; fi
     if [ "$tag" = "$(cat "$STATE/skipped-tag" 2>/dev/null)" ]; then log "$tag was skipped"; exit 0; fi
@@ -334,7 +337,7 @@ if [ -z "${FORCE_TAG:-}" ]; then
     if [ "$DRY" = 1 ]; then
         urgent=$("$ENVS/scripts/upstream-watch.py" classify "$tag"); crc=$?
     else
-        urgent=$("$ENVS/scripts/upstream-watch.py" classify "$tag" 2>> "$LOG"); crc=$?
+        urgent=$("$ENVS/scripts/upstream-watch.py" classify "$tag" "$facts" 2>> "$LOG"); crc=$?
     fi
     if [ "$crc" = 11 ]; then
         dry "GrapheneOS $tag can wait for the next monthly release (ours: $last)"
@@ -361,6 +364,14 @@ notify "GrapheneOS $tag is out (ours is on $last). Syncing, rebasing, building."
 # strategic changes hold the push for the owner (step 4b); a failed check counts as strategic
 watch=$("$ENVS/scripts/upstream-watch.py" check "$tag" 2>> "$LOG"); wrc=$?
 log "upstream-watch check $tag: exit $wrc, $(echo $watch)"
+# how important it is for a phone kept switched off (update_level.py): recorded now, read when
+# the release is built. Nothing here stops the run: what isn't recorded counts as undecided.
+[ -s "$facts" ] || "$ENVS/scripts/upstream-watch.py" classify "$tag" "$facts" > /dev/null 2>> "$LOG"
+lv=()
+[ ! -s "$facts" ] || lv+=(--facts "$facts")
+rv=$(echo "$watch" | grep -- '-review.md$' | head -1)
+[ -z "$rv" ] || lv+=(--review "$rv")
+log "$(python3 -I "$ENVS/scripts/update_level.py" record "$tag" "${lv[@]}" 2>&1 || echo "update level of $tag not recorded")"
 
 # each fork: clean, and local envs-17 exactly what the fork has (else a push would drop work)
 mkdir -p "$STATE/pre"

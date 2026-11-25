@@ -16,6 +16,7 @@ Actions, each for one tag and nothing else:
   skip     SKIP=<tag> track-upstream.sh
   take     FORCE_TAG=<tag> track-upstream.sh       (a release left for the next monthly one)
   publish  release-models.sh publish <tag>         (signed releases waiting to go out; 24 hours)
+  publish-important, publish-routine               (the same, with this level for the site)
   keep     release-models.sh drop <tag>            (leave them unpublished)
 
 A button carries a random one-time string, `ee1os:<22 chars>`; only its SHA-256 is kept here.
@@ -49,7 +50,8 @@ STATE = os.path.join(WS, "state")
 DIR = os.path.join(STATE, "press")
 OPEN, DONE, INBOX, JUNK = (os.path.join(DIR, d) for d in ("open", "done", "inbox", "junk"))
 LOG = os.path.join(WS, "press.log")
-ACTIONS = ("push", "approve", "skip", "take", "publish", "keep")
+PUBLISH = ("publish", "publish-important", "publish-routine")
+ACTIONS = ("push", "approve", "skip", "take", *PUBLISH, "keep")
 TAG = re.compile(r"^[0-9]{10}$")
 DATA = re.compile(r"^ee1os:[A-Za-z0-9_-]{22}$")
 LIFETIME = 30 * 86400      # a held release can wait; what a press may do is checked again then
@@ -125,13 +127,13 @@ def ask(tag, pairs):
     now = int(time.time())
     # one offer to publish at a time: an older message's buttons would otherwise act on the
     # builds of this one (same tag, built again)
-    if any(r["action"] in ("publish", "keep") for r in records):
+    if any(r["action"] in (*PUBLISH, "keep") for r in records):
         told = set()
         for n in os.listdir(OPEN):
             path = os.path.join(OPEN, n)
             try:
                 old = json.loads(read(path))
-                if old["action"] not in ("publish", "keep"):
+                if old["action"] not in (*PUBLISH, "keep"):
                     continue
                 os.rename(path, os.path.join(DONE, n))
             except (OSError, ValueError, KeyError, TypeError):
@@ -142,7 +144,7 @@ def ask(tag, pairs):
 
     def store(message_id):
         for r in records:
-            life = PUBLISH_LIFETIME if r["action"] in ("publish", "keep") else LIFETIME
+            life = PUBLISH_LIFETIME if r["action"] in (*PUBLISH, "keep") else LIFETIME
             r.update(tag=tag, expires=now + life, chat_id=c["chat_id"], message_id=message_id, text=text,
                      created=now, siblings=[x["hash"] for x in records])
             tmp = os.path.join(OPEN, r["hash"] + ".tmp")
@@ -182,7 +184,7 @@ def still_wanted(action, tag):
     """Why this press can't do anything any more, or None."""
     held = read(os.path.join(STATE, "held-tag"))
     built = os.path.exists(os.path.join(STATE, "held-bn"))
-    if action in ("publish", "keep"):
+    if action in (*PUBLISH, "keep"):
         if read(os.path.join(STATE, "ready")).split("\n")[0] != tag:
             return "the releases on %s are no longer waiting" % tag
         return None
@@ -206,7 +208,7 @@ def still_wanted(action, tag):
 
 def busy(action):
     """Why track-upstream.sh would leave at once without a word, or None."""
-    if action in ("publish", "keep"):     # uploads signed files; needs neither tree nor lock
+    if action in (*PUBLISH, "keep"):     # uploads signed files; needs neither tree nor lock
         return None
     try:
         with open(os.path.join(STATE, "track.lock"), "a") as f:
@@ -252,9 +254,10 @@ def start(action, tag):
             return False, "not approved: " + " / ".join(out.strip().splitlines()[-3:])[:300]
     # a build takes hours: its own tmux session, logged
     cmd = "cd %s && %s=%s scripts/track-upstream.sh >> %s 2>&1" % (ENVS, env, tag, LOG)
-    if action in ("publish", "keep"):
-        cmd = "cd %s && scripts/release-models.sh %s %s >> %s 2>&1" % (
-            ENVS, "publish" if action == "publish" else "drop", tag, LOG)
+    if action in (*PUBLISH, "keep"):
+        what, _, level = action.partition("-")
+        cmd = "cd %s && scripts/release-models.sh %s %s %s >> %s 2>&1" % (
+            ENVS, "drop" if what == "keep" else "publish", tag, level, LOG)
     p = subprocess.run(["tmux", "new-session", "-d", "-s", "ee1os-press-%s-%d" % (tag, time.time()),
                         cmd], capture_output=True, text=True)
     if p.returncode != 0:

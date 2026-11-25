@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Publish a release that release.sh built and signed with PUBLISH=0.
-#   [DEVICE=shiba] [NOTE=text] publish-release.sh <build number> [user|userdebug]
+#   [DEVICE=shiba] [NOTE=text] [LEVEL=important|routine] publish-release.sh <build number> [user|userdebug]
+# LEVEL decides how the site lists a user build (update_level.py); without it, as proposed when it was built.
 # NOTE, when set, goes under the model's heading in the release notes (e.g. that a model hasn't been tried on a phone yet).
 # Same upload as release.sh step 3 and 4: the OTA zip and channel file replace the rolling
 # "updates" release, and that model's older OTA zips are removed; a user build also gets its own release with the install zip and checksums,
@@ -16,6 +17,8 @@ DEVICE=${DEVICE:-husky}
 REPO=ee1os/releases
 bn=${1:?build number}
 VARIANT=${2:-user}
+LEVEL=${LEVEL:-}
+[[ $LEVEL =~ ^(important|routine|)$ ]] || { echo "LEVEL is important or routine, not '$LEVEL'"; exit 1; }
 CHANNEL=$([ "$VARIANT" = user ] && echo stable || echo testing)
 out=$TREE/releases/$bn/release-$DEVICE-$bn
 
@@ -177,8 +180,12 @@ if [ "$VARIANT" = user ]; then
     mkdir -p "$SITE/changes/$bn"
     cp "$changes/index.html" "$changes/report.json" "$SITE/changes/$bn/"
     python3 -I "$ENVS/scripts/fork_report.py" --index "$SITE/changes"
+    # the release is out already: if this fails, the site's deploy stops until it is added by hand
+    python3 -I "$ENVS/scripts/update_level.py" add "$bn" "$DEVICE" "$LEVEL" \
+        || echo "$bn is NOT in $SITE/updates.json: add it by hand, deploy.sh stops without it"
     echo "Changes page in $SITE/changes/$bn/. Look at it (cd $SITE && ./deploy.sh --local), then:"
-    echo "  cd $SITE && git add changes && git commit -m 'Add the changes page for $bn' && git push && ./deploy.sh"
+    echo "Read its entry in $SITE/updates.json too (level, reason in both languages)."
+    echo "  cd $SITE && git add changes updates.json && git commit -m 'Add the changes page for $bn' && git push && ./deploy.sh"
 fi
 
 /mnt/tank/scripts/notify-telegram.sh "ee1os $bn $DEVICE ($VARIANT) published: https://github.com/$REPO/releases/tag/$bn" 890 \

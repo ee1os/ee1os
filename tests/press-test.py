@@ -252,6 +252,23 @@ with tempfile.TemporaryDirectory() as tmp:
           and "Replaced" in calls[-2][1]["text"], "a new offer to publish closes the one before")
     drop(b["publish"], mid=mid)
     check(len(runs()) == n, "the older message's Publish does nothing for the newer builds")
+    put("ready", "2026120300\nhusky 2026120610\n")
+    for action in ("publish-important", "publish-routine"):
+        mid, b = ask("2026120300", "publish=Publish", action + "=Publish as it says", "keep=Not now")
+        drop(b[action], mid=mid)
+        check(runs()[-1] == action + " 2026120300", "%s starts with its level" % action)
+        n = len(runs())
+        drop(b["publish"], mid=mid)
+        check(len(runs()) == n, "and Publish on the same message does nothing after it")
+    lives = {r["action"]: r["expires"] - r["created"] for r in
+             (json.load(open(os.path.join(state, "press", "done", n))) for n in
+              os.listdir(os.path.join(state, "press", "done"))) if r["action"].startswith("publish-")}
+    check(set(lives.values()) == {86400} and len(lives) == 2, "they are open for 24 hours too")
+    mid, b = ask("2026120300", "publish-important=Publish as important", "keep=Not now")
+    n = len(runs())
+    ask("2026120300", "publish=Publish", "keep=Not now")
+    drop(b["publish-important"], mid=mid)
+    check(len(runs()) == n, "a newer offer closes those as well")
     put("ready", "2026120400\nhusky 2026120510\n")
     mid, b = ask("2026120300", "publish=Publish", "keep=Not now")
     drop(b["publish"], mid=mid)

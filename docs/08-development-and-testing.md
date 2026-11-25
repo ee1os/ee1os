@@ -249,16 +249,55 @@ and to this repo.
     lock (`RELEASES=0` leaves it out).
     `scripts/release-models.sh build` runs `PUBLISH=0 release.sh user` for every model with
     keys, husky first, writes `state/ready` (the upstream tag, then `<model> <build number>`
-    per line) and posts "Publish" and "Not now", open for 24 hours. It uploads nothing.
+    per line) and posts "Publish", the other level for the site (*Important updates*) and
+    "Not now", open for 24 hours. It uploads nothing.
     "Publish" runs `release-models.sh publish <tag>`: `publish-release.sh` for each line whose
     `report.json` names that tag. "Not now" (`drop`) forgets the list; the signed files stay
     in `releases/`. After 24 hours the buttons do nothing; `release-models.sh publish <tag>`
     by hand still works. A new offer closes the one before, so a button only ever stands for
     the builds its message names. The build holds the tracker's lock; the two buttons don't
     wait for it (publishing uploads, tags `ee1os-<bn>` in the forks and copies the changes
-    pages into the site repo). The site is still committed and deployed by hand.
+    pages and the `updates.json` entry into the site repo). The site is still committed and deployed
+    by hand.
   - Tests: `tests/press-test.py` (a local stand-in for the Bot API, nothing real is started)
     and `tests/approve-held-test.sh` (a throwaway fork); neither is in the gate.
+- **Important updates** (decided 2026-11-25, owner). Someone who keeps the phone switched off
+  gets no update notice; the site says when the last important update came out (a line on the
+  home page, `/updates`, an Atom feed, English and Russian).
+  - Important: a bypass of the lock screen, USB protection, a PIN, encryption or verified boot; a
+    compromise over the network or radio without any user action; a hole that is being exploited;
+    such a fault of our own. A higher patch level alone is routine. What can't be decided is
+    *undecided*, never routine.
+  - When a release is taken, `track-upstream.sh` runs `scripts/update_level.py record <tag>`, which
+    writes `state/levels/<base>-<tag>.json` from three things: the facts `upstream-watch.py classify`
+    collects (commit titles naming such a bypass, exploitation in the release notes, projects whose
+    commits can't be read), the critical entries for bootloader, key storage and radios in Google's
+    Android and Pixel bulletins between the two patch levels, and the `# Importance` section of
+    the review of the check report. The report now also has the release notes, those bulletin
+    entries and our own unpublished commits; `check` runs the review hook even with nothing flagged.
+    Routine needs a review that says so and nothing against it; evidence against a routine
+    review is undecided. A word such as "credential" in a title only counts through the review.
+    A decided record is never replaced.
+  - `release.sh` (user builds) runs `update_level.py build <bn> <model>`: everything taken since the
+    last update in the site's `updates.json`, releases never published included, and our own new
+    commits (groups `branding`, `look`, `apps` and `tests` aside, they count as undecided unless the
+    review had them in front of it). The result, `releases/<bn>/update-<model>.json`, is not rewritten.
+  - The Publish question shows the level and the evidence. "Publish" keeps the level, the other
+    button changes it; an undecided update offers "Publish as important" and "Publish as routine".
+    By hand: `release-models.sh publish <tag> [important|routine]`, or `LEVEL=` for
+    `publish-release.sh`, which adds the build to the site's `updates.json` (working copy).
+    Level and reason can still be edited there before the commit. Reasons are drafted from our own
+    phrases (`CODES`), never from upstream text.
+  - Builds of the same GrapheneOS tag and fork commits are one update, whatever the model. A
+    model has an important update from its first build at or after it; until then the site says
+    it isn't out for that model. The site's `deploy.sh` stops when a release in `changes/` isn't
+    in `updates.json` or is undecided.
+  - Limits: the site only changes when it is deployed, so between Publish and the deploy it still
+    shows the state before; Vanadium and the kernels' own commits aren't read; a bulletin doesn't
+    say which model an entry applies to, so it counts for all; a bulletin published later than
+    the take, or extended afterwards, isn't seen.
+  - Tests: `tests/update-level-test.py` (a temp directory, no network, nothing sent), and
+    `scripts/tests/updates_test.py` in the site repo. Neither is in the gate.
 - **Download counts** (decided 2026-11-22, owner). GitHub counts downloads per uploaded
   file and drops the count when the file is replaced, which every release does to the channel
   files and the old OTA zips. `scripts/download-counts.py` appends each file's count, when it
@@ -273,7 +312,7 @@ and to this repo.
 - **Scripts:** `scripts/track-upstream.sh` (follow GrapheneOS, `DRY_RUN=1` to only detect and
   list the vendor modules it would regenerate), `scripts/vendor-module.sh` (adevtool, in the container), `tests/gate.sh` (the regression
   gate on the emulator, *Test levels*),
-  `scripts/release.sh` (sign and publish one model), `scripts/release-models.sh` (both models, published by button), `scripts/pack-flash.sh` (images
+  `scripts/release.sh` (sign and publish one model), `scripts/update_level.py` (is an update important), `scripts/release-models.sh` (both models, published by button), `scripts/pack-flash.sh` (images
   for `fastboot flashall`). All report to klava hq, topic "OS" (890), through `/mnt/tank/scripts/notify-telegram.sh`.
 
 ## Build container
@@ -563,7 +602,8 @@ Owner-run, in order:
    OEM unlocking off, rebuild B and the PINs, restore the backups. Don't test the duress PIN on
    this phone.
 9. **Publish**: `DEVICE=husky scripts/publish-release.sh <bn> user` (updates channel, the
-   install zip and the changes page), then look at `changes/<bn>/`, commit and deploy the site
+   install zip, the changes page and the entry in `updates.json`), then look at `changes/<bn>/` and
+   that entry, commit and deploy the site
    (`./deploy.sh` in the site repo). OTAs work again from
    here. Record the run in `tests/results/`. Then build and publish every other model in
    `keys/` the same way (`DEVICE=<model> PUBLISH=0 scripts/release.sh user`, then

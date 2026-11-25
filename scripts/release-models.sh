@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Signed stable releases for every model with keys, published by a button (doc 08 *Buttons*).
 #   release-models.sh build           build and sign each model (release.sh, PUBLISH=0), then ask
-#                                     in the OS topic: Publish / Not now, open for 24 hours.
+#                                     in the OS topic, open for 24 hours: Publish (at the level
+#                                     proposed for the site, update_level.py), the other level, Not now.
 #                                     track-upstream.sh ends in this once the source is pushed
-#   release-models.sh publish <tag>   publish what build left ready (the Publish button)
+#   release-models.sh publish <tag> [important|routine]
+#                                     publish what build left ready (the Publish buttons)
 #   release-models.sh drop <tag>      forget it (Not now); the signed files stay in releases/
 # State: $STATE/ready = the upstream tag, then one "<model> <build number>" per line.
 # Nothing is uploaded by build. Run it in tmux: every model is a full build.
@@ -54,15 +56,24 @@ build)
     done
     [ -n "$built" ] || { rm -f "$READY.tmp"; die "release builds on GrapheneOS $tag failed for: $failed(release-<model>-*.log). Nothing to publish."; }
     mv "$READY.tmp" "$READY"
+    level=$(python3 -I "$ENVS/scripts/update_level.py" ask $(tail -n +2 "$READY" | tr ' ' ':') 2>> "$LOG") \
+        || level=$'undecided\nFor the site: the level could not be worked out; decide it here.'
     text="signed releases on GrapheneOS $tag are built, not published: ${built%, }.${failed:+ FAILED: $failed(release-<model>-*.log).}
 Not tried on a phone. Publishing puts them on the stable channel: phones on it update over the air.
-By hand: scripts/release-models.sh publish $tag"
+$(tail -n +2 <<< "$level")
+By hand: scripts/release-models.sh publish $tag [important|routine]"
+    case $(head -1 <<< "$level") in
+        important) buttons=("publish=Publish (important)" "publish-routine=Publish as routine") ;;
+        routine) buttons=("publish=Publish (routine)" "publish-important=Publish as important") ;;
+        *) buttons=("publish-important=Publish as important" "publish-routine=Publish as routine") ;;
+    esac
     log "$text"
-    printf 'ee1os: %s\nThe buttons are open for 24 hours.\n' "$text" | "$ENVS/scripts/press.py" ask "$tag" "publish=Publish" "keep=Not now" >> "$LOG" 2>&1 \
+    printf 'ee1os: %s\nThe buttons are open for 24 hours.\n' "$text" | "$ENVS/scripts/press.py" ask "$tag" "${buttons[@]}" "keep=Not now" >> "$LOG" 2>&1 \
         || /mnt/tank/scripts/notify-telegram.sh "ee1os: $text" 890 || log "notify failed"
     ;;
 publish|drop)
-    tag=${2:-}
+    tag=${2:-} LEVEL=${3:-}
+    [[ $LEVEL =~ ^(important|routine|)$ ]] || { echo "the level is important or routine, not '$LEVEL'"; exit 2; }
     [ -s "$READY" ] && [ "$(head -1 "$READY")" = "$tag" ] || { echo "nothing ready for '$tag'"; exit 1; }
     # taken out of the way first: a second run finds nothing
     work=$READY.$1.$$
@@ -82,14 +93,14 @@ publish|drop)
             log "$d $bn is on '$base', not $tag; not published"; bad+="$d "; continue
         fi
         log "publishing $d $bn"
-        DEVICE=$d "$ENVS/scripts/publish-release.sh" "$bn" user >> "$LOG" 2>&1 < /dev/null \
+        DEVICE=$d LEVEL=$LEVEL "$ENVS/scripts/publish-release.sh" "$bn" user >> "$LOG" 2>&1 < /dev/null \
             || { log "publishing $d $bn failed"; bad+="$d "; }
     done < <(tail -n +2 "$work")
     rm -f "$work"
     # publish-release.sh uploads the OTA files first: a model named here may be partly out
     [ -z "$bad" ] || die "publishing on GrapheneOS $tag didn't finish for: $bad(release-models.log); its OTA files may already be out. Check, then DEVICE=<model> scripts/publish-release.sh <build number>. The rest is out."
-    notify "releases on GrapheneOS $tag are published. The changes pages are copied into the site repo; committing and deploying the site is by hand."
+    notify "releases on GrapheneOS $tag are published. The changes pages are copied into the site repo and the builds added to its updates.json; read that entry, then commit and deploy the site by hand. Until then the site doesn't mention this update."
     ;;
 *)
-    sed -n '2,8p' "$0"; exit 2 ;;
+    sed -n '2,10p' "$0"; exit 2 ;;
 esac
