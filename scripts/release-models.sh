@@ -99,7 +99,7 @@ publish|drop)
     rm -f "$work"
     # publish-release.sh uploads the OTA files first: a model named here may be partly out
     [ -z "$bad" ] || die "publishing on GrapheneOS $tag didn't finish for: $bad(release-models.log); its OTA files may already be out. Check, then DEVICE=<model> scripts/publish-release.sh <build number>. The rest is out."
-    notify "releases on GrapheneOS $tag are published. The changes pages are copied into the site repo and the builds added to its updates.json; read that entry, then commit and deploy the site by hand. Until then the site doesn't mention this update."
+    notify "releases on GrapheneOS $tag are published. The changes pages are copied into the site repo and the builds added to its updates.json; read that entry, then commit and deploy the site by hand: deploy.sh then posts it to the Telegram channel and, if important, mails the list. Until then none of them mention this update."
     ;;
 *)
     sed -n '2,10p' "$0"; exit 2 ;;
